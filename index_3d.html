@@ -522,12 +522,12 @@ function pixelToWorld(px,py){return{x:px/T+GRID_OX, y:0, z:(py-GAME_Y)/T+GRID_OZ
 // ==================== THREE.JS SCENE SETUP ====================
 let scene,camera,renderer,clock;
 let camZoom=1.0;
-const CAM_BASE={x:0,y:28,z:22};
+const CAM_BASE={x:0,y:20,z:16};
 function setCameraZoom(z){
   camZoom=clamp(z,0.5,2.0);
   if(camera){
     camera.position.set(CAM_BASE.x,CAM_BASE.y/camZoom,CAM_BASE.z/camZoom);
-    camera.lookAt(0,0,0);
+    camera.lookAt(0,-1,0);
   }
 }
 let pinchStartDist=0,pinchStartZoom=1;
@@ -546,12 +546,11 @@ function initScene(container){
   container.appendChild(renderer.domElement);
 
   scene=new THREE.Scene();
-  scene.fog=new THREE.FogExp2(0xB8D8E8,0.008);
+  scene.fog=new THREE.FogExp2(0xB8D8E8,0.005);
 
-  camera=new THREE.PerspectiveCamera(45,container.clientWidth/container.clientHeight,0.1,200);
+  camera=new THREE.PerspectiveCamera(55,container.clientWidth/container.clientHeight,0.1,200);
   camZoom=1.0;
   setCameraZoom(1.0);
-  camera.lookAt(0,0,0);
 
   // Lighting
   scene.add(new THREE.HemisphereLight(0x87CEEB,0x556B2F,0.5));
