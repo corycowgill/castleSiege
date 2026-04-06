@@ -3,6 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0a0a1a">
+<link rel="manifest" href="manifest.json">
 <title>Castle Siege 3D</title>
 <script src="three.min.js"></script>
 <style>
@@ -516,6 +521,16 @@ function pixelToWorld(px,py){return{x:px/T+GRID_OX, y:0, z:(py-GAME_Y)/T+GRID_OZ
 
 // ==================== THREE.JS SCENE SETUP ====================
 let scene,camera,renderer,clock;
+let camZoom=1.0;
+const CAM_BASE={x:0,y:28,z:22};
+function setCameraZoom(z){
+  camZoom=clamp(z,0.5,2.0);
+  if(camera){
+    camera.position.set(CAM_BASE.x,CAM_BASE.y/camZoom,CAM_BASE.z/camZoom);
+    camera.lookAt(0,0,0);
+  }
+}
+let pinchStartDist=0,pinchStartZoom=1;
 const raycaster=new THREE.Raycaster();
 const mouseNDC=new THREE.Vector2();
 const groundPlane=new THREE.Plane(new THREE.Vector3(0,1,0),0);
@@ -534,7 +549,8 @@ function initScene(container){
   scene.fog=new THREE.FogExp2(0xB8D8E8,0.008);
 
   camera=new THREE.PerspectiveCamera(45,container.clientWidth/container.clientHeight,0.1,200);
-  camera.position.set(0,28,22);
+  camZoom=1.0;
+  setCameraZoom(1.0);
   camera.lookAt(0,0,0);
 
   // Lighting
@@ -1670,6 +1686,13 @@ function registerCanvasTouchListeners(){
     if(!audioCtx)initAudio();
     if(gameState==='title'){players[1].ready=true;e.preventDefault();return}
     if(gameState==='gameover'){restartGame();e.preventDefault();return}
+    // Pinch-to-zoom start
+    if(e.touches.length===2){
+      const dx=e.touches[0].clientX-e.touches[1].clientX;
+      const dy=e.touches[0].clientY-e.touches[1].clientY;
+      pinchStartDist=Math.hypot(dx,dy);pinchStartZoom=camZoom;
+      e.preventDefault();return;
+    }
     // Raycast touch to cursor position
     const touch=e.touches[0];
     const rect=renderer.domElement.getBoundingClientRect();
@@ -1690,11 +1713,23 @@ function registerCanvasTouchListeners(){
 
   renderer.domElement.addEventListener('touchmove',(e)=>{
     if(gameState==='modeselect')return;
+    // Pinch-to-zoom move
+    if(e.touches.length===2&&pinchStartDist>0){
+      const dx=e.touches[0].clientX-e.touches[1].clientX;
+      const dy=e.touches[0].clientY-e.touches[1].clientY;
+      const curDist=Math.hypot(dx,dy);
+      setCameraZoom(pinchStartZoom*(curDist/pinchStartDist));
+      e.preventDefault();return;
+    }
     const touch=e.touches[0];
     const rect=renderer.domElement.getBoundingClientRect();
     mouseX=touch.clientX-rect.left;mouseY=touch.clientY-rect.top;
     e.preventDefault();
   },{passive:false});
+
+  renderer.domElement.addEventListener('touchend',(e)=>{
+    if(e.touches.length<2)pinchStartDist=0;
+  },{passive:true});
 }
 
 function processTouchInput(dt){

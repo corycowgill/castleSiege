@@ -1,0 +1,9 @@
+{
+  "name": "Castle Siege 3D",
+  "short_name": "Castle Siege",
+  "start_url": "/index_3d.html",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#0a0a1a",
+  "theme_color": "#0a0a1a"
+}
