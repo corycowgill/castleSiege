@@ -1606,9 +1606,15 @@ let castle1Mesh=null,castle2Mesh=null;
 
 function addCastles(){
   castle1Mesh=createCastle(1);
-  castle1Mesh.position.set(0+GRID_OX,0,5+GRID_OZ);scene.add(castle1Mesh);
+  // Castle model is CW=2 wide, CD=8 deep, built from (0,0,0) to (2,h,8)
+  // Foundation overhangs 0.15 each side, corner towers overhang 0.3
+  // Shift inward 0.35 so nothing goes off terrain edge
+  castle1Mesh.position.set(0.35+GRID_OX, 0, 5+GRID_OZ);
+  scene.add(castle1Mesh);
   castle2Mesh=createCastle(2);
-  castle2Mesh.position.set(38+GRID_OX,0,5+GRID_OZ);scene.add(castle2Mesh);
+  // P2: position so right edge + overhang stays on terrain
+  castle2Mesh.position.set(37.65+GRID_OX, 0, 5+GRID_OZ);
+  scene.add(castle2Mesh);
 }
 
 // ==================== HUD CONTROLLER ====================
