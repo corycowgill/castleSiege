@@ -1794,22 +1794,25 @@ function init(){
   showScreen('modeselect');
 
   // Mode select buttons
-  document.getElementById('btn-1p').addEventListener('click',()=>{
+  function select1P(){
     if(!audioCtx)initAudio();
     gameMode='1p';
     document.getElementById('title-sub-text').textContent='1 Player vs AI - 3D Edition';
-    // In 1P: hide P2 controls in title
     document.querySelector('.ctrl-col:nth-child(2)').innerHTML='<h3 class="p2c">P2 - AI Opponent</h3><p>The AI will build defenses and send enemies automatically.</p>';
     document.getElementById('title-p2-ready').querySelector('.rs').textContent='AI READY';
     document.getElementById('title-p2-ready').classList.add('is-ready');
     gameState='title';showScreen('title');
-  });
-  document.getElementById('btn-2p').addEventListener('click',()=>{
+  }
+  function select2P(){
     if(!audioCtx)initAudio();
     gameMode='2p';
     document.getElementById('title-sub-text').textContent='2-Player Tower Defense - 3D Edition';
     gameState='title';showScreen('title');
-  });
+  }
+  document.getElementById('btn-1p').addEventListener('click',select1P);
+  document.getElementById('btn-2p').addEventListener('click',select2P);
+  document.getElementById('btn-1p').addEventListener('touchend',(e)=>{e.preventDefault();select1P()},{passive:false});
+  document.getElementById('btn-2p').addEventListener('touchend',(e)=>{e.preventDefault();select2P()},{passive:false});
 
   // Mouse events on renderer canvas
   const cvs=renderer.domElement;
