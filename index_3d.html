@@ -8,8 +8,10 @@
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{width:100%;height:100%;overflow:hidden;background:#000}
-#game-container{width:100%;height:100%;position:absolute;top:0;left:0}
+#game-container{width:100%;height:100%;position:absolute;top:0;left:0;z-index:0}
 #game-container canvas{display:block;width:100%!important;height:100%!important}
+#game-container.no-touch{pointer-events:none}
+#game-container.no-touch canvas{pointer-events:none;touch-action:auto}
 
 /* === HUD OVERLAY === */
 #hud-root{position:fixed;top:0;left:0;width:100vw;height:100vh;pointer-events:none;
@@ -130,6 +132,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000}
   border-radius:8px;cursor:pointer;transition:all .2s;letter-spacing:2px;pointer-events:auto;touch-action:manipulation;
   -webkit-tap-highlight-color:rgba(255,215,0,.2)}
 .mode-btn:hover,.mode-btn:active{background:rgba(255,215,0,.15);border-color:#ffd700;transform:scale(1.03)}
+#mode-screen .mode-btn{position:relative;z-index:310}
 .mode-btn small{display:block;font-size:clamp(10px,1.2vw,14px);color:#888;margin-top:6px;letter-spacing:0}
 
 /* Touch Controls */
@@ -977,6 +980,10 @@ function showScreen(name){
   document.getElementById('mode-screen').style.display=name==='modeselect'?'flex':'none';
   document.getElementById('title-screen').style.display=name==='title'?'flex':'none';
   document.getElementById('help-screen').style.display=name==='help'?'flex':'none';
+  // Disable touch/pointer on canvas when overlay screens are showing (iOS Safari fix)
+  const gc=document.getElementById('game-container');
+  if(name==='modeselect'||name==='title'||name==='help')gc.classList.add('no-touch');
+  else gc.classList.remove('no-touch');
   document.getElementById('hud-top').style.display=(name==='game'||name==='waveEnd'||name==='gameover')?'flex':'none';
   document.getElementById('hud-bottom').style.display=(name==='game'||name==='waveEnd'||name==='gameover')?'flex':'none';
   document.getElementById('wave-end-ov').style.display=name==='waveEnd'?'flex':'none';
@@ -1647,6 +1654,8 @@ function initTouchControls(){
 
   // Also allow tap on canvas to place in 1P mode
   renderer.domElement.addEventListener('touchstart',(e)=>{
+    // Don't intercept touches when overlay screens are active (iOS Safari fix)
+    if(gameState==='modeselect')return;
     if(!audioCtx)initAudio();
     if(gameState==='title'){players[1].ready=true;e.preventDefault();return}
     if(gameState==='gameover'){restartGame();e.preventDefault();return}
@@ -1669,6 +1678,7 @@ function initTouchControls(){
   },{passive:false});
 
   renderer.domElement.addEventListener('touchmove',(e)=>{
+    if(gameState==='modeselect')return;
     const touch=e.touches[0];
     const rect=renderer.domElement.getBoundingClientRect();
     mouseX=touch.clientX-rect.left;mouseY=touch.clientY-rect.top;
@@ -1812,8 +1822,11 @@ function init(){
   }
   document.getElementById('btn-1p').addEventListener('click',select1P);
   document.getElementById('btn-2p').addEventListener('click',select2P);
-  document.getElementById('btn-1p').addEventListener('touchend',(e)=>{e.preventDefault();select1P()},{passive:false});
-  document.getElementById('btn-2p').addEventListener('touchend',(e)=>{e.preventDefault();select2P()},{passive:false});
+  // iOS Safari: use touchstart (not just touchend) to ensure tap registers before canvas can intercept
+  document.getElementById('btn-1p').addEventListener('touchstart',(e)=>{e.stopPropagation();e.preventDefault();select1P()},{passive:false,capture:false});
+  document.getElementById('btn-2p').addEventListener('touchstart',(e)=>{e.stopPropagation();e.preventDefault();select2P()},{passive:false,capture:false});
+  document.getElementById('btn-1p').addEventListener('touchend',(e)=>{e.preventDefault()},{passive:false});
+  document.getElementById('btn-2p').addEventListener('touchend',(e)=>{e.preventDefault()},{passive:false});
 
   // Mouse events on renderer canvas
   const cvs=renderer.domElement;
