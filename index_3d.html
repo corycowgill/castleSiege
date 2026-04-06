@@ -182,7 +182,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000}
   <div class="mode-content">
     <h1 class="title-main">CASTLE SIEGE</h1>
     <p class="title-sub" style="margin-bottom:32px">3D Edition</p>
-    <button class="mode-btn" id="btn-1p" onclick="if(window._select1P)window._select1P()">1 PLAYER<small>Play vs AI on mobile or desktop</small></button>
+    <button class="mode-btn" id="btn-1p" onclick="if(window._select1P)window._select1P()">1 PLAYER<small id="btn-1p-sub">Play vs AI</small></button>
     <button class="mode-btn" id="btn-2p" onclick="if(window._select2P)window._select2P()">2 PLAYERS<small>Keyboard + Mouse (desktop)</small></button>
   </div>
 </div>
@@ -284,8 +284,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000}
 <!-- BOTTOM HUD -->
 <div id="hud-bottom">
   <div class="hud-bottom-hints">
-    <div class="hint-half"><span class="hint-text">Q/Tab:Cycle Space:Place E:Sell R:Ready</span></div>
-    <div class="hint-half"><span class="hint-text">Scroll:Cycle LClick:Place RClick:Sell</span></div>
+    <div class="hint-half"><span class="hint-text" id="hint-left">Q/Tab:Cycle Space:Place E:Sell R:Ready</span></div>
+    <div class="hint-half"><span class="hint-text" id="hint-right">Scroll:Cycle LClick:Place RClick:Sell</span></div>
   </div>
   <div class="hud-bottom-build">
     <div class="build-half build-left"><div class="build-options" id="p1-build-opts"></div></div>
@@ -970,7 +970,10 @@ function initHUD(){
       div.className='build-opt '+(pid==='p2'?'p2-opt':'');
       div.dataset.idx=i;
       div.innerHTML=`<span class="opt-name">${opt.name}</span><span class="opt-cost">$${opt.cost}${opt.cat==='enemy'?'x10':''}</span>`;
-      if(pid==='p2')div.addEventListener('click',()=>{players[2].selectedIdx=i});
+      if(pid==='p2')div.addEventListener('click',()=>{
+        const t=gameMode==='1p'&&!isMobile?1:2;
+        players[t].selectedIdx=i;
+      });
       container.appendChild(div);
     });
     const specContainer=document.getElementById(pid+'-specials');
@@ -980,13 +983,17 @@ function initHUD(){
       div.dataset.idx=i;
       div.innerHTML=`<span>${SPEC_ICONS[i]}</span><span class="spec-label">${sp.name}</span>`;
       if(pid==='p2')div.addEventListener('click',()=>{
-        players[2].selectedSpecial=i;
-        if(gameState==='combat')useSpecial(players[2],2);
+        const t=gameMode==='1p'&&!isMobile?1:2;
+        players[t].selectedSpecial=i;
+        if(gameState==='combat')useSpecial(players[t],t);
       });
       specContainer.appendChild(div);
     });
   });
-  document.getElementById('btn-p2-ready').addEventListener('click',()=>{if(gameState==='build')players[2].ready=true});
+  document.getElementById('btn-p2-ready').addEventListener('click',()=>{
+    const t=gameMode==='1p'&&!isMobile?1:2;
+    if(gameState==='build')players[t].ready=true;
+  });
   document.getElementById('btn-help').addEventListener('click',()=>showScreen('help'));
   document.getElementById('help-screen').addEventListener('click',()=>showScreen('title'));
   window.addEventListener('keydown',()=>{
@@ -1010,7 +1017,7 @@ function showScreen(name){
   document.getElementById('wave-end-ov').style.display=name==='waveEnd'?'flex':'none';
   document.getElementById('gameover-ov').style.display=name==='gameover'?'flex':'none';
   // Show touch controls in 1P mode during gameplay
-  const showTouch=gameMode==='1p'&&(name==='game'||name==='waveEnd');
+  const showTouch=gameMode==='1p'&&isMobile&&(name==='game'||name==='waveEnd');
   document.getElementById('touch-controls').style.display=showTouch?'block':'none';
   // Hide P2 cursor in 1P mode
   if(cursor2Mesh)cursor2Mesh.visible=gameMode==='2p'&&(name==='game'||name==='waveEnd');
@@ -1061,11 +1068,25 @@ function updateHUD(){
   document.getElementById('p1-ready-ov').style.display=p1.ready&&gameState==='build'?'flex':'none';
   document.getElementById('p2-ready-ov').style.display=p2.ready&&gameState==='build'?'flex':'none';
 
-  // In 1P mode, hide P2 build/special controls and ready button (AI controls itself)
+  // In 1P mode
   if(gameMode==='1p'){
-    document.getElementById('p2-build-opts').style.opacity='0.3';
-    document.getElementById('p2-specials').style.opacity='0.3';
-    document.getElementById('btn-p2-ready').style.display='none';
+    if(isMobile){
+      // Mobile: dim P2 panel (AI controls it), hide ready
+      document.getElementById('p2-build-opts').style.opacity='0.3';
+      document.getElementById('p2-specials').style.opacity='0.3';
+      document.getElementById('btn-p2-ready').style.display='none';
+    }else{
+      // Desktop: P2 panel mirrors P1 selection (mouse clicks route to P1)
+      document.getElementById('p2-build-opts').style.opacity='1';
+      document.getElementById('p2-specials').style.opacity='1';
+      document.getElementById('btn-p2-ready').style.display='';
+      document.getElementById('btn-p2-ready').textContent='READY (R)';
+      // Highlight P1's selection on P2 panel too
+      document.querySelectorAll('#p2-build-opts .build-opt').forEach((el,i)=>{
+        el.classList.toggle('p2s',i===p1.selectedIdx)});
+      document.querySelectorAll('#p2-specials .spec-btn').forEach((el,i)=>{
+        el.classList.toggle('p2s',i===p1.selectedSpecial);el.classList.toggle('disabled',p1.specials<=0)});
+    }
   }
 }
 
@@ -1235,26 +1256,28 @@ function processInput(dt){
     if(gameState==='gameover'&&consumeKey('Space'))restartGame();
   }
 
-  // P2 Mouse -> raycast to ground
+  // Mouse -> raycast to ground (routes to P1 in 1P desktop, P2 in 2P)
+  const mousePlayer=gameMode==='1p'&&!isMobile?p1:p2;
+  const mousePNum=gameMode==='1p'&&!isMobile?1:2;
   mouseNDC.x=(mouseX/renderer.domElement.clientWidth)*2-1;
   mouseNDC.y=-(mouseY/renderer.domElement.clientHeight)*2+1;
   raycaster.setFromCamera(mouseNDC,camera);
   const hit=new THREE.Vector3();
   if(raycaster.ray.intersectPlane(groundPlane,hit)){
     const tile=worldToTile(hit.x,hit.z);
-    if(tile.row>=0&&tile.row<ROWS){p2.cursor.c=clamp(tile.col,0,COLS-1);p2.cursor.r=clamp(tile.row,0,ROWS-1)}
+    if(tile.row>=0&&tile.row<ROWS){mousePlayer.cursor.c=clamp(tile.col,0,COLS-1);mousePlayer.cursor.r=clamp(tile.row,0,ROWS-1)}
   }
 
   if(gameState==='build'){
-    if(scrollDelta){p2.selectedIdx=(p2.selectedIdx+Math.sign(scrollDelta)+BUILD_OPTS.length)%BUILD_OPTS.length}
+    if(scrollDelta){mousePlayer.selectedIdx=(mousePlayer.selectedIdx+Math.sign(scrollDelta)+BUILD_OPTS.length)%BUILD_OPTS.length}
     if(mouseClicked){
       const tile=worldToTile(hit.x,hit.z);
-      if(tile.row>=0&&tile.row<ROWS)tryPlace(p2,2);
+      if(tile.row>=0&&tile.row<ROWS)tryPlace(mousePlayer,mousePNum);
     }
-    if(mouseRightClicked)trySell(p2,2);
-    if(middleClicked)p2.ready=true;
+    if(mouseRightClicked)trySell(mousePlayer,mousePNum);
+    if(middleClicked)mousePlayer.ready=true;
   }
-  if(gameState==='combat'&&mouseRightClicked)useSpecial(p2,2);
+  if(gameState==='combat'&&mouseRightClicked)useSpecial(mousePlayer,mousePNum);
   if(gameState==='gameover'&&(mouseClicked))restartGame();
 }
 
@@ -1857,9 +1880,24 @@ function init(){
     gameMode='1p';
     registerCanvasTouchListeners();
     document.getElementById('title-sub-text').textContent='1 Player vs AI - 3D Edition';
+    // Update P1 controls based on device
+    if(!isMobile){
+      document.querySelector('.ctrl-col:nth-child(1)').innerHTML='<h3 class="p1c">P1 - Keyboard + Mouse</h3>'+
+        '<p>Move: WASD / Mouse hover</p><p>Place: Space / Left Click</p><p>Sell: E / Right Click</p>'+
+        '<p>Cycle: Q, Tab / Scroll</p><p>Special: Z cycle, F use</p><p>Ready: R / Middle Click</p>';
+    }else{
+      document.querySelector('.ctrl-col:nth-child(1)').innerHTML='<h3 class="p1c">P1 - Touch</h3>'+
+        '<p>Move: D-Pad / Tap map</p><p>Place: PLACE button</p><p>Sell: SELL button</p>'+
+        '<p>Cycle: Arrow buttons</p><p>Special: Tap special icon</p><p>Ready: RDY button</p>';
+    }
     document.querySelector('.ctrl-col:nth-child(2)').innerHTML='<h3 class="p2c">P2 - AI Opponent</h3><p>The AI will build defenses and send enemies automatically.</p>';
     document.getElementById('title-p2-ready').querySelector('.rs').textContent='AI READY';
     document.getElementById('title-p2-ready').classList.add('is-ready');
+    // Update HUD hints
+    if(!isMobile){
+      document.getElementById('hint-left').textContent='WASD:Move Q/Tab:Cycle Space:Place E:Sell R:Ready';
+      document.getElementById('hint-right').textContent='Mouse:Aim Scroll:Cycle LClick:Place RClick:Sell F:Special';
+    }
     gameState='title';showScreen('title');
   }
   function select2P(){
