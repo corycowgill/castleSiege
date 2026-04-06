@@ -847,6 +847,8 @@ function createEnemyModel(type,owner){
   }
   // Face direction
   g.rotation.y=owner===1?-Math.PI/2:Math.PI/2;
+  // Scale up for visibility
+  g.scale.set(1.6,1.6,1.6);
   return g;
 }
 
