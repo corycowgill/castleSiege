@@ -602,9 +602,11 @@ function createTerrain(){
       const col=Math.floor(px/PX);
       const n=seededRandom(px,py),n2=seededRandom(px*3.7,py*2.3);
       let r,g,b;
-      if(col<=1||col>=38){// Stone
+      if((col<=1||col>=38)&&row>=5&&row<=12){// Stone under castles
         const sv=55+Math.floor(n*20);r=sv;g=sv;b=sv+8;
         if(px%8===0||py%6===0){r+=12;g+=12;b+=10}
+      }else if(col<=1||col>=38){// Grass at castle edges (above/below castle)
+        const gv=55+Math.floor(n*25);r=gv;g=gv+25+Math.floor(n2*15);b=gv-10;
       }else if(row>=7&&row<=10){// Dirt road
         r=120+Math.floor(n*30);g=r-18;b=r-40;
         if(n2>0.88){r+=15;g+=12;b+=10}
@@ -642,7 +644,7 @@ function createTerrain(){
   for(let i=0;i<pos.count;i++){
     const x=pos.getX(i),z=pos.getZ(i);
     const c2=(x-GRID_OX),r2=(z-GRID_OZ);
-    if(!(c2<=2||c2>=38)&&!(r2>=6.5&&r2<=11.5)){
+    if(!((c2<=2||c2>=38)&&r2>=4.5&&r2<=12.5)&&!(r2>=6.5&&r2<=11.5)){
       pos.setY(i,(seededRandom(Math.floor(x*2.7),Math.floor(z*3.1))*0.08)-0.03);
     }
   }
