@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>Castle Siege 3D</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r170/three.min.js"></script>
 <style>
@@ -121,17 +121,69 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000}
 .stat-col h3{font-size:clamp(12px,1.3vw,16px);margin-bottom:6px}
 .stat-col p{font-size:clamp(10px,1.1vw,13px);color:#aaa;margin:2px 0}
 .restart-prompt{font-size:clamp(10px,1.1vw,13px);color:#888}
+
+/* Mode Select */
+#mode-screen{position:absolute;inset:0;background:rgba(10,10,26,.96);display:flex;align-items:center;justify-content:center;z-index:200}
+.mode-content{text-align:center;max-width:500px;width:90%}
+.mode-btn{display:block;width:80%;max-width:320px;margin:16px auto;padding:20px 24px;font-family:inherit;
+  font-size:clamp(16px,2.5vw,24px);color:#ffd700;background:rgba(255,215,0,.06);border:2px solid rgba(255,215,0,.3);
+  border-radius:8px;cursor:pointer;transition:all .2s;letter-spacing:2px}
+.mode-btn:hover,.mode-btn:active{background:rgba(255,215,0,.15);border-color:#ffd700;transform:scale(1.03)}
+.mode-btn small{display:block;font-size:clamp(10px,1.2vw,14px);color:#888;margin-top:6px;letter-spacing:0}
+
+/* Touch Controls */
+#touch-controls{position:fixed;bottom:0;left:0;right:0;pointer-events:none;z-index:150;display:none}
+#touch-dpad{position:absolute;bottom:110px;left:16px;width:130px;height:130px;pointer-events:auto;touch-action:none}
+.dpad-btn{position:absolute;width:42px;height:42px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);
+  border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:20px;color:rgba(255,255,255,.6);
+  pointer-events:auto;touch-action:none;-webkit-tap-highlight-color:transparent}
+.dpad-btn:active{background:rgba(51,102,204,.4)}
+.dpad-up{top:0;left:44px}.dpad-down{bottom:0;left:44px}.dpad-left{top:44px;left:0}.dpad-right{top:44px;right:0}
+#touch-actions{position:absolute;bottom:110px;right:16px;display:flex;flex-direction:column;gap:10px;pointer-events:auto;touch-action:none}
+.touch-act-btn{width:56px;height:56px;border-radius:50%;border:2px solid rgba(255,255,255,.3);
+  background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;
+  font-size:clamp(10px,1.3vw,13px);color:#fff;font-family:inherit;pointer-events:auto;touch-action:none;-webkit-tap-highlight-color:transparent}
+.touch-act-btn:active{background:rgba(51,102,204,.4)}
+.touch-act-btn.ready-btn{background:rgba(255,215,0,.15);border-color:rgba(255,215,0,.4);color:#ffd700}
+#touch-cycle{position:absolute;bottom:110px;left:50%;transform:translateX(-50%);display:flex;gap:8px;
+  pointer-events:auto;touch-action:none}
+.touch-cycle-btn{width:44px;height:44px;border-radius:8px;border:1px solid rgba(255,255,255,.25);
+  background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;
+  font-size:18px;color:rgba(255,255,255,.7);pointer-events:auto;touch-action:none;-webkit-tap-highlight-color:transparent}
+.touch-cycle-btn:active{background:rgba(51,102,204,.4)}
+#touch-special-row{position:absolute;bottom:58px;left:50%;transform:translateX(-50%);display:flex;gap:8px;pointer-events:auto;touch-action:none}
+.touch-spec{width:40px;height:40px;border-radius:8px;border:1px solid rgba(255,255,255,.2);
+  background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;
+  font-size:16px;color:#fff;pointer-events:auto;touch-action:none;-webkit-tap-highlight-color:transparent}
+.touch-spec:active{background:rgba(100,50,200,.4)}
+.touch-spec.sel{border-color:#ffd700;background:rgba(255,215,0,.15)}
+
+@media(max-width:768px){
+  #hud-bottom .hud-bottom-hints{display:none}
+  #hud-bottom{padding-bottom:4px}
+  .build-opt{min-width:clamp(36px,8vw,50px);padding:2px 3px}
+}
 </style>
 </head>
 <body>
 <div id="game-container"></div>
 <div id="hud-root">
 
+<!-- MODE SELECT SCREEN -->
+<div id="mode-screen" class="hud-screen">
+  <div class="mode-content">
+    <h1 class="title-main">CASTLE SIEGE</h1>
+    <p class="title-sub" style="margin-bottom:32px">3D Edition</p>
+    <button class="mode-btn" id="btn-1p">1 PLAYER<small>Play vs AI on mobile or desktop</small></button>
+    <button class="mode-btn" id="btn-2p">2 PLAYERS<small>Keyboard + Mouse (desktop)</small></button>
+  </div>
+</div>
+
 <!-- TITLE SCREEN -->
 <div id="title-screen" class="hud-screen">
   <div class="title-content">
     <h1 class="title-main">CASTLE SIEGE</h1>
-    <p class="title-sub">2-Player Tower Defense - 3D Edition</p>
+    <p class="title-sub" id="title-sub-text">2-Player Tower Defense - 3D Edition</p>
     <div class="title-vs">
       <div class="title-player"><div class="psq psq1"></div><span class="p1c">PLAYER 1</span></div>
       <span style="color:#666;font-weight:bold;font-size:1.5em">VS</span>
@@ -257,6 +309,26 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000}
       <div class="stat-col"><h3 class="p2c">Player 2</h3><p>Castle: <span id="go-p2-hp">0</span> HP</p><p>Kills: <span id="go-p2-kills">0</span></p><p>Damage: <span id="go-p2-dmg">0</span></p></div>
     </div>
     <p class="restart-prompt blink">Press [A] / [Space] / Click to play again</p>
+  </div>
+</div>
+
+<!-- TOUCH CONTROLS (1P mobile) -->
+<div id="touch-controls">
+  <div id="touch-dpad">
+    <div class="dpad-btn dpad-up" data-dir="up">&uarr;</div>
+    <div class="dpad-btn dpad-down" data-dir="down">&darr;</div>
+    <div class="dpad-btn dpad-left" data-dir="left">&larr;</div>
+    <div class="dpad-btn dpad-right" data-dir="right">&rarr;</div>
+  </div>
+  <div id="touch-cycle">
+    <div class="touch-cycle-btn" id="tc-prev">&larr;</div>
+    <div class="touch-cycle-btn" id="tc-next">&rarr;</div>
+  </div>
+  <div id="touch-special-row"></div>
+  <div id="touch-actions">
+    <div class="touch-act-btn" id="ta-place">PLACE</div>
+    <div class="touch-act-btn" id="ta-sell">SELL</div>
+    <div class="touch-act-btn ready-btn" id="ta-ready">RDY</div>
   </div>
 </div>
 
@@ -400,8 +472,12 @@ function canPlace(col,row,owner){
   grid[row][col]=null;return ok;
 }
 
+// ==================== GAME MODE ====================
+let gameMode='2p'; // '1p' or '2p'
+let isMobile=('ontouchstart' in window)||(navigator.maxTouchPoints>0);
+
 // ==================== GAME STATE ====================
-let gameState='title';
+let gameState='modeselect';
 let waveNum=0,buildTimer=0,waveEndTimer=0;
 let spawnQueue1=[],spawnQueue2=[],spawnTimer=0;
 const enemies=[],towers=[],projectiles=[];
@@ -897,12 +973,18 @@ function initHUD(){
 }
 
 function showScreen(name){
+  document.getElementById('mode-screen').style.display=name==='modeselect'?'flex':'none';
   document.getElementById('title-screen').style.display=name==='title'?'flex':'none';
   document.getElementById('help-screen').style.display=name==='help'?'flex':'none';
   document.getElementById('hud-top').style.display=(name==='game'||name==='waveEnd'||name==='gameover')?'flex':'none';
   document.getElementById('hud-bottom').style.display=(name==='game'||name==='waveEnd'||name==='gameover')?'flex':'none';
   document.getElementById('wave-end-ov').style.display=name==='waveEnd'?'flex':'none';
   document.getElementById('gameover-ov').style.display=name==='gameover'?'flex':'none';
+  // Show touch controls in 1P mode during gameplay
+  const showTouch=gameMode==='1p'&&(name==='game'||name==='waveEnd');
+  document.getElementById('touch-controls').style.display=showTouch?'block':'none';
+  // Hide P2 cursor in 1P mode
+  if(cursor2Mesh)cursor2Mesh.visible=gameMode==='2p'&&(name==='game'||name==='waveEnd');
 }
 
 function updateHUD(){
@@ -949,6 +1031,13 @@ function updateHUD(){
   // Ready overlays
   document.getElementById('p1-ready-ov').style.display=p1.ready&&gameState==='build'?'flex':'none';
   document.getElementById('p2-ready-ov').style.display=p2.ready&&gameState==='build'?'flex':'none';
+
+  // In 1P mode, hide P2 build/special controls and ready button (AI controls itself)
+  if(gameMode==='1p'){
+    document.getElementById('p2-build-opts').style.opacity='0.3';
+    document.getElementById('p2-specials').style.opacity='0.3';
+    document.getElementById('btn-p2-ready').style.display='none';
+  }
 }
 
 // ==================== GAME LOGIC (same as original) ====================
@@ -1137,7 +1226,7 @@ function processInput(dt){
     if(middleClicked)p2.ready=true;
   }
   if(gameState==='combat'&&mouseRightClicked)useSpecial(p2,2);
-  if(gameState==='gameover'&&mouseClicked)restartGame();
+  if(gameState==='gameover'&&(mouseClicked))restartGame();
 }
 
 // ==================== GAME UPDATE ====================
@@ -1275,11 +1364,12 @@ function updateCombat(dt){
 }
 
 function showGameOver(){
+  const p2Label=gameMode==='1p'?'AI':'PLAYER 2';
   let winner='';
   if(players[1].castleHP<=0&&players[2].castleHP<=0)winner='DRAW!';
-  else if(players[1].castleHP<=0)winner='PLAYER 2 WINS!';
+  else if(players[1].castleHP<=0)winner=p2Label+' WINS!';
   else if(players[2].castleHP<=0)winner='PLAYER 1 WINS!';
-  else winner=players[1].castleHP>players[2].castleHP?'PLAYER 1 WINS!':'PLAYER 2 WINS!';
+  else winner=players[1].castleHP>players[2].castleHP?'PLAYER 1 WINS!':p2Label+' WINS!';
   if(players[1].castleHP===players[2].castleHP&&players[1].castleHP>0)winner='DRAW!';
   document.getElementById('go-title').textContent=winner;
   document.getElementById('go-p1-hp').textContent=Math.max(0,Math.ceil(players[1].castleHP));
@@ -1305,7 +1395,9 @@ function restartGame(){
   players[2].castleHP=CASTLE_HP;players[2].maxHP=CASTLE_HP;players[2].credits=START_CREDITS;
   players[2].specials=3;players[2].ready=false;players[2].selectedIdx=0;players[2].kills=0;players[2].totalDmgDealt=0;
   players[2].enemyQueue={goblin:0,orc:0,darkKnight:0,archer:0};players[2].cursor={c:30,r:9};
-  stopMusic();startMusic();gameState='build';buildTimer=BUILD_TIME;showScreen('game');
+  stopMusic();startMusic();gameState='build';buildTimer=BUILD_TIME;
+  aiBuildTimer=0;aiSpecialTimer=0;
+  showScreen('game');
 }
 
 // ==================== 3D RENDERING SYNC ====================
@@ -1403,7 +1495,7 @@ function syncProjectiles(){
 
 function updateCursors(){
   const vis=gameState==='build'||gameState==='combat';
-  cursor1Mesh.visible=vis;cursor2Mesh.visible=vis;
+  cursor1Mesh.visible=vis;cursor2Mesh.visible=vis&&gameMode==='2p';
   if(!vis){rangeMesh.visible=false;return}
   const wp1=tileToWorld(players[1].cursor.c,players[1].cursor.r);
   cursor1Mesh.position.set(wp1.x,0.02,wp1.z);
@@ -1421,8 +1513,218 @@ function updateCursors(){
   }else rangeMesh.visible=false;
 }
 
+// ==================== AI PLAYER (P2 in 1P mode) ====================
+let aiBuildTimer=0, aiSpecialTimer=0, aiReady=false;
+
+function aiUpdate(dt){
+  const ai=players[2];
+  if(gameState==='build'){
+    aiBuildTimer-=dt;
+    if(aiBuildTimer<=0){
+      aiBuildTimer=rnd(0.8,2.0);
+      aiDoBuildAction(ai);
+    }
+    // AI readies up when timer < 10s or has spent most credits
+    if(buildTimer<10||ai.credits<60)ai.ready=true;
+  }
+  if(gameState==='combat'){
+    aiSpecialTimer-=dt;
+    if(aiSpecialTimer<=0&&ai.specials>0){
+      aiSpecialTimer=rnd(3,8);
+      aiUseSpecial(ai);
+    }
+  }
+}
+
+function aiDoBuildAction(ai){
+  const pNum=2;
+  // Strategy: mix of towers, walls, and enemies
+  const roll=Math.random();
+
+  if(roll<0.45&&ai.credits>=100){
+    // Place a tower
+    const affordable=TOWER_DATA.filter(t=>ai.credits>=t.cost);
+    if(affordable.length){
+      const td=affordable[Math.floor(Math.random()*affordable.length)];
+      // Find a good spot - prefer rows near center (7-10) in AI territory
+      const spot=aiFindBuildSpot(pNum);
+      if(spot){
+        ai.cursor.c=spot.c;ai.cursor.r=spot.r;
+        ai.selectedIdx=BUILD_OPTS.findIndex(o=>o.id===td.id);
+        if(ai.selectedIdx>=0)tryPlace(ai,pNum);
+      }
+    }
+  }else if(roll<0.65&&ai.credits>=30){
+    // Place a wall
+    const spot=aiFindWallSpot(pNum);
+    if(spot){
+      ai.cursor.c=spot.c;ai.cursor.r=spot.r;
+      ai.selectedIdx=BUILD_OPTS.findIndex(o=>o.id==='wall');
+      tryPlace(ai,pNum);
+    }
+  }else if(ai.credits>=60){
+    // Buy enemies
+    const affordable=ENEMY_DATA.filter(e=>ai.credits>=e.cost*10);
+    if(affordable.length){
+      const ed=affordable[Math.floor(Math.random()*affordable.length)];
+      ai.selectedIdx=BUILD_OPTS.findIndex(o=>o.id===ed.id);
+      if(ai.selectedIdx>=0)tryPlace(ai,pNum);
+    }
+  }
+}
+
+function aiFindBuildSpot(pNum){
+  // Try random spots in AI territory near the path rows
+  for(let attempt=0;attempt<20;attempt++){
+    const c=20+Math.floor(Math.random()*18);
+    const r=Math.floor(Math.random()*ROWS);
+    if(canPlace(c,r,pNum))return{c,r};
+  }
+  return null;
+}
+
+function aiFindWallSpot(pNum){
+  // Place walls near the front of territory (cols 20-24) to create maze
+  for(let attempt=0;attempt<15;attempt++){
+    const c=20+Math.floor(Math.random()*6);
+    const r=Math.floor(Math.random()*ROWS);
+    if(canPlace(c,r,pNum))return{c,r};
+  }
+  return null;
+}
+
+function aiUseSpecial(ai){
+  const pNum=2;
+  // Pick a useful special
+  const enemyCount=enemies.filter(e=>e.alive&&e.owner===1).length;
+  if(enemyCount>3){
+    // Use offensive special targeting cluster of enemies
+    const targetEnemies=enemies.filter(e=>e.alive&&e.owner===1);
+    if(targetEnemies.length){
+      const target=targetEnemies[Math.floor(Math.random()*targetEnemies.length)];
+      ai.cursor.c=xToCol(target.x);ai.cursor.r=yToRow(target.y);
+      // Prefer meteor or lightning for groups, freeze if many
+      if(enemyCount>8)ai.selectedSpecial=2; // freeze
+      else ai.selectedSpecial=Math.random()<0.5?0:1; // meteor or lightning
+      useSpecial(ai,pNum);
+    }
+  }else if(ai.castleHP<ai.maxHP*0.6){
+    ai.selectedSpecial=3; // heal
+    useSpecial(ai,pNum);
+  }
+}
+
+// ==================== TOUCH INPUT SYSTEM ====================
+let touchDpadDir=null, touchDpadTimer=0;
+let touchPlaceFlag=false, touchSellFlag=false, touchReadyFlag=false;
+let touchCyclePrev=false, touchCycleNext=false;
+let touchSpecialIdx=-1;
+
+function initTouchControls(){
+  const dpad=document.getElementById('touch-dpad');
+  const dirs=dpad.querySelectorAll('.dpad-btn');
+  dirs.forEach(btn=>{
+    btn.addEventListener('touchstart',(e)=>{e.preventDefault();touchDpadDir=btn.dataset.dir;touchDpadTimer=0},{passive:false});
+    btn.addEventListener('touchend',(e)=>{e.preventDefault();touchDpadDir=null},{passive:false});
+  });
+
+  document.getElementById('ta-place').addEventListener('touchstart',(e)=>{e.preventDefault();touchPlaceFlag=true},{passive:false});
+  document.getElementById('ta-sell').addEventListener('touchstart',(e)=>{e.preventDefault();touchSellFlag=true},{passive:false});
+  document.getElementById('ta-ready').addEventListener('touchstart',(e)=>{e.preventDefault();touchReadyFlag=true},{passive:false});
+  document.getElementById('tc-prev').addEventListener('touchstart',(e)=>{e.preventDefault();touchCyclePrev=true},{passive:false});
+  document.getElementById('tc-next').addEventListener('touchstart',(e)=>{e.preventDefault();touchCycleNext=true},{passive:false});
+
+  // Build special buttons
+  const specRow=document.getElementById('touch-special-row');
+  SPECIAL_DATA.forEach((s,i)=>{
+    const btn=document.createElement('div');
+    btn.className='touch-spec';
+    btn.textContent=SPEC_ICONS[i];
+    btn.addEventListener('touchstart',(e)=>{e.preventDefault();touchSpecialIdx=i},{passive:false});
+    specRow.appendChild(btn);
+  });
+
+  // Also allow tap on canvas to place in 1P mode
+  renderer.domElement.addEventListener('touchstart',(e)=>{
+    if(!audioCtx)initAudio();
+    if(gameState==='title'){players[1].ready=true;e.preventDefault();return}
+    if(gameState==='gameover'){restartGame();e.preventDefault();return}
+    // Raycast touch to cursor position
+    const touch=e.touches[0];
+    const rect=renderer.domElement.getBoundingClientRect();
+    mouseX=touch.clientX-rect.left;mouseY=touch.clientY-rect.top;
+    mouseNDC.x=(mouseX/renderer.domElement.clientWidth)*2-1;
+    mouseNDC.y=-(mouseY/renderer.domElement.clientHeight)*2+1;
+    raycaster.setFromCamera(mouseNDC,camera);
+    const hitPt=new THREE.Vector3();
+    if(raycaster.ray.intersectPlane(groundPlane,hitPt)){
+      const tile=worldToTile(hitPt.x,hitPt.z);
+      if(tile.row>=0&&tile.row<ROWS){
+        players[1].cursor.c=clamp(tile.col,0,COLS-1);
+        players[1].cursor.r=clamp(tile.row,0,ROWS-1);
+      }
+    }
+    e.preventDefault();
+  },{passive:false});
+
+  renderer.domElement.addEventListener('touchmove',(e)=>{
+    const touch=e.touches[0];
+    const rect=renderer.domElement.getBoundingClientRect();
+    mouseX=touch.clientX-rect.left;mouseY=touch.clientY-rect.top;
+    e.preventDefault();
+  },{passive:false});
+}
+
+function processTouchInput(dt){
+  const p1=players[1];
+
+  // D-pad movement
+  touchDpadTimer-=dt;
+  if(touchDpadDir&&touchDpadTimer<=0){
+    touchDpadTimer=0.15;
+    if(touchDpadDir==='up')p1.cursor.r=Math.max(0,p1.cursor.r-1);
+    if(touchDpadDir==='down')p1.cursor.r=Math.min(ROWS-1,p1.cursor.r+1);
+    if(touchDpadDir==='left')p1.cursor.c=Math.max(0,p1.cursor.c-1);
+    if(touchDpadDir==='right')p1.cursor.c=Math.min(COLS-1,p1.cursor.c+1);
+  }
+
+  // Actions
+  if(touchPlaceFlag){
+    if(gameState==='build')tryPlace(p1,1);
+    touchPlaceFlag=false;
+  }
+  if(touchSellFlag){
+    if(gameState==='build')trySell(p1,1);
+    touchSellFlag=false;
+  }
+  if(touchReadyFlag){
+    if(gameState==='build')p1.ready=true;
+    touchReadyFlag=false;
+  }
+  if(touchCyclePrev){
+    p1.selectedIdx=(p1.selectedIdx-1+BUILD_OPTS.length)%BUILD_OPTS.length;
+    touchCyclePrev=false;
+  }
+  if(touchCycleNext){
+    p1.selectedIdx=(p1.selectedIdx+1)%BUILD_OPTS.length;
+    touchCycleNext=false;
+  }
+  if(touchSpecialIdx>=0){
+    p1.selectedSpecial=touchSpecialIdx;
+    if(gameState==='combat')useSpecial(p1,1);
+    touchSpecialIdx=-1;
+  }
+
+  // Update special button highlights
+  const specBtns=document.querySelectorAll('#touch-special-row .touch-spec');
+  specBtns.forEach((btn,i)=>btn.classList.toggle('sel',i===p1.selectedSpecial));
+}
+
 // ==================== TITLE SCREEN LOGIC ====================
 function updateTitle(){
+  // In 1P mode, AI is always ready
+  if(gameMode==='1p')players[2].ready=true;
+
   const p1r=players[1].ready,p2r=players[2].ready;
   const p1el=document.getElementById('title-p1-ready');
   const p2el=document.getElementById('title-p2-ready');
@@ -1441,16 +1743,24 @@ function gameLoop(){
   requestAnimationFrame(gameLoop);
   const dt=Math.min(clock.getDelta(),0.05);
 
-  if(gameState==='title'){
+  if(gameState==='modeselect'){
+    // Just render, waiting for button click
+  }else if(gameState==='title'){
     // Title input
     if(consumeKey('Space'))players[1].ready=true;
-    if(mouseClicked){if(!audioCtx)initAudio();players[2].ready=true}
+    if(mouseClicked){if(!audioCtx)initAudio();if(gameMode==='2p')players[2].ready=true;else players[1].ready=true}
     const gp=getGamepad();
     if(gp&&gpPressed(gp,0)){if(!audioCtx)initAudio();players[1].ready=true}
     if(gp){const np={};for(let i=0;i<gp.buttons.length;i++)np[i]=gp.buttons[i].pressed;gpPrev=np}
     updateTitle();
   }else if(gameState!=='gameover'||true){
-    if(gameState!=='title')processInput(dt);
+    if(gameState!=='title'&&gameState!=='modeselect'){
+      processInput(dt);
+      // Touch input for 1P mobile
+      if(gameMode==='1p')processTouchInput(dt);
+      // AI for 1P mode
+      if(gameMode==='1p')aiUpdate(dt);
+    }
     if(gameState==='build')updateBuild(dt);
     else if(gameState==='combat')updateCombat(dt);
     else if(gameState==='waveEnd'){waveEndTimer-=dt;if(waveEndTimer<=0)startBuild()}
@@ -1481,7 +1791,25 @@ function init(){
   initParticles();
   initCursors();
   initHUD();
-  showScreen('title');
+  showScreen('modeselect');
+
+  // Mode select buttons
+  document.getElementById('btn-1p').addEventListener('click',()=>{
+    if(!audioCtx)initAudio();
+    gameMode='1p';
+    document.getElementById('title-sub-text').textContent='1 Player vs AI - 3D Edition';
+    // In 1P: hide P2 controls in title
+    document.querySelector('.ctrl-col:nth-child(2)').innerHTML='<h3 class="p2c">P2 - AI Opponent</h3><p>The AI will build defenses and send enemies automatically.</p>';
+    document.getElementById('title-p2-ready').querySelector('.rs').textContent='AI READY';
+    document.getElementById('title-p2-ready').classList.add('is-ready');
+    gameState='title';showScreen('title');
+  });
+  document.getElementById('btn-2p').addEventListener('click',()=>{
+    if(!audioCtx)initAudio();
+    gameMode='2p';
+    document.getElementById('title-sub-text').textContent='2-Player Tower Defense - 3D Edition';
+    gameState='title';showScreen('title');
+  });
 
   // Mouse events on renderer canvas
   const cvs=renderer.domElement;
@@ -1499,11 +1827,20 @@ function init(){
   cvs.addEventListener('wheel',(e)=>{scrollDelta+=Math.sign(e.deltaY);e.preventDefault()},{passive:false});
   cvs.addEventListener('contextmenu',(e)=>e.preventDefault());
 
-  // Also handle clicks on HUD for title screen
+  // Also handle clicks/touches on HUD for title screen
   document.getElementById('title-screen').addEventListener('mousedown',(e)=>{
     if(!audioCtx)initAudio();
-    if(e.button===0)players[2].ready=true;
+    if(gameMode==='2p')players[2].ready=true;
+    else players[1].ready=true;
   });
+  document.getElementById('title-screen').addEventListener('touchstart',(e)=>{
+    if(!audioCtx)initAudio();
+    if(gameMode==='1p')players[1].ready=true;
+    else players[2].ready=true;
+  },{passive:true});
+
+  // Init touch controls
+  initTouchControls();
 
   gameLoop();
 }
