@@ -12,6 +12,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000}
 #game-container canvas{display:block;width:100%!important;height:100%!important}
 #game-container.no-touch{pointer-events:none}
 #game-container.no-touch canvas{pointer-events:none;touch-action:auto}
+#game-container.hidden-canvas canvas{display:none}
 
 /* === HUD OVERLAY === */
 #hud-root{position:fixed;top:0;left:0;width:100vw;height:100vh;pointer-events:none;
@@ -176,8 +177,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000}
   <div class="mode-content">
     <h1 class="title-main">CASTLE SIEGE</h1>
     <p class="title-sub" style="margin-bottom:32px">3D Edition</p>
-    <button class="mode-btn" id="btn-1p">1 PLAYER<small>Play vs AI on mobile or desktop</small></button>
-    <button class="mode-btn" id="btn-2p">2 PLAYERS<small>Keyboard + Mouse (desktop)</small></button>
+    <button class="mode-btn" id="btn-1p" onclick="if(window._select1P)window._select1P()">1 PLAYER<small>Play vs AI on mobile or desktop</small></button>
+    <button class="mode-btn" id="btn-2p" onclick="if(window._select2P)window._select2P()">2 PLAYERS<small>Keyboard + Mouse (desktop)</small></button>
   </div>
 </div>
 
@@ -984,6 +985,9 @@ function showScreen(name){
   const gc=document.getElementById('game-container');
   if(name==='modeselect'||name==='title'||name==='help')gc.classList.add('no-touch');
   else gc.classList.remove('no-touch');
+  // iOS Safari: completely hide canvas during mode select so it cannot intercept touches at all
+  if(name==='modeselect')gc.classList.add('hidden-canvas');
+  else gc.classList.remove('hidden-canvas');
   document.getElementById('hud-top').style.display=(name==='game'||name==='waveEnd'||name==='gameover')?'flex':'none';
   document.getElementById('hud-bottom').style.display=(name==='game'||name==='waveEnd'||name==='gameover')?'flex':'none';
   document.getElementById('wave-end-ov').style.display=name==='waveEnd'?'flex':'none';
@@ -1652,9 +1656,16 @@ function initTouchControls(){
     specRow.appendChild(btn);
   });
 
-  // Also allow tap on canvas to place in 1P mode
+  // Canvas touch listeners are registered later via registerCanvasTouchListeners()
+  // to avoid iOS Safari issue where canvas touch handlers intercept button taps
+}
+
+let canvasTouchRegistered=false;
+function registerCanvasTouchListeners(){
+  if(canvasTouchRegistered)return;
+  canvasTouchRegistered=true;
+  // Allow tap on canvas to place in 1P mode
   renderer.domElement.addEventListener('touchstart',(e)=>{
-    // Don't intercept touches when overlay screens are active (iOS Safari fix)
     if(gameState==='modeselect')return;
     if(!audioCtx)initAudio();
     if(gameState==='title'){players[1].ready=true;e.preventDefault();return}
@@ -1808,6 +1819,7 @@ function init(){
   function select1P(){
     if(!audioCtx)initAudio();
     gameMode='1p';
+    registerCanvasTouchListeners();
     document.getElementById('title-sub-text').textContent='1 Player vs AI - 3D Edition';
     document.querySelector('.ctrl-col:nth-child(2)').innerHTML='<h3 class="p2c">P2 - AI Opponent</h3><p>The AI will build defenses and send enemies automatically.</p>';
     document.getElementById('title-p2-ready').querySelector('.rs').textContent='AI READY';
@@ -1817,16 +1829,15 @@ function init(){
   function select2P(){
     if(!audioCtx)initAudio();
     gameMode='2p';
+    registerCanvasTouchListeners();
     document.getElementById('title-sub-text').textContent='2-Player Tower Defense - 3D Edition';
     gameState='title';showScreen('title');
   }
+  // Make select functions globally accessible for inline onclick fallback
+  window._select1P=select1P;
+  window._select2P=select2P;
   document.getElementById('btn-1p').addEventListener('click',select1P);
   document.getElementById('btn-2p').addEventListener('click',select2P);
-  // iOS Safari: use touchstart (not just touchend) to ensure tap registers before canvas can intercept
-  document.getElementById('btn-1p').addEventListener('touchstart',(e)=>{e.stopPropagation();e.preventDefault();select1P()},{passive:false,capture:false});
-  document.getElementById('btn-2p').addEventListener('touchstart',(e)=>{e.stopPropagation();e.preventDefault();select2P()},{passive:false,capture:false});
-  document.getElementById('btn-1p').addEventListener('touchend',(e)=>{e.preventDefault()},{passive:false});
-  document.getElementById('btn-2p').addEventListener('touchend',(e)=>{e.preventDefault()},{passive:false});
 
   // Mouse events on renderer canvas
   const cvs=renderer.domElement;
