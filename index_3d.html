@@ -1604,9 +1604,9 @@ let castle1Mesh=null,castle2Mesh=null;
 
 function addCastles(){
   castle1Mesh=createCastle(1);
-  const p1=tileToWorld(1,8.5);castle1Mesh.position.set(p1.x,0,p1.z);scene.add(castle1Mesh);
+  castle1Mesh.position.set(0+GRID_OX,0,5+GRID_OZ);scene.add(castle1Mesh);
   castle2Mesh=createCastle(2);
-  const p2=tileToWorld(38.5,8.5);castle2Mesh.position.set(p2.x,0,p2.z);scene.add(castle2Mesh);
+  castle2Mesh.position.set(38+GRID_OX,0,5+GRID_OZ);scene.add(castle2Mesh);
 }
 
 // ==================== HUD CONTROLLER ====================
