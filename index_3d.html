@@ -523,6 +523,7 @@ function pixelToWorld(px,py){return{x:px/T+GRID_OX, y:0, z:(py-GAME_Y)/T+GRID_OZ
 // ==================== THREE.JS SCENE SETUP ====================
 let scene,camera,renderer,clock;
 let camZoom=1.0;
+let screenShake=0;
 const CAM_BASE={x:0,y:20,z:16};
 function setCameraZoom(z){
   camZoom=clamp(z,0.5,2.0);
@@ -1018,12 +1019,17 @@ function createEnemyModel(type,owner){
     const leather=mkMat(0x4a3a1a,{roughness:0.8});
 
     // Legs - cylinder with boot cuffs
-    [-0.045,0.045].forEach(x=>{
-      g.add(mkMesh(new THREE.CylinderGeometry(0.025,0.03,0.1,6),skin).translateX(x).translateY(0.08));
+    [-0.045,0.045].forEach((x,idx)=>{
+      const legGrp=new THREE.Group();
+      legGrp.userData.limb=idx===0?'leftLeg':'rightLeg';
+      legGrp.userData.origY=0.08;legGrp.userData.origRotX=0;
+      legGrp.position.set(x,0.08,0);
+      legGrp.add(mkMesh(new THREE.CylinderGeometry(0.025,0.03,0.1,6),skin));
       // Boots
-      g.add(mkMesh(new THREE.CylinderGeometry(0.032,0.035,0.05,6),leather).translateX(x).translateY(0.04));
+      legGrp.add(mkMesh(new THREE.CylinderGeometry(0.032,0.035,0.05,6),leather).translateY(-0.04));
       // Boot cuff
-      g.add(mkMesh(new THREE.TorusGeometry(0.032,0.006,4,6),leather).translateX(x).translateY(0.065));
+      legGrp.add(mkMesh(new THREE.TorusGeometry(0.032,0.006,4,6),leather).translateY(-0.015));
+      g.add(legGrp);
     });
 
     // Torso - tapered using lathe
@@ -1036,16 +1042,21 @@ function createEnemyModel(type,owner){
     g.add(mkMesh(new THREE.BoxGeometry(0.02,0.02,0.005),mkMat(0xccaa44,{metalness:0.6})).translateY(0.17).translateZ(0.075));
 
     // Arms - thin cylinders
-    [-1,1].forEach(s=>{
+    [-1,1].forEach((s,idx)=>{
+      const armGrp=new THREE.Group();
+      armGrp.userData.limb=idx===0?'leftArm':'rightArm';
+      armGrp.userData.origY=0.26;armGrp.userData.origRotX=0;
+      armGrp.position.set(s*0.1,0.26,0);
       // Upper arm
       const ua=mkMesh(new THREE.CylinderGeometry(0.02,0.018,0.08,5),skin);
-      ua.rotation.z=s*0.3;ua.position.set(s*0.1,0.26,0);g.add(ua);
+      ua.rotation.z=s*0.3;armGrp.add(ua);
       // Forearm
       const fa=mkMesh(new THREE.CylinderGeometry(0.018,0.015,0.07,5),skin);
-      fa.rotation.z=s*0.6;fa.position.set(s*0.13,0.21,0);g.add(fa);
+      fa.rotation.z=s*0.6;fa.position.set(s*0.03,-0.05,0);armGrp.add(fa);
       // Bracer
       const br=mkMesh(new THREE.CylinderGeometry(0.02,0.02,0.03,5),leather);
-      br.rotation.z=s*0.6;br.position.set(s*0.12,0.22,0);g.add(br);
+      br.rotation.z=s*0.6;br.position.set(s*0.02,-0.04,0);armGrp.add(br);
+      g.add(armGrp);
     });
 
     // Head - slightly squished sphere
@@ -1109,15 +1120,20 @@ function createEnemyModel(type,owner){
     const metal=mkMat(0x666666,{metalness:0.5,roughness:0.4});
 
     // Legs - thick cylinders
-    [-0.08,0.08].forEach(x=>{
+    [-0.08,0.08].forEach((x,idx)=>{
+      const legGrp=new THREE.Group();
+      legGrp.userData.limb=idx===0?'leftLeg':'rightLeg';
+      legGrp.userData.origY=0.14;legGrp.userData.origRotX=0;
+      legGrp.position.set(x,0.14,0);
       // Thigh
-      g.add(mkMesh(new THREE.CylinderGeometry(0.05,0.045,0.12,7),skin).translateX(x).translateY(0.14));
+      legGrp.add(mkMesh(new THREE.CylinderGeometry(0.05,0.045,0.12,7),skin));
       // Shin
-      g.add(mkMesh(new THREE.CylinderGeometry(0.04,0.045,0.1,7),skin).translateX(x).translateY(0.06));
+      legGrp.add(mkMesh(new THREE.CylinderGeometry(0.04,0.045,0.1,7),skin).translateY(-0.08));
       // Knee pad
-      g.add(mkMesh(new THREE.SphereGeometry(0.03,5,4),metal).translateX(x).translateY(0.1).translateZ(0.025));
+      legGrp.add(mkMesh(new THREE.SphereGeometry(0.03,5,4),metal).translateY(-0.04).translateZ(0.025));
       // Boot
-      g.add(mkMesh(new THREE.CylinderGeometry(0.048,0.05,0.04,7),loincloth).translateX(x).translateY(0.03));
+      legGrp.add(mkMesh(new THREE.CylinderGeometry(0.048,0.05,0.04,7),loincloth).translateY(-0.11));
+      g.add(legGrp);
     });
 
     // Torso - large and muscular using lathe
@@ -1140,7 +1156,7 @@ function createEnemyModel(type,owner){
     g.add(mkMesh(new THREE.BoxGeometry(0.1,0.08,0.015),loincloth).translateY(0.2).translateZ(0.07));
 
     // Shoulders - big pauldrons
-    [-1,1].forEach(s=>{
+    [-1,1].forEach((s,idx)=>{
       // Shoulder muscle
       const shl=mkMesh(new THREE.SphereGeometry(0.06,6,5),skin);
       shl.scale.set(1,0.8,0.8);shl.position.set(s*0.17,0.44,0);g.add(shl);
@@ -1150,14 +1166,20 @@ function createEnemyModel(type,owner){
       // Spike on pauldron
       const spike=mkMesh(new THREE.ConeGeometry(0.015,0.06,4),metal);
       spike.position.set(s*0.2,0.49,0);g.add(spike);
+      // Arm group for animation
+      const armGrp=new THREE.Group();
+      armGrp.userData.limb=idx===0?'leftArm':'rightArm';
+      armGrp.userData.origY=0.36;armGrp.userData.origRotX=0;
+      armGrp.position.set(s*0.18,0.36,0);
       // Upper arm
-      g.add(mkMesh(new THREE.CylinderGeometry(0.04,0.035,0.1,6),skin).translateX(s*0.18).translateY(0.36));
+      armGrp.add(mkMesh(new THREE.CylinderGeometry(0.04,0.035,0.1,6),skin));
       // Forearm
       const fa=mkMesh(new THREE.CylinderGeometry(0.035,0.04,0.1,6),skin);
-      fa.rotation.z=s*0.4;fa.position.set(s*0.22,0.3,0);g.add(fa);
+      fa.rotation.z=s*0.4;fa.position.set(s*0.04,-0.06,0);armGrp.add(fa);
       // Bracer
       const br=mkMesh(new THREE.CylinderGeometry(0.042,0.042,0.04,6),metal);
-      br.rotation.z=s*0.4;br.position.set(s*0.21,0.31,0);g.add(br);
+      br.rotation.z=s*0.4;br.position.set(s*0.03,-0.05,0);armGrp.add(br);
+      g.add(armGrp);
     });
 
     // Head
@@ -1207,16 +1229,21 @@ function createEnemyModel(type,owner){
     const blade=mkMat(0xccccdd,{metalness:0.8,roughness:0.15});
 
     // Legs - armored
-    [-0.06,0.06].forEach(x=>{
+    [-0.06,0.06].forEach((x,idx)=>{
+      const legGrp=new THREE.Group();
+      legGrp.userData.limb=idx===0?'leftLeg':'rightLeg';
+      legGrp.userData.origY=0.14;legGrp.userData.origRotX=0;
+      legGrp.position.set(x,0.14,0);
       // Thigh armor
-      g.add(mkMesh(new THREE.CylinderGeometry(0.04,0.038,0.1,6),armor).translateX(x).translateY(0.14));
+      legGrp.add(mkMesh(new THREE.CylinderGeometry(0.04,0.038,0.1,6),armor));
       // Knee cop
-      g.add(mkMesh(new THREE.SphereGeometry(0.03,5,4),darkArmor).translateX(x).translateY(0.1).translateZ(0.02));
+      legGrp.add(mkMesh(new THREE.SphereGeometry(0.03,5,4),darkArmor).translateY(-0.04).translateZ(0.02));
       // Greave
-      g.add(mkMesh(new THREE.CylinderGeometry(0.035,0.04,0.08,6),armor).translateX(x).translateY(0.06));
+      legGrp.add(mkMesh(new THREE.CylinderGeometry(0.035,0.04,0.08,6),armor).translateY(-0.08));
       // Sabaton (foot armor)
       const foot=mkMesh(new THREE.BoxGeometry(0.05,0.025,0.06),armor);
-      foot.position.set(x,0.02,0.01);g.add(foot);
+      foot.position.set(0,-0.12,0.01);legGrp.add(foot);
+      g.add(legGrp);
     });
 
     // Torso - armored cuirass using lathe
@@ -1237,7 +1264,7 @@ function createEnemyModel(type,owner){
     g.add(mkMesh(new THREE.TorusGeometry(0.06,0.015,4,8),darkArmor).translateY(0.44));
 
     // Shoulders - layered pauldrons
-    [-1,1].forEach(s=>{
+    [-1,1].forEach((s,idx)=>{
       // Base pauldron
       const p1=mkMesh(new THREE.SphereGeometry(0.05,6,4,0,Math.PI*2,0,Math.PI*0.6),armor);
       p1.position.set(s*0.14,0.43,0);g.add(p1);
@@ -1246,14 +1273,20 @@ function createEnemyModel(type,owner){
       p2.position.set(s*0.14,0.44,0);g.add(p2);
       // Rivet
       g.add(mkMesh(new THREE.SphereGeometry(0.006,4,3),mkMat(0x888899,{metalness:0.7})).translateX(s*0.14).translateY(0.46).translateZ(0.03));
+      // Arm group for animation
+      const armGrp=new THREE.Group();
+      armGrp.userData.limb=idx===0?'leftArm':'rightArm';
+      armGrp.userData.origY=0.36;armGrp.userData.origRotX=0;
+      armGrp.position.set(s*0.15,0.36,0);
       // Upper arm armor
-      g.add(mkMesh(new THREE.CylinderGeometry(0.032,0.028,0.08,6),chainmail).translateX(s*0.15).translateY(0.36));
+      armGrp.add(mkMesh(new THREE.CylinderGeometry(0.032,0.028,0.08,6),chainmail));
       // Vambrace (forearm armor)
       const vb=mkMesh(new THREE.CylinderGeometry(0.03,0.032,0.07,6),armor);
-      vb.rotation.z=s*0.3;vb.position.set(s*0.17,0.3,0);g.add(vb);
+      vb.rotation.z=s*0.3;vb.position.set(s*0.02,-0.06,0);armGrp.add(vb);
       // Gauntlet
       const ga=mkMesh(new THREE.BoxGeometry(0.03,0.025,0.03),darkArmor);
-      ga.position.set(s*0.19,0.26,0);g.add(ga);
+      ga.position.set(s*0.04,-0.1,0);armGrp.add(ga);
+      g.add(armGrp);
     });
 
     // Helmet - great helm style
@@ -1317,14 +1350,19 @@ function createEnemyModel(type,owner){
     const wood=mkMat(0x8b5a2b,{roughness:0.7});
 
     // Legs - slender
-    [-0.04,0.04].forEach(x=>{
-      g.add(mkMesh(new THREE.CylinderGeometry(0.025,0.022,0.12,6),cloth).translateX(x).translateY(0.1));
+    [-0.04,0.04].forEach((x,idx)=>{
+      const legGrp=new THREE.Group();
+      legGrp.userData.limb=idx===0?'leftLeg':'rightLeg';
+      legGrp.userData.origY=0.1;legGrp.userData.origRotX=0;
+      legGrp.position.set(x,0.1,0);
+      legGrp.add(mkMesh(new THREE.CylinderGeometry(0.025,0.022,0.12,6),cloth));
       // Knee-high boots
-      g.add(mkMesh(new THREE.CylinderGeometry(0.028,0.032,0.08,6),leather).translateX(x).translateY(0.05));
+      legGrp.add(mkMesh(new THREE.CylinderGeometry(0.028,0.032,0.08,6),leather).translateY(-0.05));
       // Boot cuff
-      g.add(mkMesh(new THREE.TorusGeometry(0.028,0.005,4,6),leather).translateX(x).translateY(0.09));
+      legGrp.add(mkMesh(new THREE.TorusGeometry(0.028,0.005,4,6),leather).translateY(-0.01));
       // Boot toe
-      g.add(mkMesh(new THREE.SphereGeometry(0.02,5,3),leather).translateX(x).translateY(0.02).translateZ(0.01));
+      legGrp.add(mkMesh(new THREE.SphereGeometry(0.02,5,3),leather).translateY(-0.08).translateZ(0.01));
+      g.add(legGrp);
     });
 
     // Torso - lithe, using lathe
@@ -1340,17 +1378,23 @@ function createEnemyModel(type,owner){
     g.add(mkMesh(new THREE.ConeGeometry(0.01,0.025,4),mkMat(0xaaaa44,{metalness:0.5})).translateY(0.23).translateZ(0.07));
 
     // Shoulders and arms
-    [-1,1].forEach(s=>{
+    [-1,1].forEach((s,idx)=>{
       // Shoulder
       g.add(mkMesh(new THREE.SphereGeometry(0.03,6,4),cloth).translateX(s*0.1).translateY(0.38));
+      // Arm group for animation
+      const armGrp=new THREE.Group();
+      armGrp.userData.limb=idx===0?'leftArm':'rightArm';
+      armGrp.userData.origY=0.32;armGrp.userData.origRotX=0;
+      armGrp.position.set(s*0.11,0.32,0);
       // Upper arm
-      g.add(mkMesh(new THREE.CylinderGeometry(0.02,0.018,0.08,5),cloth).translateX(s*0.11).translateY(0.32));
+      armGrp.add(mkMesh(new THREE.CylinderGeometry(0.02,0.018,0.08,5),cloth));
       // Forearm
       const fa=mkMesh(new THREE.CylinderGeometry(0.016,0.015,0.08,5),skinTone);
-      fa.rotation.z=s*0.3;fa.position.set(s*0.13,0.26,0);g.add(fa);
+      fa.rotation.z=s*0.3;fa.position.set(s*0.02,-0.06,0);armGrp.add(fa);
       // Archer's bracer (leather)
       const br=mkMesh(new THREE.CylinderGeometry(0.02,0.019,0.04,5),leather);
-      br.rotation.z=s*0.3;br.position.set(s*0.125,0.27,0);g.add(br);
+      br.rotation.z=s*0.3;br.position.set(s*0.015,-0.05,0);armGrp.add(br);
+      g.add(armGrp);
     });
 
     // Quiver on back (diagonal)
@@ -1437,7 +1481,7 @@ function createEnemyModel(type,owner){
   // Face direction
   g.rotation.y=owner===1?-Math.PI/2:Math.PI/2;
   // Scale up for visibility
-  g.scale.set(1.6,1.6,1.6);
+  g.scale.set(2.2,2.2,2.2);
   return g;
 }
 
@@ -1737,7 +1781,8 @@ function dealDamage(enemy,dmg){
   if(enemy.hp<=0){
     enemy.alive=false;killer.credits+=enemy.reward;killer.kills++;
     const ep=pixelToWorld(enemy.x,enemy.y);
-    emitParticles(ep.x,0.3,ep.z,parseInt(enemy.color.replace('#',''),16),12,80);
+    emitParticles(ep.x,0.3,ep.z,parseInt(enemy.color.replace('#',''),16),20,120);
+    emitParticles(ep.x,0.5,ep.z,0xffffff,5,40);
     sndHit();
   }
 }
@@ -1767,7 +1812,7 @@ function useSpecial(player,pNum){
   }else if(spec.id==='heal'){
     player.castleHP=Math.min(player.maxHP,player.castleHP+spec.amount);
     const hx=pNum===1?colToX(1):colToX(38);const hp=pixelToWorld(hx,rowToY(9));
-    emitParticles(hp.x,0.5,hp.z,0x00ff00,20,50);
+    emitParticles(hp.x,0.5,hp.z,0x00ff00,30,70);emitParticles(hp.x,1.0,hp.z,0x88ffaa,15,40);
     spawnDmgNumber(hp.x,1,hp.z,'+'+spec.amount,'#00ff00');
   }
 }
@@ -1787,6 +1832,12 @@ function spawnEnemy(type,spawnCol,spawnRow,owner){
 
 function startWave(){
   waveNum++;gameState='combat';sndWaveStart();
+  // Wave start castle particles
+  {const cw1=tileToWorld(1,9),cw2=tileToWorld(38,9);
+  emitParticles(cw1.x,1.0,cw1.z,0x3366cc,15,80);
+  emitParticles(cw2.x,1.0,cw2.z,0xcc3366,15,80);
+  emitParticles(cw1.x,0.5,cw1.z,0xffd700,8,50);
+  emitParticles(cw2.x,0.5,cw2.z,0xffd700,8,50);}
   spawnQueue1=[];spawnQueue2=[];spawnTimer=0;
   const base=5+waveNum*5;
   const baseQ={goblin:base,orc:Math.max(0,waveNum-1)*3,darkKnight:Math.max(0,waveNum-2)*2,archer:Math.max(0,waveNum-2)*2};
@@ -1931,7 +1982,7 @@ function updateCombat(dt){
           e.combatTarget.alive=false;const killer=e.combatTarget.owner===1?players[2]:players[1];
           killer.credits+=e.combatTarget.reward;killer.kills++;
           const ep=pixelToWorld(e.combatTarget.x,e.combatTarget.y);
-          emitParticles(ep.x,0.3,ep.z,parseInt(e.combatTarget.color.replace('#',''),16),10,70);sndHit();
+          emitParticles(ep.x,0.3,ep.z,parseInt(e.combatTarget.color.replace('#',''),16),18,100);emitParticles(ep.x,0.5,ep.z,0xffffff,4,35);sndHit();
           e.combatTarget=null;
         }
       }
@@ -1964,7 +2015,8 @@ function updateCombat(dt){
     if(e.pathIdx>=e.path.length){
       const target=e.owner===1?players[2]:players[1];target.castleHP-=e.dmg;
       const ep=pixelToWorld(e.x,e.y);
-      spawnDmgNumber(ep.x,0.5,ep.z,'-'+e.dmg,'#ff8800');emitParticles(ep.x,0.3,ep.z,0xff4400,5,60);
+      spawnDmgNumber(ep.x,0.5,ep.z,'-'+e.dmg,'#ff8800');emitParticles(ep.x,0.3,ep.z,0xff4400,10,80);
+      screenShake=0.3;
       e.alive=false;continue;
     }
     const tgt=e.path[e.pathIdx];const tx=colToX(tgt.c),ty=rowToY(tgt.r);
@@ -1988,6 +2040,9 @@ function updateCombat(dt){
       projectiles.push({x:t.x,y:t.y,target:best,tx:best.x,ty:best.y,
         dmg:t.dmg,spd:t.projSpd*T,splash:t.splash,type:pType,owner:t.owner,alive:true});
       sndShoot();
+      // Tower firing flash
+      const tp=tileToWorld(t.col,t.row);
+      emitParticles(tp.x,1.0,tp.z,0xffaa00,3,30);
     }
   }
 
@@ -2106,6 +2161,21 @@ function syncEnemies(){
     // Bob animation
     const bob=Math.sin(e._anim)*0.05;
     mesh.position.set(wp.x,bob,wp.z);
+    // Walk / attack limb animation
+    const anim=e._anim;
+    const inCombat=e.combatTarget&&e.combatTarget.alive;
+    const animSpeed=inCombat?anim*2.5:anim;
+    const legSwing=inCombat?0.6:0.4;
+    const armSwing=inCombat?0.5:0.3;
+    mesh.traverse(child=>{
+      if(child.isGroup&&child.userData.limb){
+        const limb=child.userData.limb;
+        if(limb==='leftLeg') child.rotation.x=Math.sin(animSpeed)*legSwing;
+        else if(limb==='rightLeg') child.rotation.x=-Math.sin(animSpeed)*legSwing;
+        else if(limb==='leftArm') child.rotation.x=-Math.sin(animSpeed)*armSwing;
+        else if(limb==='rightArm') child.rotation.x=Math.sin(animSpeed)*armSwing;
+      }
+    });
     // Slow tint
     mesh.traverse(child=>{
       if(child.isMesh&&child.material&&!child.material._origColor){
@@ -2463,6 +2533,15 @@ function gameLoop(){
   // Reset one-frame inputs
   mouseClicked=false;mouseRightClicked=false;scrollDelta=0;middleClicked=false;
   Object.keys(keyPressed).forEach(k=>keyPressed[k]=false);
+
+  // Screen shake effect
+  if(screenShake>0&&camera){
+    const shakeIntensity=screenShake*0.15;
+    camera.position.x=CAM_BASE.x+(Math.random()-0.5)*shakeIntensity;
+    camera.position.z=CAM_BASE.z/camZoom+(Math.random()-0.5)*shakeIntensity;
+    screenShake-=dt||0.016;
+    if(screenShake<=0){screenShake=0;setCameraZoom(camZoom)}
+  }
 
   renderer.render(scene,camera);
 }
