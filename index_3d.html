@@ -123,11 +123,12 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000}
 .restart-prompt{font-size:clamp(10px,1.1vw,13px);color:#888}
 
 /* Mode Select */
-#mode-screen{position:absolute;inset:0;background:rgba(10,10,26,.96);display:flex;align-items:center;justify-content:center;z-index:200}
-.mode-content{text-align:center;max-width:500px;width:90%}
+#mode-screen{position:fixed;inset:0;background:rgba(10,10,26,.96);display:flex;align-items:center;justify-content:center;z-index:300;pointer-events:auto;touch-action:auto}
+.mode-content{text-align:center;max-width:500px;width:90%;pointer-events:auto}
 .mode-btn{display:block;width:80%;max-width:320px;margin:16px auto;padding:20px 24px;font-family:inherit;
   font-size:clamp(16px,2.5vw,24px);color:#ffd700;background:rgba(255,215,0,.06);border:2px solid rgba(255,215,0,.3);
-  border-radius:8px;cursor:pointer;transition:all .2s;letter-spacing:2px}
+  border-radius:8px;cursor:pointer;transition:all .2s;letter-spacing:2px;pointer-events:auto;touch-action:manipulation;
+  -webkit-tap-highlight-color:rgba(255,215,0,.2)}
 .mode-btn:hover,.mode-btn:active{background:rgba(255,215,0,.15);border-color:#ffd700;transform:scale(1.03)}
 .mode-btn small{display:block;font-size:clamp(10px,1.2vw,14px);color:#888;margin-top:6px;letter-spacing:0}
 
@@ -167,10 +168,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000}
 </head>
 <body>
 <div id="game-container"></div>
-<div id="hud-root">
-
-<!-- MODE SELECT SCREEN -->
-<div id="mode-screen" class="hud-screen">
+<!-- MODE SELECT SCREEN (outside hud-root to avoid pointer-events:none inheritance) -->
+<div id="mode-screen">
   <div class="mode-content">
     <h1 class="title-main">CASTLE SIEGE</h1>
     <p class="title-sub" style="margin-bottom:32px">3D Edition</p>
@@ -178,6 +177,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000}
     <button class="mode-btn" id="btn-2p">2 PLAYERS<small>Keyboard + Mouse (desktop)</small></button>
   </div>
 </div>
+
+<div id="hud-root">
 
 <!-- TITLE SCREEN -->
 <div id="title-screen" class="hud-screen">
