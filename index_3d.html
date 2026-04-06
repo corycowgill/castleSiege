@@ -1478,7 +1478,8 @@ function createEnemyModel(type,owner){
     cape.position.set(0,0.38,-0.05);g.add(cape);
   }
 
-  // Face direction
+  // Direction set dynamically in syncEnemies based on movement
+  // Default facing for initial spawn
   g.rotation.y=owner===1?-Math.PI/2:Math.PI/2;
   // Scale up for visibility
   g.scale.set(2.2,2.2,2.2);
@@ -2140,6 +2141,13 @@ function syncTowers(){
       const wp=tileToWorld(t.col,t.row);mesh.position.set(wp.x,0,wp.z);
       scene.add(mesh);towerMeshes.set(t,mesh);
     }
+    // Rotate tower to face target (catapult/bombard especially)
+    const mesh=towerMeshes.get(t);
+    if(mesh&&t.target){
+      // t.angle is atan2(dy,dx) in pixel space — convert to 3D world rotation
+      // In 3D: x maps to x, y maps to z, so rotation around Y axis
+      mesh.rotation.y=-t.angle+Math.PI/2;
+    }
   }
   // Remove stale
   for(const[t,mesh] of towerMeshes){
@@ -2161,6 +2169,17 @@ function syncEnemies(){
     // Bob animation
     const bob=Math.sin(e._anim)*0.05;
     mesh.position.set(wp.x,bob,wp.z);
+    // Face movement/attack direction
+    if(e.combatTarget&&e.combatTarget.alive){
+      // Face combat target
+      const twp=pixelToWorld(e.combatTarget.x,e.combatTarget.y);
+      mesh.rotation.y=Math.atan2(twp.x-wp.x,twp.z-wp.z);
+    }else if(e.pathIdx<e.path.length){
+      // Face next path tile
+      const tgt=e.path[e.pathIdx];
+      const twp=pixelToWorld(colToX(tgt.c),rowToY(tgt.r));
+      mesh.rotation.y=Math.atan2(twp.x-wp.x,twp.z-wp.z);
+    }
     // Walk / attack limb animation
     const anim=e._anim;
     const inCombat=e.combatTarget&&e.combatTarget.alive;
@@ -2614,12 +2633,15 @@ function init(){
   cvs.addEventListener('contextmenu',(e)=>e.preventDefault());
 
   // Also handle clicks/touches on HUD for title screen
+  // But NOT if they clicked a button/link (help, field guide)
   document.getElementById('title-screen').addEventListener('mousedown',(e)=>{
+    if(e.target.closest('.hud-btn, a'))return;
     if(!audioCtx)initAudio();
     if(gameMode==='2p')players[2].ready=true;
     else players[1].ready=true;
   });
   document.getElementById('title-screen').addEventListener('touchstart',(e)=>{
+    if(e.target.closest('.hud-btn, a'))return;
     if(!audioCtx)initAudio();
     if(gameMode==='1p')players[1].ready=true;
     else players[2].ready=true;
