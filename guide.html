@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0a0a1a">
+<title>Castle Siege — Field Guide</title>
+<script src="three.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;min-height:100vh;background:#0a0a1a;color:#d0d0d0;
+  font-family:'Courier New',Courier,monospace;font-size:14px;overflow-x:hidden}
+
+a{color:#ffd700;text-decoration:none}
+a:hover{text-decoration:underline}
+
+/* Header */
+.header{text-align:center;padding:28px 16px 12px;border-bottom:1px solid rgba(255,215,0,.15)}
+.header h1{font-size:clamp(22px,4vw,40px);color:#ffd700;letter-spacing:6px;text-shadow:0 0 18px rgba(255,215,0,.3)}
+.header .back{display:inline-block;margin-top:8px;font-size:clamp(11px,1.4vw,14px);color:#888;letter-spacing:1px}
+.header .back:hover{color:#ffd700}
+
+/* Tabs */
+.tabs{display:flex;justify-content:center;gap:4px;padding:14px 8px 0;flex-wrap:wrap}
+.tab-btn{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-bottom:none;
+  border-radius:4px 4px 0 0;padding:8px 20px;color:#888;cursor:pointer;font-family:inherit;
+  font-size:clamp(11px,1.3vw,14px);letter-spacing:1px;transition:all .15s}
+.tab-btn:hover{background:rgba(255,255,255,.08);color:#ccc}
+.tab-btn.active{background:rgba(255,215,0,.08);border-color:rgba(255,215,0,.25);color:#ffd700}
+
+/* Tab content */
+.tab-content{display:none;padding:16px}
+.tab-content.active{display:block}
+
+/* Card grid */
+.card-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;max-width:1100px;margin:0 auto}
+@media(max-width:700px){.card-grid{grid-template-columns:1fr}}
+
+/* Card */
+.card{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.1);border-radius:6px;overflow:hidden;
+  transition:border-color .2s}
+.card:hover{border-color:rgba(255,215,0,.3)}
+.card canvas{display:block;width:100%;cursor:grab;background:#0e0e22}
+.card canvas:active{cursor:grabbing}
+.card-info{padding:12px 14px 14px}
+.card-name{font-size:clamp(14px,1.6vw,18px);color:#ffd700;letter-spacing:2px;margin-bottom:4px}
+.card-cost{font-size:clamp(11px,1.2vw,13px);color:#aaa;margin-bottom:8px}
+.card-cost span{color:#ffd700}
+.stat-row{display:flex;flex-wrap:wrap;gap:6px 14px;margin-bottom:8px}
+.stat{font-size:clamp(10px,1.1vw,12px);color:#bbb}
+.stat b{color:#ddd}
+.card-desc{font-size:clamp(10px,1.1vw,12px);color:#777;font-style:italic;line-height:1.5;
+  border-top:1px solid rgba(255,255,255,.06);padding-top:8px;margin-top:4px}
+
+/* Special cards (no 3D) */
+.special-card{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.1);border-radius:6px;
+  padding:16px 18px;transition:border-color .2s}
+.special-card:hover{border-color:rgba(255,215,0,.3)}
+.special-icon{font-size:36px;margin-bottom:6px}
+.special-name{font-size:clamp(14px,1.6vw,18px);color:#ffd700;letter-spacing:2px;margin-bottom:4px}
+.special-stat{font-size:clamp(10px,1.1vw,12px);color:#bbb;margin-bottom:8px}
+.special-stat b{color:#ddd}
+.special-desc{font-size:clamp(10px,1.1vw,12px);color:#777;font-style:italic;line-height:1.5;
+  border-top:1px solid rgba(255,255,255,.06);padding-top:8px;margin-top:4px}
+
+/* Footer */
+.footer{text-align:center;padding:24px 16px 32px;color:#444;font-size:11px;letter-spacing:1px}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>CASTLE SIEGE &mdash; FIELD GUIDE</h1>
+  <a class="back" href="index_3d.html">&larr; BACK TO GAME</a>
+</div>
+
+<div class="tabs">
+  <button class="tab-btn active" data-tab="towers">Towers</button>
+  <button class="tab-btn" data-tab="walls">Walls</button>
+  <button class="tab-btn" data-tab="enemies">Enemies</button>
+  <button class="tab-btn" data-tab="specials">Specials</button>
+</div>
+
+<!-- TOWERS -->
+<div class="tab-content active" id="tab-towers">
+  <div class="card-grid">
+    <div class="card" data-model="tower-turret">
+      <canvas width="400" height="280"></canvas>
+      <div class="card-info">
+        <div class="card-name">TURRET</div>
+        <div class="card-cost">Cost: <span>$100</span></div>
+        <div class="stat-row">
+          <div class="stat"><b>Dmg</b> 15</div>
+          <div class="stat"><b>Range</b> 4</div>
+          <div class="stat"><b>Rate</b> 0.8s</div>
+        </div>
+        <div class="card-desc">Fast-firing arrow tower. Reliable single-target damage.</div>
+      </div>
+    </div>
+    <div class="card" data-model="tower-magic">
+      <canvas width="400" height="280"></canvas>
+      <div class="card-info">
+        <div class="card-name">MAGIC TOWER</div>
+        <div class="card-cost">Cost: <span>$175</span></div>
+        <div class="stat-row">
+          <div class="stat"><b>Dmg</b> 25</div>
+          <div class="stat"><b>Range</b> 3.5</div>
+          <div class="stat"><b>Rate</b> 1.2s</div>
+          <div class="stat"><b>Splash</b> 1.5</div>
+        </div>
+        <div class="card-desc">Arcane tower dealing splash damage in an area.</div>
+      </div>
+    </div>
+    <div class="card" data-model="tower-catapult">
+      <canvas width="400" height="280"></canvas>
+      <div class="card-info">
+        <div class="card-name">CATAPULT</div>
+        <div class="card-cost">Cost: <span>$150</span></div>
+        <div class="stat-row">
+          <div class="stat"><b>Dmg</b> 40</div>
+          <div class="stat"><b>Range</b> 5.5</div>
+          <div class="stat"><b>Rate</b> 2.5s</div>
+          <div class="stat"><b>Splash</b> 2</div>
+        </div>
+        <div class="card-desc">Long-range siege weapon with heavy area damage.</div>
+      </div>
+    </div>
+    <div class="card" data-model="tower-bombard">
+      <canvas width="400" height="280"></canvas>
+      <div class="card-info">
+        <div class="card-name">BOMBARD</div>
+        <div class="card-cost">Cost: <span>$200</span></div>
+        <div class="stat-row">
+          <div class="stat"><b>Dmg</b> 60</div>
+          <div class="stat"><b>Range</b> 4.5</div>
+          <div class="stat"><b>Rate</b> 2s</div>
+        </div>
+        <div class="card-desc">Powerful cannon dealing devastating single-target hits.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- WALLS -->
+<div class="tab-content" id="tab-walls">
+  <div class="card-grid">
+    <div class="card" data-model="wall">
+      <canvas width="400" height="280"></canvas>
+      <div class="card-info">
+        <div class="card-name">WALL</div>
+        <div class="card-cost">Cost: <span>$30</span></div>
+        <div class="stat-row">
+          <div class="stat"><b>HP</b> 150</div>
+        </div>
+        <div class="card-desc">Stone fortification. Blocks enemy paths. Enemies may attack walls if their path is long.</div>
+      </div>
+    </div>
+    <div class="card" data-model="barricade">
+      <canvas width="400" height="280"></canvas>
+      <div class="card-info">
+        <div class="card-name">BARRICADE</div>
+        <div class="card-cost">Cost: <span>$15</span></div>
+        <div class="stat-row">
+          <div class="stat"><b>HP</b> 75</div>
+        </div>
+        <div class="card-desc">Cheap wooden barrier. Weaker but good for quick maze building.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ENEMIES -->
+<div class="tab-content" id="tab-enemies">
+  <div class="card-grid">
+    <div class="card" data-model="enemy-goblin">
+      <canvas width="400" height="280"></canvas>
+      <div class="card-info">
+        <div class="card-name">GOBLIN</div>
+        <div class="card-cost">Cost: <span>$6 &times; 10</span></div>
+        <div class="stat-row">
+          <div class="stat"><b>HP</b> 30</div>
+          <div class="stat"><b>Speed</b> 2.5</div>
+          <div class="stat"><b>Dmg</b> 10</div>
+          <div class="stat"><b>Armor</b> 0</div>
+        </div>
+        <div class="card-desc">Fast and cheap swarm unit. Overwhelms with numbers.</div>
+      </div>
+    </div>
+    <div class="card" data-model="enemy-orc">
+      <canvas width="400" height="280"></canvas>
+      <div class="card-info">
+        <div class="card-name">ORC</div>
+        <div class="card-cost">Cost: <span>$10 &times; 10</span></div>
+        <div class="stat-row">
+          <div class="stat"><b>HP</b> 80</div>
+          <div class="stat"><b>Speed</b> 1.2</div>
+          <div class="stat"><b>Dmg</b> 25</div>
+          <div class="stat"><b>Armor</b> 0</div>
+        </div>
+        <div class="card-desc">Tanky bruiser. Slow but hits hard and takes a beating.</div>
+      </div>
+    </div>
+    <div class="card" data-model="enemy-darkKnight">
+      <canvas width="400" height="280"></canvas>
+      <div class="card-info">
+        <div class="card-name">DARK KNIGHT</div>
+        <div class="card-cost">Cost: <span>$16 &times; 10</span></div>
+        <div class="stat-row">
+          <div class="stat"><b>HP</b> 60</div>
+          <div class="stat"><b>Speed</b> 1.8</div>
+          <div class="stat"><b>Dmg</b> 20</div>
+          <div class="stat"><b>Armor</b> 50%</div>
+        </div>
+        <div class="card-desc">Heavily armored warrior. Resists half of all damage.</div>
+      </div>
+    </div>
+    <div class="card" data-model="enemy-archer">
+      <canvas width="400" height="280"></canvas>
+      <div class="card-info">
+        <div class="card-name">ARCHER</div>
+        <div class="card-cost">Cost: <span>$12 &times; 10</span></div>
+        <div class="stat-row">
+          <div class="stat"><b>HP</b> 40</div>
+          <div class="stat"><b>Speed</b> 2.0</div>
+          <div class="stat"><b>Dmg</b> 15</div>
+          <div class="stat"><b>Armor</b> 0</div>
+        </div>
+        <div class="card-desc">Balanced unit. Good mix of speed and damage.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SPECIALS -->
+<div class="tab-content" id="tab-specials">
+  <div class="card-grid">
+    <div class="special-card">
+      <div class="special-icon">&#9732;</div>
+      <div class="special-name">METEOR</div>
+      <div class="special-stat"><b>Damage</b> 100 &bull; <b>Radius</b> 3 tiles</div>
+      <div class="special-desc">Rain fire from the sky, devastating clustered enemies.</div>
+    </div>
+    <div class="special-card">
+      <div class="special-icon">&#9889;</div>
+      <div class="special-name">LIGHTNING</div>
+      <div class="special-stat"><b>Chains</b> 5 enemies &bull; <b>Damage</b> 50 each</div>
+      <div class="special-desc">Electric bolt chains between nearby enemies.</div>
+    </div>
+    <div class="special-card">
+      <div class="special-icon">&#10052;</div>
+      <div class="special-name">FREEZE</div>
+      <div class="special-stat"><b>Duration</b> 5s &bull; <b>Radius</b> 4 tiles &bull; Slows to 30%</div>
+      <div class="special-desc">Chills enemies to 30% speed for 5 seconds.</div>
+    </div>
+    <div class="special-card">
+      <div class="special-icon">&#10084;</div>
+      <div class="special-name">HEAL</div>
+      <div class="special-stat"><b>Restore</b> 200 castle HP</div>
+      <div class="special-desc">Mend your castle walls, recovering 200 hit points.</div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">Castle Siege 3D &mdash; Field Guide</div>
+
+<script>
+// ==================== TAB SWITCHING ====================
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-'+btn.dataset.tab).classList.add('active');
+    // Resize renderers for newly visible cards
+    viewers.forEach(v=>{
+      if(v.canvas.offsetWidth>0) resizeViewer(v);
+    });
+  });
+});
+
+// ==================== 3D HELPERS (from game) ====================
+function mkMat(color,opts={}){return new THREE.MeshStandardMaterial({color,flatShading:true,...opts})}
+function mkMesh(geo,mat){const m=new THREE.Mesh(geo,mat);m.castShadow=true;m.receiveShadow=true;return m}
+function ownerAccent(o){return o===1?0x3366cc:0xcc3333}
+
+// ==================== MODEL CREATION (copied from game) ====================
+
+function createCastle(owner){
+  const g=new THREE.Group();
+  const stone=mkMat(0x8a8a7a),stoneLight=mkMat(0x9a9a8a),dark=mkMat(0x6a6a5a),vdark=mkMat(0x5a5a4a);
+  const accent=mkMat(ownerAccent(owner));
+  const accentDark=mkMat(owner===1?0x224488:0x882222);
+  const winMat=mkMat(0xFFDD44,{emissive:0xFFDD44,emissiveIntensity:0.8});
+  const roofMat=mkMat(0x6B3A1B);
+  const CW=2,CD=8,wallH=1.6,wallT=0.22;
+  g.add(mkMesh(new THREE.BoxGeometry(CW+0.3,0.12,CD+0.3),dark).translateY(0.06));
+  g.add(mkMesh(new THREE.BoxGeometry(CW+0.15,0.06,CD+0.15),accent).translateY(0.15));
+  const wallPositions=[
+    {w:CW,d:wallT, x:CW/2, z:0},{w:CW,d:wallT, x:CW/2, z:CD},
+    {w:wallT,d:CD, x:0, z:CD/2},{w:wallT,d:CD, x:CW, z:CD/2}
+  ];
+  wallPositions.forEach(wp=>{
+    g.add(mkMesh(new THREE.BoxGeometry(wp.w,wallH,wp.d),stone).translateX(wp.x).translateY(wallH/2).translateZ(wp.z));
+    g.add(mkMesh(new THREE.BoxGeometry(wp.w+0.08,0.06,wp.d+0.08),dark).translateX(wp.x).translateY(wallH).translateZ(wp.z));
+  });
+  const merlonW=0.18,merlonH=0.22,merlonD=0.12;
+  for(let i=0;i<6;i++){
+    const mx=0.2+i*(CW-0.4)/5;
+    g.add(mkMesh(new THREE.BoxGeometry(merlonW,merlonH,merlonD),dark).translateX(mx).translateY(wallH+merlonH/2).translateZ(0));
+    g.add(mkMesh(new THREE.BoxGeometry(merlonW,merlonH,merlonD),dark).translateX(mx).translateY(wallH+merlonH/2).translateZ(CD));
+  }
+  for(let i=0;i<18;i++){
+    const mz=0.3+i*(CD-0.6)/17;
+    g.add(mkMesh(new THREE.BoxGeometry(merlonD,merlonH,merlonW),dark).translateX(0).translateY(wallH+merlonH/2).translateZ(mz));
+    g.add(mkMesh(new THREE.BoxGeometry(merlonD,merlonH,merlonW),dark).translateX(CW).translateY(wallH+merlonH/2).translateZ(mz));
+  }
+  g.add(mkMesh(new THREE.BoxGeometry(CW-0.4,0.2,0.02),accent).translateX(CW/2).translateY(wallH*0.65).translateZ(-0.01));
+  g.add(mkMesh(new THREE.BoxGeometry(CW-0.4,0.2,0.02),accent).translateX(CW/2).translateY(wallH*0.65).translateZ(CD+0.01));
+  const towerR=0.3,towerH=2.4;
+  [[0,0],[CW,0],[0,CD],[CW,CD]].forEach(([cx,cz])=>{
+    g.add(mkMesh(new THREE.CylinderGeometry(towerR+0.05,towerR+0.1,0.3,8),vdark).translateX(cx).translateY(0.15).translateZ(cz));
+    g.add(mkMesh(new THREE.CylinderGeometry(towerR,towerR+0.02,towerH,8),dark).translateX(cx).translateY(towerH/2).translateZ(cz));
+    g.add(mkMesh(new THREE.CylinderGeometry(towerR+0.08,towerR+0.04,0.08,8),vdark).translateX(cx).translateY(towerH+0.04).translateZ(cz));
+    g.add(mkMesh(new THREE.ConeGeometry(towerR+0.06,0.55,8),roofMat).translateX(cx).translateY(towerH+0.35).translateZ(cz));
+    for(let a=0;a<4;a++){
+      const ang=a*Math.PI/2+Math.PI/4;const mr=towerR+0.02;
+      g.add(mkMesh(new THREE.BoxGeometry(0.1,0.15,0.1),vdark).translateX(cx+Math.cos(ang)*mr).translateY(towerH+0.12).translateZ(cz+Math.sin(ang)*mr));
+    }
+    g.add(mkMesh(new THREE.BoxGeometry(0.04,0.14,0.04),winMat).translateX(cx).translateY(towerH*0.5).translateZ(cz+(cz<CD/2?-1:1)*(towerR+0.01)));
+    g.add(mkMesh(new THREE.CylinderGeometry(towerR+0.04,towerR+0.04,0.1,8),accent).translateX(cx).translateY(towerH*0.75).translateZ(cz));
+  });
+  const keepH=3.0,keepW=1.1,keepD=1.5;
+  g.add(mkMesh(new THREE.BoxGeometry(keepW,keepH,keepD),stoneLight).translateX(CW/2).translateY(keepH/2).translateZ(CD/2));
+  g.add(mkMesh(new THREE.BoxGeometry(keepW+0.04,0.06,keepD+0.04),dark).translateX(CW/2).translateY(keepH*0.33).translateZ(CD/2));
+  g.add(mkMesh(new THREE.BoxGeometry(keepW+0.04,0.06,keepD+0.04),dark).translateX(CW/2).translateY(keepH*0.66).translateZ(CD/2));
+  g.add(mkMesh(new THREE.BoxGeometry(keepW+0.12,0.08,keepD+0.12),dark).translateX(CW/2).translateY(keepH+0.04).translateZ(CD/2));
+  for(let i=0;i<4;i++){
+    const kx=CW/2-keepW/2+0.15+i*(keepW-0.3)/3;
+    g.add(mkMesh(new THREE.BoxGeometry(0.12,0.18,0.08),dark).translateX(kx).translateY(keepH+0.17).translateZ(CD/2-keepD/2));
+    g.add(mkMesh(new THREE.BoxGeometry(0.12,0.18,0.08),dark).translateX(kx).translateY(keepH+0.17).translateZ(CD/2+keepD/2));
+  }
+  for(let i=0;i<5;i++){
+    const kz=CD/2-keepD/2+0.15+i*(keepD-0.3)/4;
+    g.add(mkMesh(new THREE.BoxGeometry(0.08,0.18,0.12),dark).translateX(CW/2-keepW/2).translateY(keepH+0.17).translateZ(kz));
+    g.add(mkMesh(new THREE.BoxGeometry(0.08,0.18,0.12),dark).translateX(CW/2+keepW/2).translateY(keepH+0.17).translateZ(kz));
+  }
+  g.add(mkMesh(new THREE.ConeGeometry(0.85,0.7,4),roofMat).translateX(CW/2).translateY(keepH+0.43).translateZ(CD/2).rotateY(Math.PI/4));
+  const keepFaceZ=CD/2+keepD/2+0.01;
+  [[-0.25,keepH*0.45],[0.25,keepH*0.45],[-0.25,keepH*0.72],[0.25,keepH*0.72]].forEach(([ox,wy])=>{
+    g.add(mkMesh(new THREE.BoxGeometry(0.14,0.22,0.02),mkMat(0x3a3a3a)).translateX(CW/2+ox).translateY(wy).translateZ(keepFaceZ));
+    g.add(mkMesh(new THREE.BoxGeometry(0.10,0.18,0.02),winMat).translateX(CW/2+ox).translateY(wy).translateZ(keepFaceZ+0.01));
+    g.add(mkMesh(new THREE.SphereGeometry(0.07,6,4,0,Math.PI*2,0,Math.PI/2),winMat).translateX(CW/2+ox).translateY(wy+0.09).translateZ(keepFaceZ+0.01));
+  });
+  const keepBackZ=CD/2-keepD/2-0.01;
+  [[-0.25,keepH*0.45],[0.25,keepH*0.45]].forEach(([ox,wy])=>{
+    g.add(mkMesh(new THREE.BoxGeometry(0.14,0.22,0.02),mkMat(0x3a3a3a)).translateX(CW/2+ox).translateY(wy).translateZ(keepBackZ));
+    g.add(mkMesh(new THREE.BoxGeometry(0.10,0.18,0.02),winMat).translateX(CW/2+ox).translateY(wy).translateZ(keepBackZ-0.01));
+  });
+  const gateX=CW/2, gateZ=CD+wallT/2;
+  g.add(mkMesh(new THREE.BoxGeometry(0.7,1.0,0.16),mkMat(0x2a2a2a)).translateX(gateX).translateY(0.5).translateZ(gateZ));
+  g.add(mkMesh(new THREE.BoxGeometry(0.55,0.85,0.08),mkMat(0x0a0a0a)).translateX(gateX).translateY(0.425).translateZ(gateZ+0.04));
+  for(let i=-2;i<=2;i++){
+    g.add(mkMesh(new THREE.BoxGeometry(0.02,0.8,0.02),mkMat(0x444444,{metalness:0.5})).translateX(gateX+i*0.12).translateY(0.4).translateZ(gateZ+0.06));
+  }
+  for(let j=0;j<3;j++){
+    g.add(mkMesh(new THREE.BoxGeometry(0.5,0.02,0.02),mkMat(0x444444,{metalness:0.5})).translateX(gateX).translateY(0.2+j*0.25).translateZ(gateZ+0.06));
+  }
+  g.add(mkMesh(new THREE.SphereGeometry(0.28,8,4,0,Math.PI*2,0,Math.PI/2),mkMat(0x2a2a2a)).translateX(gateX).translateY(0.95).translateZ(gateZ).rotateX(Math.PI));
+  g.add(mkMesh(new THREE.BoxGeometry(0.25,0.25,0.04),accent).translateX(gateX).translateY(1.2).translateZ(gateZ+0.05));
+  const flagMat=mkMat(owner===1?0x2244AA:0xAA2222);
+  const flagPole=mkMat(0x5a3a1a);
+  g.add(mkMesh(new THREE.CylinderGeometry(0.02,0.02,1.0,4),flagPole).translateX(CW/2).translateY(keepH+0.78+0.5).translateZ(CD/2));
+  g.add(mkMesh(new THREE.BoxGeometry(0.45,0.28,0.015),flagMat).translateX(CW/2+0.23).translateY(keepH+0.78+0.86).translateZ(CD/2));
+  [[0,0],[CW,CD]].forEach(([cx,cz])=>{
+    g.add(mkMesh(new THREE.CylinderGeometry(0.015,0.015,0.5,4),flagPole).translateX(cx).translateY(towerH+0.62+0.25).translateZ(cz));
+    g.add(mkMesh(new THREE.BoxGeometry(0.3,0.18,0.012),flagMat).translateX(cx+0.15).translateY(towerH+0.62+0.42).translateZ(cz));
+  });
+  g.position.set(-CW/2,0,-CD/2);
+  const wrapper=new THREE.Group();wrapper.add(g);
+  return wrapper;
+}
+
+function createTower(type,owner){
+  const g=new THREE.Group();
+  const accent=mkMat(ownerAccent(owner));
+  const accentDark=mkMat(owner===1?0x224488:0x882222);
+  g.add(mkMesh(new THREE.BoxGeometry(0.92,0.06,0.92),accent).translateY(0.03));
+  g.add(mkMesh(new THREE.BoxGeometry(0.85,0.04,0.85),accentDark).translateY(0.08));
+  if(type==='turret'){
+    const stone=mkMat(0x8a8a7a),dark=mkMat(0x6a6a5a),vdark=mkMat(0x5a5a4a);
+    const tH=1.5;
+    g.add(mkMesh(new THREE.BoxGeometry(0.65,0.2,0.65),dark).translateY(0.2));
+    g.add(mkMesh(new THREE.BoxGeometry(0.55,tH,0.55),stone).translateY(0.1+tH/2));
+    g.add(mkMesh(new THREE.BoxGeometry(0.58,0.05,0.58),dark).translateY(0.5));
+    g.add(mkMesh(new THREE.BoxGeometry(0.58,0.05,0.58),dark).translateY(1.0));
+    g.add(mkMesh(new THREE.BoxGeometry(0.7,0.08,0.7),dark).translateY(tH+0.14));
+    const mp=[[-.22,-.22],[0,-.22],[.22,-.22],[-.22,0],[.22,0],[-.22,.22],[0,.22],[.22,.22]];
+    mp.forEach(([dx,dz])=>{
+      g.add(mkMesh(new THREE.BoxGeometry(0.1,0.16,0.1),vdark).translateX(dx).translateY(tH+0.26).translateZ(dz));
+    });
+    [[0,0.28],[0,-0.28],[0.28,0],[-0.28,0]].forEach(([dx,dz])=>{
+      g.add(mkMesh(new THREE.BoxGeometry(0.035,0.25,0.035),mkMat(0x1a1a1a)).translateX(dx).translateY(0.85).translateZ(dz));
+    });
+    g.add(mkMesh(new THREE.BoxGeometry(0.2,0.15,0.02),accent).translateZ(0.29).translateY(1.3));
+  }else if(type==='magic'){
+    const purple=mkMat(0x7B2D8E),darkP=mkMat(0x5A1D6E);
+    const mH=1.6;
+    g.add(mkMesh(new THREE.CylinderGeometry(0.36,0.4,0.15,8),darkP).translateY(0.18));
+    g.add(mkMesh(new THREE.CylinderGeometry(0.28,0.35,mH,8),purple).translateY(0.1+mH/2));
+    g.add(mkMesh(new THREE.TorusGeometry(0.3,0.025,6,8),mkMat(0x9944CC,{emissive:0x6622AA,emissiveIntensity:0.4})).translateY(0.5).rotateX(Math.PI/2));
+    g.add(mkMesh(new THREE.TorusGeometry(0.3,0.025,6,8),mkMat(0x9944CC,{emissive:0x6622AA,emissiveIntensity:0.4})).translateY(1.1).rotateX(Math.PI/2));
+    g.add(mkMesh(new THREE.ConeGeometry(0.36,0.6,8),mkMat(0x9944CC)).translateY(mH+0.4));
+    g.add(mkMesh(new THREE.SphereGeometry(0.12,8,8),mkMat(0xCC66FF,{emissive:0xCC66FF,emissiveIntensity:1.5})).translateY(mH+0.8));
+    g.add(mkMesh(new THREE.TorusGeometry(0.16,0.015,6,12),mkMat(0xDD88FF,{emissive:0xCC66FF,emissiveIntensity:1.0,transparent:true,opacity:0.6})).translateY(mH+0.8).rotateX(Math.PI/3));
+    const gw=mkMat(0xCC66FF,{emissive:0xCC66FF,emissiveIntensity:0.8});
+    [0,Math.PI/2,Math.PI,Math.PI*1.5].forEach(a=>{
+      const r=0.3;
+      g.add(mkMesh(new THREE.BoxGeometry(0.04,0.18,0.025),gw).translateX(Math.cos(a)*r).translateY(0.8).translateZ(Math.sin(a)*r));
+      g.add(mkMesh(new THREE.SphereGeometry(0.025,4,4),gw).translateX(Math.cos(a)*r).translateY(0.92).translateZ(Math.sin(a)*r));
+    });
+    g.add(mkMesh(new THREE.CylinderGeometry(0.33,0.33,0.08,8),accent).translateY(0.35));
+  }else if(type==='catapult'){
+    const wood=mkMat(0x8B5A2B),woodD=mkMat(0x6B3A1B),metal=mkMat(0x555555,{metalness:0.4});
+    g.add(mkMesh(new THREE.BoxGeometry(0.8,0.1,0.7),woodD).translateY(0.15));
+    g.add(mkMesh(new THREE.BoxGeometry(0.82,0.04,0.04),metal).translateY(0.1).translateZ(0.34));
+    g.add(mkMesh(new THREE.BoxGeometry(0.82,0.04,0.04),metal).translateY(0.1).translateZ(-0.34));
+    [[-0.38,-0.32],[-0.38,0.32],[0.38,-0.32],[0.38,0.32]].forEach(([wx,wz])=>{
+      const wh=mkMesh(new THREE.CylinderGeometry(0.12,0.12,0.04,10),woodD);
+      wh.rotation.x=Math.PI/2;wh.position.set(wx,0.12,wz);g.add(wh);
+      const hub=mkMesh(new THREE.CylinderGeometry(0.03,0.03,0.05,6),metal);
+      hub.rotation.x=Math.PI/2;hub.position.set(wx,0.12,wz);g.add(hub);
+    });
+    const frameH=0.9;
+    g.add(mkMesh(new THREE.BoxGeometry(0.08,frameH,0.08),wood).translateX(-0.22).translateY(0.15+frameH/2));
+    g.add(mkMesh(new THREE.BoxGeometry(0.08,frameH,0.08),wood).translateX(0.22).translateY(0.15+frameH/2));
+    g.add(mkMesh(new THREE.BoxGeometry(0.55,0.08,0.08),wood).translateY(0.15+frameH));
+    const brace1=mkMesh(new THREE.BoxGeometry(0.04,0.45,0.04),woodD);
+    brace1.position.set(-0.12,0.5,0);brace1.rotation.z=0.4;g.add(brace1);
+    const brace2=mkMesh(new THREE.BoxGeometry(0.04,0.45,0.04),woodD);
+    brace2.position.set(0.12,0.5,0);brace2.rotation.z=-0.4;g.add(brace2);
+    const arm=mkMesh(new THREE.BoxGeometry(0.06,1.0,0.06),wood);
+    arm.position.set(0,0.95,0.18);arm.rotation.x=-0.4;g.add(arm);
+    g.add(mkMesh(new THREE.BoxGeometry(0.12,0.06,0.12),woodD).translateY(1.38).translateZ(0.55));
+    g.add(mkMesh(new THREE.SphereGeometry(0.08,6,6),mkMat(0x888888)).translateY(1.44).translateZ(0.55));
+    g.add(mkMesh(new THREE.BoxGeometry(0.14,0.14,0.14),mkMat(0x555555,{metalness:0.3})).translateY(0.75).translateZ(-0.2));
+    g.add(mkMesh(new THREE.BoxGeometry(0.15,0.12,0.02),accent).translateZ(0.36).translateY(0.55));
+  }else if(type==='bombard'){
+    const stone=mkMat(0x8a8a7a),dark=mkMat(0x6a6a5a),metal=mkMat(0x2a2a2a,{metalness:0.6,roughness:0.3});
+    g.add(mkMesh(new THREE.BoxGeometry(0.8,0.35,0.7),stone).translateY(0.28));
+    g.add(mkMesh(new THREE.BoxGeometry(0.84,0.06,0.74),dark).translateY(0.09));
+    g.add(mkMesh(new THREE.BoxGeometry(0.35,0.15,0.08),dark).translateY(0.52).translateZ(0.35));
+    g.add(mkMesh(new THREE.BoxGeometry(0.1,0.15,0.08),dark).translateX(-0.3).translateY(0.52).translateZ(0.35));
+    g.add(mkMesh(new THREE.BoxGeometry(0.1,0.15,0.08),dark).translateX(0.3).translateY(0.52).translateZ(0.35));
+    const barrel=mkMesh(new THREE.CylinderGeometry(0.1,0.13,0.85,10),metal);
+    barrel.position.set(0,0.5,0.15);barrel.rotation.x=Math.PI/2-0.15;g.add(barrel);
+    const flare=mkMesh(new THREE.CylinderGeometry(0.14,0.1,0.1,10),metal);
+    flare.position.set(0,0.55,0.58);flare.rotation.x=Math.PI/2-0.15;g.add(flare);
+    g.add(mkMesh(new THREE.SphereGeometry(0.07,6,6),mkMat(0xFF6600,{emissive:0xFF6600,emissiveIntensity:1.5})).translateY(0.58).translateZ(0.65));
+    [0.0,0.22,0.44].forEach(t=>{
+      const ring=mkMesh(new THREE.TorusGeometry(0.12,0.015,6,10),mkMat(0x444444,{metalness:0.4}));
+      ring.position.set(0,0.5+Math.sin(0.15)*t,0.15+Math.cos(0.15)*t);ring.rotation.x=Math.PI/2-0.15;g.add(ring);
+    });
+    [[-0.2,0],[0.2,0],[0,0]].forEach(([dx,dz])=>{
+      g.add(mkMesh(new THREE.SphereGeometry(0.05,6,6),mkMat(0x222222,{metalness:0.5})).translateX(dx).translateY(0.5).translateZ(-0.2+dz));
+    });
+    g.add(mkMesh(new THREE.BoxGeometry(0.82,0.05,0.72),accent).translateY(0.06));
+  }
+  return g;
+}
+
+function createWall(owner){
+  const g=new THREE.Group();
+  const sc=0x8a8a7a,oc=ownerAccent(owner);
+  const r1=(sc>>16&0xFF)*0.85+(oc>>16&0xFF)*0.15;
+  const g1=(sc>>8&0xFF)*0.85+(oc>>8&0xFF)*0.15;
+  const b1=(sc&0xFF)*0.85+(oc&0xFF)*0.15;
+  const tinted=(Math.floor(r1)<<16)|(Math.floor(g1)<<8)|Math.floor(b1);
+  const dark=mkMat(0x6a6a5a),vdark=mkMat(0x5a5a4a);
+  const wallH=0.9;
+  g.add(mkMesh(new THREE.BoxGeometry(0.92,0.08,0.92),dark).translateY(0.04));
+  g.add(mkMesh(new THREE.BoxGeometry(0.85,wallH,0.85),mkMat(tinted)).translateY(0.08+wallH/2));
+  [0.25,0.5,0.75].forEach(frac=>{
+    const y=0.08+wallH*frac;
+    g.add(mkMesh(new THREE.BoxGeometry(0.87,0.015,0.87),vdark).translateY(y));
+  });
+  g.add(mkMesh(new THREE.BoxGeometry(0.92,0.06,0.92),dark).translateY(0.08+wallH+0.03));
+  const mTop=0.08+wallH+0.06;
+  [[-0.3,-0.3],[-0.3,0],[-.3,.3],[0,-.3],[0,.3],[.3,-.3],[.3,0],[.3,.3]].forEach(([dx,dz])=>{
+    g.add(mkMesh(new THREE.BoxGeometry(0.12,0.16,0.12),vdark).translateX(dx).translateY(mTop+0.08).translateZ(dz));
+  });
+  g.add(mkMesh(new THREE.BoxGeometry(0.87,0.06,0.02),mkMat(ownerAccent(owner))).translateY(0.08+wallH*0.6).translateZ(0.43));
+  g.add(mkMesh(new THREE.BoxGeometry(0.02,0.06,0.87),mkMat(ownerAccent(owner))).translateY(0.08+wallH*0.6).translateX(0.43));
+  return g;
+}
+
+function createBarricade(owner){
+  const g=new THREE.Group();
+  const wood=mkMat(0x8B5A2B),woodD=mkMat(0x6B3A1B),woodL=mkMat(0x9B6A3B);
+  const metal=mkMat(0x555555,{metalness:0.3});
+  g.add(mkMesh(new THREE.BoxGeometry(0.88,0.06,0.88),mkMat(ownerAccent(owner))).translateY(0.03));
+  g.add(mkMesh(new THREE.BoxGeometry(0.82,0.06,0.82),woodD).translateY(0.09));
+  const addXBrace=(zOff)=>{
+    const b1=mkMesh(new THREE.BoxGeometry(0.06,0.55,0.06),wood);
+    b1.position.set(0,0.35,zOff);b1.rotation.z=0.35;g.add(b1);
+    const b2=mkMesh(new THREE.BoxGeometry(0.06,0.55,0.06),wood);
+    b2.position.set(0,0.35,zOff);b2.rotation.z=-0.35;g.add(b2);
+  };
+  addXBrace(-0.25);addXBrace(0.25);
+  g.add(mkMesh(new THREE.BoxGeometry(0.82,0.05,0.05),woodD).translateY(0.15));
+  g.add(mkMesh(new THREE.BoxGeometry(0.82,0.05,0.05),woodD).translateY(0.35));
+  g.add(mkMesh(new THREE.BoxGeometry(0.82,0.05,0.05),woodD).translateY(0.55));
+  for(let i=-3;i<=3;i++){
+    const h=0.6+Math.random()*0.2;
+    const x=i*0.12;
+    g.add(mkMesh(new THREE.BoxGeometry(0.05,h,0.05),woodL).translateX(x).translateY(h/2+0.06));
+    g.add(mkMesh(new THREE.ConeGeometry(0.04,0.14,4),woodD).translateX(x).translateY(h+0.13).rotateY(Math.PI/4));
+  }
+  for(let i=-2;i<=2;i++){
+    const spike=mkMesh(new THREE.ConeGeometry(0.025,0.35,4),woodD);
+    spike.position.set(i*0.18,0.35,0.42);spike.rotation.x=-0.6;g.add(spike);
+    const spike2=mkMesh(new THREE.ConeGeometry(0.025,0.35,4),woodD);
+    spike2.position.set(i*0.18,0.35,-0.42);spike2.rotation.x=0.6;g.add(spike2);
+  }
+  g.add(mkMesh(new THREE.BoxGeometry(0.84,0.025,0.025),metal).translateY(0.25));
+  g.add(mkMesh(new THREE.BoxGeometry(0.84,0.025,0.025),metal).translateY(0.45));
+  return g;
+}
+
+function createEnemyModel(type,owner){
+  const g=new THREE.Group();
+  const acMat=mkMat(ownerAccent(owner));
+  const acMetalMat=mkMat(ownerAccent(owner),{metalness:0.3,roughness:0.6});
+
+  if(type==='goblin'){
+    const skin=mkMat(0x4a8c38);
+    const darkSkin=mkMat(0x3a7028);
+    const cloth=mkMat(0x5a4a2a);
+    const leather=mkMat(0x4a3a1a,{roughness:0.8});
+    [-0.045,0.045].forEach(x=>{
+      g.add(mkMesh(new THREE.CylinderGeometry(0.025,0.03,0.1,6),skin).translateX(x).translateY(0.08));
+      g.add(mkMesh(new THREE.CylinderGeometry(0.032,0.035,0.05,6),leather).translateX(x).translateY(0.04));
+      g.add(mkMesh(new THREE.TorusGeometry(0.032,0.006,4,6),leather).translateX(x).translateY(0.065));
+    });
+    const torsoShape=[new THREE.Vector2(0,0),new THREE.Vector2(0.08,0),new THREE.Vector2(0.09,0.04),new THREE.Vector2(0.07,0.12),new THREE.Vector2(0,0.14)];
+    g.add(mkMesh(new THREE.LatheGeometry(torsoShape,8),cloth).translateY(0.15));
+    g.add(mkMesh(new THREE.TorusGeometry(0.075,0.01,4,8),leather).translateY(0.17));
+    g.add(mkMesh(new THREE.BoxGeometry(0.02,0.02,0.005),mkMat(0xccaa44,{metalness:0.6})).translateY(0.17).translateZ(0.075));
+    [-1,1].forEach(s=>{
+      const ua=mkMesh(new THREE.CylinderGeometry(0.02,0.018,0.08,5),skin);
+      ua.rotation.z=s*0.3;ua.position.set(s*0.1,0.26,0);g.add(ua);
+      const fa=mkMesh(new THREE.CylinderGeometry(0.018,0.015,0.07,5),skin);
+      fa.rotation.z=s*0.6;fa.position.set(s*0.13,0.21,0);g.add(fa);
+      const br=mkMesh(new THREE.CylinderGeometry(0.02,0.02,0.03,5),leather);
+      br.rotation.z=s*0.6;br.position.set(s*0.12,0.22,0);g.add(br);
+    });
+    const head=mkMesh(new THREE.SphereGeometry(0.08,8,6),skin);
+    head.scale.set(1,0.9,0.95);head.position.y=0.38;g.add(head);
+    const chin=mkMesh(new THREE.ConeGeometry(0.03,0.04,5),skin);
+    chin.rotation.x=0.3;chin.position.set(0,0.32,0.05);g.add(chin);
+    [-1,1].forEach(s=>{
+      const ear=mkMesh(new THREE.ConeGeometry(0.025,0.1,4),skin);
+      ear.rotation.z=s*0.9;ear.rotation.x=-0.1;
+      ear.position.set(s*0.09,0.39,0);g.add(ear);
+      const inner=mkMesh(new THREE.ConeGeometry(0.015,0.06,4),mkMat(0x5a9a48));
+      inner.rotation.z=s*0.9;inner.rotation.x=-0.1;
+      inner.position.set(s*0.085,0.39,0.005);g.add(inner);
+    });
+    const eyeWhite=mkMat(0xffff44,{emissive:0xcccc00,emissiveIntensity:0.5});
+    [-1,1].forEach(s=>{
+      g.add(mkMesh(new THREE.SphereGeometry(0.02,6,5),eyeWhite).translateX(s*0.035).translateY(0.395).translateZ(0.06));
+      g.add(mkMesh(new THREE.SphereGeometry(0.01,4,4),mkMat(0x111100)).translateX(s*0.035).translateY(0.395).translateZ(0.075));
+      const brow=mkMesh(new THREE.BoxGeometry(0.03,0.008,0.015),darkSkin);
+      brow.rotation.z=s*-0.2;brow.position.set(s*0.035,0.415,0.06);g.add(brow);
+    });
+    g.add(mkMesh(new THREE.ConeGeometry(0.012,0.03,4),skin).translateY(0.375).translateZ(0.075));
+    g.add(mkMesh(new THREE.BoxGeometry(0.04,0.006,0.01),mkMat(0x2a1a0a)).translateY(0.355).translateZ(0.07));
+    [-0.012,0,0.012].forEach(x=>{
+      g.add(mkMesh(new THREE.ConeGeometry(0.004,0.01,3),mkMat(0xeeeecc)).translateX(x).translateY(0.35).translateZ(0.072));
+    });
+    const blade=mkMat(0xaaaaaa,{metalness:0.7,roughness:0.3});
+    const dagger=mkMesh(new THREE.BoxGeometry(0.012,0.08,0.005),blade);
+    dagger.position.set(0.16,0.16,0);g.add(dagger);
+    g.add(mkMesh(new THREE.CylinderGeometry(0.008,0.008,0.025,5),mkMat(0x4a2a0a)).translateX(0.16).translateY(0.115));
+    g.add(mkMesh(new THREE.BoxGeometry(0.03,0.005,0.01),mkMat(0x886622,{metalness:0.4})).translateX(0.16).translateY(0.13));
+    const hood=mkMesh(new THREE.SphereGeometry(0.083,8,4,0,Math.PI*2,0,Math.PI*0.5),acMat);
+    hood.position.y=0.39;g.add(hood);
+
+  }else if(type==='orc'){
+    const skin=mkMat(0x2d5a1e);
+    const darkSkin=mkMat(0x1e4a10);
+    const loincloth=mkMat(0x5a3a1a,{roughness:0.9});
+    const metal=mkMat(0x666666,{metalness:0.5,roughness:0.4});
+    [-0.08,0.08].forEach(x=>{
+      g.add(mkMesh(new THREE.CylinderGeometry(0.05,0.045,0.12,7),skin).translateX(x).translateY(0.14));
+      g.add(mkMesh(new THREE.CylinderGeometry(0.04,0.045,0.1,7),skin).translateX(x).translateY(0.06));
+      g.add(mkMesh(new THREE.SphereGeometry(0.03,5,4),metal).translateX(x).translateY(0.1).translateZ(0.025));
+      g.add(mkMesh(new THREE.CylinderGeometry(0.048,0.05,0.04,7),loincloth).translateX(x).translateY(0.03));
+    });
+    const torsoProfile=[new THREE.Vector2(0,0),new THREE.Vector2(0.14,0),new THREE.Vector2(0.16,0.06),new THREE.Vector2(0.15,0.12),new THREE.Vector2(0.12,0.2),new THREE.Vector2(0,0.22)];
+    g.add(mkMesh(new THREE.LatheGeometry(torsoProfile,8),skin).translateY(0.24));
+    const chestShape=new THREE.Shape();
+    chestShape.moveTo(-0.1,0);chestShape.lineTo(0.1,0);chestShape.lineTo(0.08,0.14);chestShape.lineTo(-0.08,0.14);chestShape.closePath();
+    const chestGeo=new THREE.ExtrudeGeometry(chestShape,{depth:0.02,bevelEnabled:false});
+    const chest=mkMesh(chestGeo,acMetalMat);
+    chest.position.set(0,0.3,0.1);g.add(chest);
+    g.add(mkMesh(new THREE.TorusGeometry(0.13,0.015,4,8),loincloth).translateY(0.26));
+    g.add(mkMesh(new THREE.SphereGeometry(0.02,5,4),mkMat(0xddddaa)).translateY(0.26).translateZ(0.13));
+    g.add(mkMesh(new THREE.BoxGeometry(0.1,0.08,0.015),loincloth).translateY(0.2).translateZ(0.07));
+    [-1,1].forEach(s=>{
+      const shl=mkMesh(new THREE.SphereGeometry(0.06,6,5),skin);
+      shl.scale.set(1,0.8,0.8);shl.position.set(s*0.17,0.44,0);g.add(shl);
+      const pad=mkMesh(new THREE.SphereGeometry(0.055,6,4,0,Math.PI*2,0,Math.PI*0.6),acMetalMat);
+      pad.position.set(s*0.17,0.46,0);g.add(pad);
+      const spike=mkMesh(new THREE.ConeGeometry(0.015,0.06,4),metal);
+      spike.position.set(s*0.2,0.49,0);g.add(spike);
+      g.add(mkMesh(new THREE.CylinderGeometry(0.04,0.035,0.1,6),skin).translateX(s*0.18).translateY(0.36));
+      const fa=mkMesh(new THREE.CylinderGeometry(0.035,0.04,0.1,6),skin);
+      fa.rotation.z=s*0.4;fa.position.set(s*0.22,0.3,0);g.add(fa);
+      const br=mkMesh(new THREE.CylinderGeometry(0.042,0.042,0.04,6),metal);
+      br.rotation.z=s*0.4;br.position.set(s*0.21,0.31,0);g.add(br);
+    });
+    const head=mkMesh(new THREE.SphereGeometry(0.1,8,6),skin);
+    head.scale.set(1,0.9,0.9);head.position.y=0.56;g.add(head);
+    g.add(mkMesh(new THREE.BoxGeometry(0.12,0.04,0.08),skin).translateY(0.5).translateZ(0.03));
+    g.add(mkMesh(new THREE.BoxGeometry(0.14,0.02,0.04),darkSkin).translateY(0.58).translateZ(0.07));
+    const orcEye=mkMat(0xff4400,{emissive:0xcc2200,emissiveIntensity:0.4});
+    [-1,1].forEach(s=>{
+      g.add(mkMesh(new THREE.SphereGeometry(0.015,5,4),orcEye).translateX(s*0.04).translateY(0.565).translateZ(0.075));
+    });
+    [-0.04,0.04].forEach(x=>{
+      const tusk=mkMesh(new THREE.ConeGeometry(0.015,0.06,5),mkMat(0xeeeecc,{roughness:0.5}));
+      tusk.rotation.x=-0.3;tusk.position.set(x,0.49,0.1);g.add(tusk);
+    });
+    g.add(mkMesh(new THREE.SphereGeometry(0.02,5,4),darkSkin).translateY(0.545).translateZ(0.09));
+    const wood=mkMat(0x6b4226,{roughness:0.9});
+    g.add(mkMesh(new THREE.CylinderGeometry(0.02,0.018,0.25,6),wood).translateX(0.26).translateY(0.2));
+    g.add(mkMesh(new THREE.SphereGeometry(0.045,6,5),wood).translateX(0.26).translateY(0.34));
+    [0,1,2,3].forEach(i=>{
+      const sp=mkMesh(new THREE.ConeGeometry(0.01,0.03,4),metal);
+      const a=i*Math.PI/2;
+      sp.position.set(0.26+Math.cos(a)*0.04,0.34,Math.sin(a)*0.04);
+      sp.rotation.z=Math.cos(a)*0.5;sp.rotation.x=Math.sin(a)*0.5;g.add(sp);
+    });
+
+  }else if(type==='darkKnight'){
+    const armor=mkMat(0x44445a,{metalness:0.6,roughness:0.3});
+    const darkArmor=mkMat(0x333344,{metalness:0.7,roughness:0.25});
+    const chainmail=mkMat(0x666680,{metalness:0.5,roughness:0.4});
+    const skinTone=mkMat(0x888888);
+    const blade=mkMat(0xccccdd,{metalness:0.8,roughness:0.15});
+    [-0.06,0.06].forEach(x=>{
+      g.add(mkMesh(new THREE.CylinderGeometry(0.04,0.038,0.1,6),armor).translateX(x).translateY(0.14));
+      g.add(mkMesh(new THREE.SphereGeometry(0.03,5,4),darkArmor).translateX(x).translateY(0.1).translateZ(0.02));
+      g.add(mkMesh(new THREE.CylinderGeometry(0.035,0.04,0.08,6),armor).translateX(x).translateY(0.06));
+      const foot=mkMesh(new THREE.BoxGeometry(0.05,0.025,0.06),armor);
+      foot.position.set(x,0.02,0.01);g.add(foot);
+    });
+    const cuirassProfile=[new THREE.Vector2(0,0),new THREE.Vector2(0.11,0),new THREE.Vector2(0.12,0.05),new THREE.Vector2(0.12,0.12),new THREE.Vector2(0.1,0.18),new THREE.Vector2(0,0.2)];
+    g.add(mkMesh(new THREE.LatheGeometry(cuirassProfile,8),armor).translateY(0.22));
+    const tabardShape=new THREE.Shape();
+    tabardShape.moveTo(-0.04,0);tabardShape.lineTo(0.04,0);tabardShape.lineTo(0.03,0.15);tabardShape.lineTo(-0.03,0.15);tabardShape.closePath();
+    const tabardGeo=new THREE.ExtrudeGeometry(tabardShape,{depth:0.01,bevelEnabled:false});
+    const tabard=mkMesh(tabardGeo,acMat);
+    tabard.position.set(0,0.25,0.1);g.add(tabard);
+    g.add(mkMesh(new THREE.BoxGeometry(0.05,0.008,0.005),acMat).translateY(0.36).translateZ(0.115));
+    g.add(mkMesh(new THREE.BoxGeometry(0.008,0.05,0.005),acMat).translateY(0.35).translateZ(0.115));
+    g.add(mkMesh(new THREE.TorusGeometry(0.06,0.015,4,8),darkArmor).translateY(0.44));
+    [-1,1].forEach(s=>{
+      const p1=mkMesh(new THREE.SphereGeometry(0.05,6,4,0,Math.PI*2,0,Math.PI*0.6),armor);
+      p1.position.set(s*0.14,0.43,0);g.add(p1);
+      const p2=mkMesh(new THREE.SphereGeometry(0.04,6,3,0,Math.PI*2,0,Math.PI*0.5),darkArmor);
+      p2.position.set(s*0.14,0.44,0);g.add(p2);
+      g.add(mkMesh(new THREE.SphereGeometry(0.006,4,3),mkMat(0x888899,{metalness:0.7})).translateX(s*0.14).translateY(0.46).translateZ(0.03));
+      g.add(mkMesh(new THREE.CylinderGeometry(0.032,0.028,0.08,6),chainmail).translateX(s*0.15).translateY(0.36));
+      const vb=mkMesh(new THREE.CylinderGeometry(0.03,0.032,0.07,6),armor);
+      vb.rotation.z=s*0.3;vb.position.set(s*0.17,0.3,0);g.add(vb);
+      const ga=mkMesh(new THREE.BoxGeometry(0.03,0.025,0.03),darkArmor);
+      ga.position.set(s*0.19,0.26,0);g.add(ga);
+    });
+    const helmetBase=mkMesh(new THREE.CylinderGeometry(0.075,0.07,0.12,8),armor);
+    helmetBase.position.y=0.53;g.add(helmetBase);
+    g.add(mkMesh(new THREE.SphereGeometry(0.076,8,4,0,Math.PI*2,0,Math.PI*0.5),armor).translateY(0.59));
+    g.add(mkMesh(new THREE.BoxGeometry(0.1,0.012,0.01),mkMat(0x111122,{emissive:0x222244,emissiveIntensity:0.3})).translateY(0.54).translateZ(0.07));
+    [-0.025,0.025].forEach(x=>{
+      g.add(mkMesh(new THREE.SphereGeometry(0.006,4,3),mkMat(0x4466ff,{emissive:0x3355cc,emissiveIntensity:0.8})).translateX(x).translateY(0.54).translateZ(0.065));
+    });
+    g.add(mkMesh(new THREE.BoxGeometry(0.012,0.08,0.015),armor).translateY(0.53).translateZ(0.073));
+    const crestProfile=[new THREE.Vector2(0,0),new THREE.Vector2(0.02,0.01),new THREE.Vector2(0.025,0.04),new THREE.Vector2(0.015,0.1),new THREE.Vector2(0,0.12)];
+    const crest=mkMesh(new THREE.LatheGeometry(crestProfile,6),acMat);
+    crest.rotation.x=-Math.PI/2;crest.position.set(0,0.6,-0.02);g.add(crest);
+    const shieldGroup=new THREE.Group();
+    const shieldShape=new THREE.Shape();
+    shieldShape.moveTo(0,-0.1);shieldShape.quadraticCurveTo(0.08,-0.08,0.08,0);
+    shieldShape.quadraticCurveTo(0.08,0.06,0.04,0.1);shieldShape.lineTo(0,0.12);
+    shieldShape.lineTo(-0.04,0.1);shieldShape.quadraticCurveTo(-0.08,0.06,-0.08,0);
+    shieldShape.quadraticCurveTo(-0.08,-0.08,0,-0.1);
+    const shieldGeo=new THREE.ExtrudeGeometry(shieldShape,{depth:0.02,bevelEnabled:true,bevelThickness:0.005,bevelSize:0.005,bevelSegments:1});
+    shieldGroup.add(mkMesh(shieldGeo,acMetalMat));
+    shieldGroup.add(mkMesh(new THREE.SphereGeometry(0.02,6,4),darkArmor).translateZ(0.025));
+    shieldGroup.add(mkMesh(new THREE.TorusGeometry(0.065,0.005,4,8),darkArmor).translateZ(0.015));
+    shieldGroup.position.set(-0.2,0.32,0.06);
+    shieldGroup.rotation.y=0.2;g.add(shieldGroup);
+    const swordGroup=new THREE.Group();
+    swordGroup.add(mkMesh(new THREE.BoxGeometry(0.02,0.22,0.006),blade).translateY(0.11));
+    swordGroup.add(mkMesh(new THREE.ConeGeometry(0.01,0.04,4),blade).translateY(0.24));
+    swordGroup.add(mkMesh(new THREE.BoxGeometry(0.006,0.16,0.002),mkMat(0x999aaa,{metalness:0.9})).translateY(0.1).translateZ(0.004));
+    swordGroup.add(mkMesh(new THREE.BoxGeometry(0.07,0.012,0.015),mkMat(0x886622,{metalness:0.5})));
+    swordGroup.add(mkMesh(new THREE.CylinderGeometry(0.01,0.01,0.06,6),mkMat(0x3a2a1a,{roughness:0.9})).translateY(-0.03));
+    swordGroup.add(mkMesh(new THREE.SphereGeometry(0.015,5,4),mkMat(0x886622,{metalness:0.5})).translateY(-0.065));
+    swordGroup.position.set(0.2,0.18,0.03);g.add(swordGroup);
+
+  }else{
+    // archer
+    const skinTone=mkMat(0xc4956a);
+    const hair=mkMat(0xd4a437);
+    const cloth=mkMat(0x2a5a2a);
+    const darkCloth=mkMat(0x1e4a1e);
+    const leather=mkMat(0x6b4226,{roughness:0.8});
+    const wood=mkMat(0x8b5a2b,{roughness:0.7});
+    [-0.04,0.04].forEach(x=>{
+      g.add(mkMesh(new THREE.CylinderGeometry(0.025,0.022,0.12,6),cloth).translateX(x).translateY(0.1));
+      g.add(mkMesh(new THREE.CylinderGeometry(0.028,0.032,0.08,6),leather).translateX(x).translateY(0.05));
+      g.add(mkMesh(new THREE.TorusGeometry(0.028,0.005,4,6),leather).translateX(x).translateY(0.09));
+      g.add(mkMesh(new THREE.SphereGeometry(0.02,5,3),leather).translateX(x).translateY(0.02).translateZ(0.01));
+    });
+    const torsoProfile=[new THREE.Vector2(0,0),new THREE.Vector2(0.08,0),new THREE.Vector2(0.085,0.04),new THREE.Vector2(0.08,0.1),new THREE.Vector2(0.065,0.16),new THREE.Vector2(0,0.18)];
+    g.add(mkMesh(new THREE.LatheGeometry(torsoProfile,8),cloth).translateY(0.2));
+    g.add(mkMesh(new THREE.BoxGeometry(0.06,0.03,0.01),acMat).translateY(0.37).translateZ(0.065));
+    g.add(mkMesh(new THREE.TorusGeometry(0.07,0.008,4,8),leather).translateY(0.23));
+    g.add(mkMesh(new THREE.ConeGeometry(0.01,0.025,4),mkMat(0xaaaa44,{metalness:0.5})).translateY(0.23).translateZ(0.07));
+    [-1,1].forEach(s=>{
+      g.add(mkMesh(new THREE.SphereGeometry(0.03,6,4),cloth).translateX(s*0.1).translateY(0.38));
+      g.add(mkMesh(new THREE.CylinderGeometry(0.02,0.018,0.08,5),cloth).translateX(s*0.11).translateY(0.32));
+      const fa=mkMesh(new THREE.CylinderGeometry(0.016,0.015,0.08,5),skinTone);
+      fa.rotation.z=s*0.3;fa.position.set(s*0.13,0.26,0);g.add(fa);
+      const br=mkMesh(new THREE.CylinderGeometry(0.02,0.019,0.04,5),leather);
+      br.rotation.z=s*0.3;br.position.set(s*0.125,0.27,0);g.add(br);
+    });
+    const quiver=mkMesh(new THREE.CylinderGeometry(0.025,0.03,0.18,6),leather);
+    quiver.rotation.z=0.2;quiver.position.set(0.03,0.35,-0.08);g.add(quiver);
+    [0,0.015,-0.015].forEach(x=>{
+      const tip=mkMesh(new THREE.ConeGeometry(0.006,0.02,3),mkMat(0xaaaaaa,{metalness:0.6}));
+      tip.position.set(0.02+x,0.46,-0.08);g.add(tip);
+    });
+    [0,0.012,-0.012].forEach(x=>{
+      g.add(mkMesh(new THREE.CylinderGeometry(0.003,0.003,0.04,3),mkMat(0x8b6914)).translateX(0.025+x).translateY(0.43).translateZ(-0.08));
+    });
+    const head=mkMesh(new THREE.SphereGeometry(0.07,8,6),skinTone);
+    head.scale.set(0.9,1.05,0.9);head.position.y=0.48;g.add(head);
+    const hairBack=mkMesh(new THREE.SphereGeometry(0.072,8,5),hair);
+    hairBack.scale.set(0.92,1.0,1.0);hairBack.position.set(0,0.49,-0.01);g.add(hairBack);
+    g.add(mkMesh(new THREE.BoxGeometry(0.1,0.02,0.06),hair).translateY(0.52).translateZ(0.02));
+    g.add(mkMesh(new THREE.BoxGeometry(0.06,0.08,0.02),hair).translateY(0.42).translateZ(-0.06));
+    [-1,1].forEach(s=>{
+      const ear=mkMesh(new THREE.ConeGeometry(0.015,0.12,4),skinTone);
+      ear.rotation.z=s*1.2;ear.rotation.x=-0.15;
+      ear.position.set(s*0.08,0.49,0);g.add(ear);
+    });
+    const elfEye=mkMat(0x44cc44,{emissive:0x228822,emissiveIntensity:0.3});
+    [-1,1].forEach(s=>{
+      g.add(mkMesh(new THREE.SphereGeometry(0.012,5,4),mkMat(0xffffff)).translateX(s*0.03).translateY(0.49).translateZ(0.055));
+      g.add(mkMesh(new THREE.SphereGeometry(0.007,4,3),elfEye).translateX(s*0.03).translateY(0.49).translateZ(0.063));
+      g.add(mkMesh(new THREE.SphereGeometry(0.004,3,3),mkMat(0x111111)).translateX(s*0.03).translateY(0.49).translateZ(0.067));
+      const brow=mkMesh(new THREE.BoxGeometry(0.025,0.005,0.01),hair);
+      brow.rotation.z=s*-0.15;brow.position.set(s*0.03,0.505,0.055);g.add(brow);
+    });
+    g.add(mkMesh(new THREE.ConeGeometry(0.008,0.02,4),skinTone).translateY(0.475).translateZ(0.065));
+    g.add(mkMesh(new THREE.BoxGeometry(0.025,0.004,0.006),mkMat(0x995544)).translateY(0.46).translateZ(0.06));
+    const bowGroup=new THREE.Group();
+    const bowLimb=mkMat(0x8b5a2b,{roughness:0.6});
+    const upperLimb=mkMesh(new THREE.TorusGeometry(0.1,0.008,4,8,Math.PI*0.7),bowLimb);
+    upperLimb.rotation.z=Math.PI*0.15;upperLimb.position.set(0,0.04,0);bowGroup.add(upperLimb);
+    bowGroup.add(mkMesh(new THREE.CylinderGeometry(0.012,0.012,0.04,5),leather).translateY(0));
+    const string=mkMesh(new THREE.CylinderGeometry(0.002,0.002,0.22,3),mkMat(0xccccaa));
+    string.position.set(0.06,0,0);bowGroup.add(string);
+    bowGroup.add(mkMesh(new THREE.CylinderGeometry(0.003,0.003,0.2,3),mkMat(0x8b6914)).translateY(0).translateZ(0.01));
+    const arrowTip=mkMesh(new THREE.ConeGeometry(0.008,0.025,4),mkMat(0xaaaaaa,{metalness:0.6}));
+    arrowTip.position.set(0,0.11,0.01);bowGroup.add(arrowTip);
+    bowGroup.position.set(-0.18,0.3,0.04);
+    bowGroup.rotation.y=0.1;g.add(bowGroup);
+    const cape=mkMesh(new THREE.BoxGeometry(0.16,0.08,0.04),acMat);
+    cape.position.set(0,0.38,-0.05);g.add(cape);
+  }
+
+  // For the guide, face forward instead of sideways
+  // (game sets rotation based on owner direction, we skip that here)
+  g.scale.set(1.6,1.6,1.6);
+  return g;
+}
+
+// ==================== VIEWER SETUP ====================
+const viewers=[];
+
+function createViewer(canvas, modelType){
+  const w=canvas.clientWidth||300;
+  const h=canvas.clientHeight||280;
+
+  const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:false});
+  renderer.setSize(w,h);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+  renderer.setClearColor(0x0e0e22);
+
+  const scene=new THREE.Scene();
+
+  // Lighting
+  const ambient=new THREE.AmbientLight(0xffffff,0.5);
+  scene.add(ambient);
+  const dir=new THREE.DirectionalLight(0xffffff,0.8);
+  dir.position.set(3,5,4);scene.add(dir);
+  const dir2=new THREE.DirectionalLight(0x8888ff,0.3);
+  dir2.position.set(-2,3,-3);scene.add(dir2);
+
+  // Ground disc
+  const ground=new THREE.Mesh(
+    new THREE.CylinderGeometry(1.2,1.2,0.02,32),
+    new THREE.MeshStandardMaterial({color:0x1a1a2e,roughness:0.9})
+  );
+  ground.position.y=-0.01;
+  scene.add(ground);
+
+  // Create model
+  let model;
+  let camDist=2.5, camY=1.0;
+  const owner=1; // blue team
+
+  if(modelType==='tower-turret'){
+    model=createTower('turret',owner);camDist=2.2;camY=0.9;
+  }else if(modelType==='tower-magic'){
+    model=createTower('magic',owner);camDist=2.5;camY=1.0;
+  }else if(modelType==='tower-catapult'){
+    model=createTower('catapult',owner);camDist=2.2;camY=0.8;
+  }else if(modelType==='tower-bombard'){
+    model=createTower('bombard',owner);camDist=2.2;camY=0.6;
+  }else if(modelType==='wall'){
+    model=createWall(owner);camDist=1.8;camY=0.6;
+  }else if(modelType==='barricade'){
+    model=createBarricade(owner);camDist=1.8;camY=0.5;
+  }else if(modelType==='enemy-goblin'){
+    model=createEnemyModel('goblin',owner);camDist=1.6;camY=0.5;
+  }else if(modelType==='enemy-orc'){
+    model=createEnemyModel('orc',owner);camDist=2.0;camY=0.5;
+  }else if(modelType==='enemy-darkKnight'){
+    model=createEnemyModel('darkKnight',owner);camDist=1.8;camY=0.5;
+  }else if(modelType==='enemy-archer'){
+    model=createEnemyModel('archer',owner);camDist=1.6;camY=0.5;
+  }
+
+  if(model) scene.add(model);
+
+  // Camera
+  const camera=new THREE.PerspectiveCamera(40,w/h,0.1,50);
+
+  const viewer={
+    canvas, renderer, scene, camera, model,
+    // Orbit state
+    theta:0.5, phi:0.8, dist:camDist, targetY:camY,
+    autoRotate:true, autoSpeed:0.3,
+    dragging:false, lastX:0, lastY:0,
+    pinchDist:0
+  };
+  viewers.push(viewer);
+  return viewer;
+}
+
+function resizeViewer(v){
+  const w=v.canvas.clientWidth;
+  const h=v.canvas.clientHeight;
+  if(w===0||h===0) return;
+  v.renderer.setSize(w,h);
+  v.camera.aspect=w/h;
+  v.camera.updateProjectionMatrix();
+}
+
+function updateCamera(v){
+  v.phi=Math.max(0.2,Math.min(Math.PI/2-0.05,v.phi));
+  v.dist=Math.max(0.8,Math.min(6,v.dist));
+  v.camera.position.set(
+    v.dist*Math.sin(v.phi)*Math.cos(v.theta),
+    v.targetY+v.dist*Math.cos(v.phi),
+    v.dist*Math.sin(v.phi)*Math.sin(v.theta)
+  );
+  v.camera.lookAt(0,v.targetY*0.5,0);
+}
+
+// ==================== INPUT HANDLING ====================
+function getViewer(el){
+  return viewers.find(v=>v.canvas===el);
+}
+
+function onPointerDown(e){
+  const v=getViewer(e.target);if(!v) return;
+  v.dragging=true;v.autoRotate=false;
+  const pt=e.touches?e.touches[0]:e;
+  v.lastX=pt.clientX;v.lastY=pt.clientY;
+  if(e.touches&&e.touches.length===2){
+    const dx=e.touches[0].clientX-e.touches[1].clientX;
+    const dy=e.touches[0].clientY-e.touches[1].clientY;
+    v.pinchDist=Math.sqrt(dx*dx+dy*dy);
+  }
+  e.preventDefault();
+}
+
+function onPointerMove(e){
+  const canvas=e.target.closest?e.target.closest('canvas'):null;
+  // For touch, find which viewer is being dragged
+  let v=null;
+  if(canvas) v=getViewer(canvas);
+  if(!v) v=viewers.find(vv=>vv.dragging);
+  if(!v||!v.dragging) return;
+
+  if(e.touches&&e.touches.length===2){
+    const dx=e.touches[0].clientX-e.touches[1].clientX;
+    const dy=e.touches[0].clientY-e.touches[1].clientY;
+    const dist=Math.sqrt(dx*dx+dy*dy);
+    if(v.pinchDist>0){
+      const scale=v.pinchDist/dist;
+      v.dist*=scale;
+    }
+    v.pinchDist=dist;
+    e.preventDefault();return;
+  }
+
+  const pt=e.touches?e.touches[0]:e;
+  const dx=pt.clientX-v.lastX;
+  const dy=pt.clientY-v.lastY;
+  v.theta-=dx*0.008;
+  v.phi-=dy*0.008;
+  v.lastX=pt.clientX;v.lastY=pt.clientY;
+  e.preventDefault();
+}
+
+function onPointerUp(e){
+  let v=viewers.find(vv=>vv.dragging);
+  if(v){v.dragging=false;v.pinchDist=0}
+}
+
+function onWheel(e){
+  const v=getViewer(e.target);if(!v) return;
+  v.dist+=e.deltaY*0.003;
+  e.preventDefault();
+}
+
+document.addEventListener('mousedown',onPointerDown,{passive:false});
+document.addEventListener('mousemove',onPointerMove,{passive:false});
+document.addEventListener('mouseup',onPointerUp);
+document.addEventListener('touchstart',onPointerDown,{passive:false});
+document.addEventListener('touchmove',onPointerMove,{passive:false});
+document.addEventListener('touchend',onPointerUp);
+document.addEventListener('wheel',onWheel,{passive:false});
+
+// ==================== INITIALIZATION ====================
+function initAllViewers(){
+  document.querySelectorAll('.card[data-model]').forEach(card=>{
+    const canvas=card.querySelector('canvas');
+    const type=card.dataset.model;
+    if(canvas&&type) createViewer(canvas,type);
+  });
+}
+
+// ==================== ANIMATION LOOP ====================
+let lastTime=0;
+function animate(time){
+  requestAnimationFrame(animate);
+  const dt=(time-lastTime)/1000;
+  lastTime=time;
+  if(dt>0.1) return; // skip large gaps
+
+  viewers.forEach(v=>{
+    if(v.canvas.offsetWidth===0) return; // hidden tab
+    if(v.autoRotate) v.theta+=v.autoSpeed*dt;
+    updateCamera(v);
+    v.renderer.render(v.scene,v.camera);
+  });
+}
+
+// Start
+window.addEventListener('load',()=>{
+  initAllViewers();
+  // Initial resize
+  viewers.forEach(v=>resizeViewer(v));
+  requestAnimationFrame(animate);
+});
+
+// Handle window resize
+window.addEventListener('resize',()=>{
+  viewers.forEach(v=>{
+    if(v.canvas.offsetWidth>0) resizeViewer(v);
+  });
+});
+</script>
+</body>
+</html>
