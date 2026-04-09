@@ -666,10 +666,6 @@ function createCastle(owner){
   const roofMat=mkMat(0x6B3A1B);
   const CW=2,CD=8,wallH=1.6,wallT=0.22;
 
-  // Stone foundation / base platform
-  g.add(mkMesh(new THREE.BoxGeometry(CW+0.3,0.12,CD+0.3),dark).translateY(0.06));
-  g.add(mkMesh(new THREE.BoxGeometry(CW+0.15,0.06,CD+0.15),accent).translateY(0.15));
-
   // Walls - thicker with stone block pattern
   const wallPositions=[
     {w:CW,d:wallT, x:CW/2, z:0},          // front
@@ -1601,42 +1597,19 @@ const projMeshes=new Map(); // proj obj -> THREE.Group
 let castle1Mesh=null,castle2Mesh=null;
 
 function addCastles(){
-  // Castles sit at the west/east ends of the dirt road (±halfFieldWidth on X),
-  // centered vertically on the road (z=0), gates facing inward toward each other.
-  // The castle model is built CW=2 wide, CD=8 deep with the gate on local +Z,
-  // so we rotate ±90° to turn the long axis along X and point the gate inward.
+  // Castles sit at the west/east ends of the field, centered on the road (z=0).
+  // No Y rotation: walls run the long way along Z (CD=8, "up/down" on screen),
+  // short way along X (CW=2). No stone floor slab -- castles sit directly on terrain.
   const halfFieldWidth=COLS/2;
-  const CD=8; // must match createCastle()
+  const CW=2; // must match createCastle()
 
   castle1Mesh=createCastle(1);
-  castle1Mesh.rotation.y=-Math.PI/2; // local +Z (gate) -> world +X (east, toward P2)
-  castle1Mesh.position.set(-halfFieldWidth+CD/2, 0, 0);
+  castle1Mesh.position.set(-halfFieldWidth+CW/2, 0, 0);
   scene.add(castle1Mesh);
-  addCastleFloor(castle1Mesh);
 
   castle2Mesh=createCastle(2);
-  castle2Mesh.rotation.y=Math.PI/2; // local +Z (gate) -> world -X (west, toward P1)
-  castle2Mesh.position.set(halfFieldWidth-CD/2, 0, 0);
+  castle2Mesh.position.set(halfFieldWidth-CW/2, 0, 0);
   scene.add(castle2Mesh);
-  addCastleFloor(castle2Mesh);
-}
-
-// Create a stone floor mesh matching the castle's actual bounding box
-// (including corner tower overhang) and centered under it.
-function addCastleFloor(castleMesh){
-  castleMesh.updateMatrixWorld(true);
-  const bbox=new THREE.Box3().setFromObject(castleMesh);
-  const size=new THREE.Vector3();bbox.getSize(size);
-  const center=new THREE.Vector3();bbox.getCenter(center);
-  const pad=0.15;
-  const floorGeo=new THREE.BoxGeometry(size.x+pad, 0.1, size.z+pad);
-  const floorMat=new THREE.MeshStandardMaterial({color:0x5a5a50,roughness:0.95});
-  const floor=new THREE.Mesh(floorGeo,floorMat);
-  // Sit just above terrain, exactly under the castle's XZ center
-  floor.position.set(center.x, 0.05, center.z);
-  floor.receiveShadow=true;
-  floor.castShadow=false;
-  scene.add(floor);
 }
 
 // ==================== HUD CONTROLLER ====================
