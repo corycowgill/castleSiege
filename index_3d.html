@@ -243,7 +243,9 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0604}
 .build-opt.p2s{background:linear-gradient(180deg,rgba(230,90,130,.35),rgba(140,30,60,.25));
   border-color:var(--p2);box-shadow:0 0 12px var(--p2-glow),inset 0 0 0 1px var(--wood-d),inset 0 -4px 8px rgba(0,0,0,.4)}
 .build-opt.p2s .opt-name{color:#ffd8e2}
-.build-opt.p2-opt{cursor:pointer;pointer-events:auto}
+.build-opt.p1-opt,.build-opt.p2-opt{cursor:pointer;pointer-events:auto}
+.build-opt.p1-opt:hover{background:linear-gradient(180deg,rgba(90,140,230,.2),rgba(30,60,140,.15));
+  border-color:var(--p1);box-shadow:0 0 10px var(--p1-glow),inset 0 0 0 1px var(--wood-d),inset 0 -4px 8px rgba(0,0,0,.4)}
 .build-opt.p2-opt:hover{background:linear-gradient(180deg,rgba(230,90,130,.2),rgba(140,30,60,.15));
   border-color:var(--p2);box-shadow:0 0 10px var(--p2-glow),inset 0 0 0 1px var(--wood-d),inset 0 -4px 8px rgba(0,0,0,.4)}
 .hud-bottom-specials{display:flex;height:34px;border-top:1px solid var(--wood-d);box-shadow:0 -1px 0 var(--gold-d)}
@@ -261,7 +263,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0604}
   border-color:var(--p1);box-shadow:0 0 12px var(--p1-glow),inset 0 0 0 1px var(--wood-d),inset 0 -3px 8px rgba(0,0,0,.4)}
 .spec-btn.p2s{background:linear-gradient(180deg,rgba(230,90,130,.35),rgba(140,30,60,.25));
   border-color:var(--p2);box-shadow:0 0 12px var(--p2-glow),inset 0 0 0 1px var(--wood-d),inset 0 -3px 8px rgba(0,0,0,.4)}
-.spec-btn.p2-spec{cursor:pointer;pointer-events:auto}
+.spec-btn.p1-spec,.spec-btn.p2-spec{cursor:pointer;pointer-events:auto}
+.spec-btn.p1-spec:hover{background:linear-gradient(180deg,rgba(90,140,230,.2),rgba(30,60,140,.15));border-color:var(--p1)}
 .spec-btn.p2-spec:hover{background:linear-gradient(180deg,rgba(230,90,130,.2),rgba(140,30,60,.15));border-color:var(--p2)}
 .spec-btn.disabled{opacity:.3;pointer-events:none;filter:grayscale(.6)}
 .spec-label{color:inherit}
@@ -1914,6 +1917,178 @@ function updateDmgNumbers(dt){
   }
 }
 
+// ==================== SPECIAL VFX ====================
+const vfx=[];
+function addVfx(obj){vfx.push(obj)}
+function updateVfx(dt){
+  for(let i=vfx.length-1;i>=0;i--){
+    const v=vfx[i];
+    if(v.update(dt)===false){if(v.dispose)v.dispose();vfx.splice(i,1)}
+  }
+}
+
+// Falling meteor with fire tail. Triggers dealDamage to all enemies of enemyTeam within impactRadius on strike.
+function spawnMeteorStrike(wx,wz,delay,impactRadius,dmg,enemyTeam){
+  const startY=18+Math.random()*4;
+  const offX=(Math.random()-0.5)*0.6,offZ=(Math.random()-0.5)*0.6;
+  const core=new THREE.Mesh(new THREE.SphereGeometry(0.18,10,8),
+    new THREE.MeshStandardMaterial({color:0xff5500,emissive:0xff3300,emissiveIntensity:2.2}));
+  const glow=new THREE.Mesh(new THREE.SphereGeometry(0.34,10,8),
+    new THREE.MeshBasicMaterial({color:0xffaa22,transparent:true,opacity:0.45,depthWrite:false}));
+  core.position.set(wx+offX,startY,wz+offZ);glow.position.copy(core.position);
+  core.visible=false;glow.visible=false;
+  scene.add(core);scene.add(glow);
+  const fallTime=0.55;
+  let t=0,wait=delay||0,exploded=false,trailTimer=0;
+  addVfx({
+    update(dt){
+      if(wait>0){wait-=dt;return true}
+      if(!core.visible){core.visible=true;glow.visible=true}
+      t+=dt;
+      const k=Math.min(1,t/fallTime);
+      const y=startY*(1-k)+0.3*k;
+      core.position.y=y;glow.position.y=y;
+      trailTimer-=dt;
+      if(trailTimer<=0){
+        emitParticles(core.position.x,y,core.position.z,0xff8800,2,30);
+        emitParticles(core.position.x,y,core.position.z,0xff3300,1,20);
+        trailTimer=0.02;
+      }
+      if(!exploded&&k>=1){
+        exploded=true;
+        // damage
+        const tx=core.position.x,tz=core.position.z;
+        for(const e of enemies){
+          if(!e.alive||e.owner!==enemyTeam)continue;
+          const ep=pixelToWorld(e.x,e.y);
+          const dd=Math.hypot(ep.x-tx,ep.z-tz);
+          if(dd<=impactRadius)dealDamage(e,dmg);
+        }
+        emitParticles(tx,0.3,tz,0xff8800,20,130);
+        emitParticles(tx,0.5,tz,0xff3300,15,90);
+        emitParticles(tx,0.3,tz,0xffee66,10,60);
+        emitParticles(tx,0.2,tz,0x444444,10,70);
+        sndHit&&sndHit();
+        core.visible=false;glow.visible=false;
+        return false;
+      }
+      return true;
+    },
+    dispose(){scene.remove(core);scene.remove(glow);core.geometry.dispose();core.material.dispose();glow.geometry.dispose();glow.material.dispose()}
+  });
+}
+
+// Jagged lightning bolt from sky to a world point.
+function spawnLightningBolt(wx,wz){
+  const topY=14;const segs=9;
+  const pts=[];
+  for(let i=0;i<=segs;i++){
+    const k=i/segs;
+    const y=topY*(1-k)+0.3*k;
+    const jx=(Math.random()-0.5)*0.7*(1-Math.abs(k-0.5));
+    const jz=(Math.random()-0.5)*0.7*(1-Math.abs(k-0.5));
+    pts.push(new THREE.Vector3(wx+jx,y,wz+jz));
+  }
+  const geo=new THREE.BufferGeometry().setFromPoints(pts);
+  const mat=new THREE.LineBasicMaterial({color:0xaaddff,transparent:true,opacity:1,linewidth:3});
+  const line=new THREE.Line(geo,mat);scene.add(line);
+  // wider faint outer glow
+  const mat2=new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:0.9});
+  const line2=new THREE.Line(geo.clone(),mat2);scene.add(line2);
+  emitParticles(wx,0.3,wz,0xaaddff,12,80);
+  emitParticles(wx,0.6,wz,0xffffff,6,50);
+  let age=0,life=0.35;
+  addVfx({
+    update(dt){
+      age+=dt;
+      const k=age/life;
+      if(k>=1)return false;
+      mat.opacity=1-k;mat2.opacity=0.9*(1-k);
+      return true;
+    },
+    dispose(){scene.remove(line);scene.remove(line2);geo.dispose();line2.geometry.dispose();mat.dispose();mat2.dispose()}
+  });
+}
+
+// Rising green aura + red '+' sprites at a castle position.
+function spawnHealAura(wx,wz){
+  const aura=new THREE.Mesh(
+    new THREE.CylinderGeometry(0.9,0.9,3.0,20,1,true),
+    new THREE.MeshBasicMaterial({color:0x66ff88,transparent:true,opacity:0.55,side:THREE.DoubleSide,depthWrite:false})
+  );
+  aura.position.set(wx,0.2,wz);scene.add(aura);
+  const inner=new THREE.Mesh(
+    new THREE.CylinderGeometry(0.4,0.4,3.0,16,1,true),
+    new THREE.MeshBasicMaterial({color:0xaaffbb,transparent:true,opacity:0.8,side:THREE.DoubleSide,depthWrite:false})
+  );
+  inner.position.set(wx,0.2,wz);scene.add(inner);
+  // ground ring
+  const ring=new THREE.Mesh(
+    new THREE.RingGeometry(0.4,1.0,24),
+    new THREE.MeshBasicMaterial({color:0x00ff66,transparent:true,opacity:0.8,side:THREE.DoubleSide,depthWrite:false})
+  );
+  ring.rotation.x=-Math.PI/2;ring.position.set(wx,0.04,wz);scene.add(ring);
+  emitParticles(wx,0.3,wz,0x00ff66,25,70);
+  emitParticles(wx,0.6,wz,0x88ffaa,15,50);
+  // Red '+' sprites
+  const plusSprites=[];
+  function makePlusTexture(){
+    const c=document.createElement('canvas');c.width=64;c.height=64;
+    const ctx=c.getContext('2d');
+    ctx.strokeStyle='#000';ctx.lineWidth=8;ctx.lineCap='round';
+    ctx.beginPath();ctx.moveTo(32,10);ctx.lineTo(32,54);ctx.moveTo(10,32);ctx.lineTo(54,32);ctx.stroke();
+    ctx.strokeStyle='#ff2233';ctx.lineWidth=5;
+    ctx.beginPath();ctx.moveTo(32,10);ctx.lineTo(32,54);ctx.moveTo(10,32);ctx.lineTo(54,32);ctx.stroke();
+    return new THREE.CanvasTexture(c);
+  }
+  const plusTex=makePlusTexture();
+  for(let i=0;i<8;i++){
+    const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:plusTex,transparent:true,depthTest:false}));
+    const ang=Math.random()*Math.PI*2;const rad=Math.random()*0.7;
+    sp.position.set(wx+Math.cos(ang)*rad,0.5+Math.random()*0.5,wz+Math.sin(ang)*rad);
+    const s=0.35+Math.random()*0.2;sp.scale.set(s,s,1);
+    scene.add(sp);
+    plusSprites.push({sp,vy:1.2+Math.random()*0.6,vx:(Math.random()-0.5)*0.3,delay:i*0.08,age:0});
+  }
+  let age=0,life=1.6;
+  addVfx({
+    update(dt){
+      age+=dt;
+      const k=age/life;
+      if(k>=1)return false;
+      // Aura grows then fades
+      const grow=Math.min(1,age/0.25);
+      const fade=Math.max(0,1-Math.max(0,(age-0.4)/1.2));
+      aura.scale.set(grow,grow*(0.8+k*0.6),grow);
+      inner.scale.set(grow,grow*(0.8+k*0.8),grow);
+      aura.position.y=0.2+k*0.6;
+      inner.position.y=0.2+k*0.8;
+      aura.material.opacity=0.55*fade;
+      inner.material.opacity=0.8*fade;
+      const rs=1+k*1.8;ring.scale.set(rs,rs,1);
+      ring.material.opacity=0.8*(1-k);
+      // plus signs
+      for(const p of plusSprites){
+        if(p.delay>0){p.delay-=dt;continue}
+        p.age+=dt;
+        p.sp.position.y+=p.vy*dt;
+        p.sp.position.x+=p.vx*dt;
+        const pk=Math.min(1,p.age/1.1);
+        p.sp.material.opacity=1-pk;
+      }
+      return true;
+    },
+    dispose(){
+      scene.remove(aura);scene.remove(inner);scene.remove(ring);
+      aura.geometry.dispose();aura.material.dispose();
+      inner.geometry.dispose();inner.material.dispose();
+      ring.geometry.dispose();ring.material.dispose();
+      for(const p of plusSprites){scene.remove(p.sp);p.sp.material.dispose()}
+      plusTex.dispose();
+    }
+  });
+}
+
 // ==================== 3D CURSOR ====================
 let cursor1Mesh,cursor2Mesh,rangeMesh;
 function initCursors(){
@@ -1961,17 +2136,24 @@ function addCastles(){
 
 // ==================== HUD CONTROLLER ====================
 function initHUD(){
-  // Build options HTML
+  // Build options HTML — both P1 and P2 panels are clickable/touchable
   const specNames=['Meteor','Lightning','Freeze','Heal'];
+  // Resolve which player number a given panel's clicks should target.
+  // 2p: p1 panel -> player 1, p2 panel -> player 2.
+  // 1p desktop: both panels target player 1 (the only human).
+  const panelTarget=(pid)=>{
+    if(gameMode==='1p'&&!isMobile)return 1;
+    return pid==='p1'?1:2;
+  };
   ['p1','p2'].forEach(pid=>{
     const container=document.getElementById(pid+'-build-opts');
     BUILD_OPTS.forEach((opt,i)=>{
       const div=document.createElement('div');
-      div.className='build-opt '+(pid==='p2'?'p2-opt':'');
+      div.className='build-opt clickable '+(pid==='p1'?'p1-opt':'p2-opt');
       div.dataset.idx=i;
       div.innerHTML=`<span class="opt-name">${opt.name}</span><span class="opt-cost">$${opt.cost}${opt.cat==='enemy'?'x10':''}</span>`;
-      if(pid==='p2')div.addEventListener('click',()=>{
-        const t=gameMode==='1p'&&!isMobile?1:2;
+      div.addEventListener('click',()=>{
+        const t=panelTarget(pid);
         players[t].selectedIdx=i;
       });
       container.appendChild(div);
@@ -1979,11 +2161,11 @@ function initHUD(){
     const specContainer=document.getElementById(pid+'-specials');
     SPECIAL_DATA.forEach((sp,i)=>{
       const div=document.createElement('div');
-      div.className='spec-btn '+(pid==='p2'?'p2-spec clickable':'');
+      div.className='spec-btn clickable '+(pid==='p1'?'p1-spec':'p2-spec');
       div.dataset.idx=i;
       div.innerHTML=`<span>${SPEC_ICONS[i]}</span><span class="spec-label">${sp.name}</span>`;
-      if(pid==='p2')div.addEventListener('click',()=>{
-        const t=gameMode==='1p'&&!isMobile?1:2;
+      div.addEventListener('click',()=>{
+        const t=panelTarget(pid);
         players[t].selectedSpecial=i;
         if(gameState==='combat')useSpecial(players[t],t);
       });
@@ -2146,25 +2328,41 @@ function useSpecial(player,pNum){
   const wp=pixelToWorld(cx,cy);
   const enemyTeam=pNum===1?2:1;
   if(spec.id==='meteor'){
-    for(const e of enemies){if(!e.alive||e.owner!==enemyTeam)continue;if(dist(cx,cy,e.x,e.y)/T<=spec.radius)dealDamage(e,spec.dmg)}
-    emitParticles(wp.x,0.5,wp.z,0xff8800,30,120);emitParticles(wp.x,0.5,wp.z,0xff4400,20,80);
+    // Impact radius in world units (tile-space radius -> world)
+    const worldRadius=spec.radius; // tiles map roughly 1:1 to world units
+    // Central strike at cursor, then several additional meteors scattered within the radius.
+    // Each meteor damages enemies within a small splash to give a staggered multi-hit feel.
+    const splash=worldRadius*0.5;
+    const perMeteorDmg=Math.ceil(spec.dmg/2);
+    spawnMeteorStrike(wp.x,wp.z,0,worldRadius,spec.dmg,enemyTeam);
+    const extra=4;
+    for(let i=0;i<extra;i++){
+      const ang=Math.random()*Math.PI*2;
+      const rad=Math.random()*worldRadius;
+      const mx=wp.x+Math.cos(ang)*rad;
+      const mz=wp.z+Math.sin(ang)*rad;
+      spawnMeteorStrike(mx,mz,0.08+Math.random()*0.35,splash,perMeteorDmg,enemyTeam);
+    }
   }else if(spec.id==='lightning'){
     let lastX=cx,lastY=cy;const hit=new Set();
     for(let chain=0;chain<spec.chains;chain++){
       let closest=null,cd=Infinity;
       for(const e of enemies){if(!e.alive||hit.has(e)||e.owner!==enemyTeam)continue;const d=dist(lastX,lastY,e.x,e.y);if(d<cd&&d<spec.chains*T){cd=d;closest=e}}
       if(!closest)break;dealDamage(closest,spec.dmg);hit.add(closest);
-      const mp=pixelToWorld((lastX+closest.x)/2,(lastY+closest.y)/2);
-      emitParticles(mp.x,0.3,mp.z,0x88aaff,5,40);lastX=closest.x;lastY=closest.y;
+      const ep=pixelToWorld(closest.x,closest.y);
+      spawnLightningBolt(ep.x,ep.z);
+      lastX=closest.x;lastY=closest.y;
     }
+    // If no enemies were hit, still flash a bolt at the cursor.
+    if(hit.size===0)spawnLightningBolt(wp.x,wp.z);
   }else if(spec.id==='freeze'){
     for(const e of enemies){if(!e.alive||e.owner!==enemyTeam)continue;if(dist(cx,cy,e.x,e.y)/T<=spec.radius)e.slowTimer=spec.duration}
     emitParticles(wp.x,0.3,wp.z,0xaaeeff,25,60);
   }else if(spec.id==='heal'){
     player.castleHP=Math.min(player.maxHP,player.castleHP+spec.amount);
     const hx=pNum===1?colToX(1):colToX(38);const hp=pixelToWorld(hx,rowToY(9));
-    emitParticles(hp.x,0.5,hp.z,0x00ff00,30,70);emitParticles(hp.x,1.0,hp.z,0x88ffaa,15,40);
-    spawnDmgNumber(hp.x,1,hp.z,'+'+spec.amount,'#00ff00');
+    spawnHealAura(hp.x,hp.z);
+    spawnDmgNumber(hp.x,1.2,hp.z,'+'+spec.amount,'#00ff00');
   }
 }
 
@@ -2894,7 +3092,7 @@ function gameLoop(){
   // Sync 3D state
   if(gameState!=='title'){
     syncBuildings();syncTowers();syncEnemies();syncProjectiles();updateCursors();
-    updateParticles(dt);updateDmgNumbers(dt);
+    updateParticles(dt);updateDmgNumbers(dt);updateVfx(dt);
   }
 
   updateHUD();
