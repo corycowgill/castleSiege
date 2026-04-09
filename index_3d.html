@@ -651,6 +651,161 @@ function createTerrain(){
   return mesh;
 }
 
+// ==================== SCENERY (outside the play field) ====================
+function createScenery(){
+  const FIELD_HX=COLS/2, FIELD_HZ=ROWS/2; // play field half-extents (20, 9)
+  const OUTER=55; // outer scenery extends from -OUTER to +OUTER on both axes
+
+  // Deterministic PRNG so scenery is consistent across loads
+  let seed=1337;
+  const rr=()=>{seed=(seed*9301+49297)%233280;return seed/233280};
+  const rrange=(a,b)=>a+rr()*(b-a);
+
+  // Is this point safely outside the playfield (with margin)?
+  const outsideField=(x,z,m=1.5)=>Math.abs(x)>FIELD_HX+m||Math.abs(z)>FIELD_HZ+m;
+
+  // ---- Outer ground plane ----
+  const outerGeo=new THREE.PlaneGeometry(OUTER*2,OUTER*2,48,48);
+  outerGeo.rotateX(-Math.PI/2);
+  const pos=outerGeo.attributes.position;
+  for(let i=0;i<pos.count;i++){
+    const x=pos.getX(i),z=pos.getZ(i);
+    // Don't bump under the playfield — keep it flat there
+    if(Math.abs(x)<FIELD_HX+0.5&&Math.abs(z)<FIELD_HZ+0.5)continue;
+    const h=Math.sin(x*0.18)*0.35+Math.cos(z*0.23)*0.35+seededRandom(Math.floor(x*2),Math.floor(z*2))*0.2;
+    pos.setY(i,h-0.12);
+  }
+  outerGeo.computeVertexNormals();
+  const outerMat=new THREE.MeshStandardMaterial({color:0x4a7a3a,roughness:0.95,flatShading:true});
+  const outerMesh=new THREE.Mesh(outerGeo,outerMat);
+  outerMesh.position.y=-0.08;
+  outerMesh.receiveShadow=true;
+  outerMesh.name='scenery-ground';
+  scene.add(outerMesh);
+
+  // ---- Trees ----
+  const trunkMat=mkMat(0x5a3a1a);
+  const pine1=mkMat(0x2d5a2a),pine2=mkMat(0x1f4a1a),pine3=mkMat(0x3a6a2a);
+  const leafy1=mkMat(0x4a7a2a),leafy2=mkMat(0x5a8a3a);
+  function makeTree(x,z,scale){
+    const tg=new THREE.Group();
+    const h=1.4*scale;
+    const trunk=mkMesh(new THREE.CylinderGeometry(0.12*scale,0.18*scale,h,6),trunkMat);
+    trunk.position.y=h/2;
+    tg.add(trunk);
+    if(rr()>0.45){ // pine
+      const fm=[pine1,pine2,pine3][Math.floor(rr()*3)];
+      for(let i=0;i<3;i++){
+        const r=(0.85-i*0.22)*scale,ch=0.75*scale;
+        const c=mkMesh(new THREE.ConeGeometry(r,ch,8),fm);
+        c.position.y=h+i*0.45*scale;
+        tg.add(c);
+      }
+    }else{ // blob leafy
+      const fm=rr()>0.5?leafy1:leafy2;
+      const b1=mkMesh(new THREE.SphereGeometry(0.75*scale,8,6),fm);
+      b1.position.y=h+0.35*scale;tg.add(b1);
+      const b2=mkMesh(new THREE.SphereGeometry(0.55*scale,8,6),fm);
+      b2.position.set(0.3*scale,h+0.6*scale,0.15*scale);tg.add(b2);
+      const b3=mkMesh(new THREE.SphereGeometry(0.5*scale,8,6),fm);
+      b3.position.set(-0.25*scale,h+0.55*scale,-0.2*scale);tg.add(b3);
+    }
+    tg.position.set(x,0,z);
+    scene.add(tg);
+  }
+  for(let i=0;i<90;i++){
+    let x,z,tries=0;
+    do{x=rrange(-OUTER*0.92,OUTER*0.92);z=rrange(-OUTER*0.92,OUTER*0.92);tries++}
+    while(tries<12&&!outsideField(x,z,2.5));
+    if(!outsideField(x,z,2.5))continue;
+    makeTree(x,z,0.7+rr()*0.9);
+  }
+
+  // ---- Pond ----
+  const pondX=-32,pondZ=-20,pondR=5.5;
+  const waterMat=new THREE.MeshStandardMaterial({color:0x2f6a9a,roughness:0.25,metalness:0.3,emissive:0x0a2a44,emissiveIntensity:0.2});
+  const pondGeo=new THREE.CircleGeometry(pondR,28);
+  pondGeo.rotateX(-Math.PI/2);
+  const pondMesh=new THREE.Mesh(pondGeo,waterMat);
+  pondMesh.position.set(pondX,0.02,pondZ);
+  pondMesh.receiveShadow=true;
+  scene.add(pondMesh);
+  // Dirt bank around pond
+  const bankGeo=new THREE.RingGeometry(pondR,pondR+0.7,28);
+  bankGeo.rotateX(-Math.PI/2);
+  const bankMesh=new THREE.Mesh(bankGeo,new THREE.MeshStandardMaterial({color:0x5a3f22,roughness:0.95}));
+  bankMesh.position.set(pondX,0.03,pondZ);
+  bankMesh.receiveShadow=true;
+  scene.add(bankMesh);
+  // Reeds around pond
+  const reedMat=mkMat(0x6a8a2a);
+  for(let i=0;i<20;i++){
+    const ang=rr()*Math.PI*2,rd=pondR+0.35+rr()*0.5;
+    const rx=pondX+Math.cos(ang)*rd,rz=pondZ+Math.sin(ang)*rd;
+    const reed=mkMesh(new THREE.CylinderGeometry(0.02,0.02,0.35+rr()*0.25,4),reedMat);
+    reed.position.set(rx,0.2,rz);
+    scene.add(reed);
+  }
+  // Lily pads
+  const lilyMat=mkMat(0x3a7a3a);
+  for(let i=0;i<5;i++){
+    const ang=rr()*Math.PI*2,rd=rr()*(pondR-1.2);
+    const lx=pondX+Math.cos(ang)*rd,lz=pondZ+Math.sin(ang)*rd;
+    const lily=mkMesh(new THREE.CylinderGeometry(0.35,0.35,0.04,12),lilyMat);
+    lily.position.set(lx,0.05,lz);
+    scene.add(lily);
+  }
+
+  // ---- Flower clumps ----
+  const flowerColors=[0xff4444,0xffdd44,0xff88cc,0xffffff,0x9944ff,0xff8822];
+  for(let c=0;c<30;c++){
+    let cx,cz,tries=0;
+    do{cx=rrange(-OUTER*0.88,OUTER*0.88);cz=rrange(-OUTER*0.88,OUTER*0.88);tries++}
+    while(tries<12&&!outsideField(cx,cz,2));
+    if(!outsideField(cx,cz,2))continue;
+    const color=flowerColors[Math.floor(rr()*flowerColors.length)];
+    const headMat=mkMat(color,{emissive:color,emissiveIntensity:0.15});
+    const stemMat=mkMat(0x3a6a2a);
+    const n=4+Math.floor(rr()*5);
+    for(let j=0;j<n;j++){
+      const ox=cx+(rr()-0.5)*1.6,oz=cz+(rr()-0.5)*1.6;
+      const stem=mkMesh(new THREE.CylinderGeometry(0.015,0.015,0.22,4),stemMat);
+      stem.position.set(ox,0.11,oz);stem.castShadow=false;scene.add(stem);
+      const head=mkMesh(new THREE.SphereGeometry(0.08,6,5),headMat);
+      head.position.set(ox,0.25,oz);head.castShadow=false;scene.add(head);
+    }
+  }
+
+  // ---- Rocks ----
+  const rockMat=mkMat(0x6a6a6a),rockMat2=mkMat(0x555555);
+  for(let i=0;i<35;i++){
+    let rx,rz,tries=0;
+    do{rx=rrange(-OUTER*0.92,OUTER*0.92);rz=rrange(-OUTER*0.92,OUTER*0.92);tries++}
+    while(tries<12&&!outsideField(rx,rz,2));
+    if(!outsideField(rx,rz,2))continue;
+    const s=0.25+rr()*0.55;
+    const rock=mkMesh(new THREE.DodecahedronGeometry(s,0),rr()>0.5?rockMat:rockMat2);
+    rock.position.set(rx,s*0.4,rz);
+    rock.rotation.set(rr()*Math.PI,rr()*Math.PI,rr()*Math.PI);
+    scene.add(rock);
+  }
+
+  // ---- A few bushes (small sphere clusters) ----
+  const bushMat=mkMat(0x2d5a2a),bushMat2=mkMat(0x3a6a2a);
+  for(let i=0;i<40;i++){
+    let bx,bz,tries=0;
+    do{bx=rrange(-OUTER*0.9,OUTER*0.9);bz=rrange(-OUTER*0.9,OUTER*0.9);tries++}
+    while(tries<12&&!outsideField(bx,bz,2));
+    if(!outsideField(bx,bz,2))continue;
+    const bm=rr()>0.5?bushMat:bushMat2;
+    const s=0.35+rr()*0.3;
+    const b=mkMesh(new THREE.SphereGeometry(s,8,6),bm);
+    b.position.set(bx,s*0.6,bz);scene.add(b);
+    const b2=mkMesh(new THREE.SphereGeometry(s*0.8,8,6),bm);
+    b2.position.set(bx+s*0.6,s*0.5,bz+s*0.3);scene.add(b2);
+  }
+}
+
 // ==================== 3D MODEL HELPERS ====================
 function mkMat(color,opts={}){return new THREE.MeshStandardMaterial({color,flatShading:true,...opts})}
 function mkMesh(geo,mat){const m=new THREE.Mesh(geo,mat);m.castShadow=true;m.receiveShadow=true;return m}
@@ -2578,6 +2733,7 @@ function init(){
   const container=document.getElementById('game-container');
   initScene(container);
   createTerrain();
+  createScenery();
   initGrid();
   addCastles();
   initParticles();
