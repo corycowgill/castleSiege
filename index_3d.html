@@ -724,63 +724,68 @@ function createCastle(owner){
     g.add(mkMesh(new THREE.CylinderGeometry(towerR+0.04,towerR+0.04,0.1,8),accent).translateX(cx).translateY(towerH*0.75).translateZ(cz));
   });
 
-  // Keep - taller, more imposing
-  const keepH=3.0,keepW=1.1,keepD=1.5;
+  // "facing" selects which X side is "front" — the wall that faces the opponent.
+  // owner 1 sits at the west end, so its front is +X (east); owner 2's front is -X (west).
+  const facing = owner===1 ? 1 : -1;
+
+  // Keep - rotated 90° vs the old layout so its long axis runs along X.
+  // Width (keepW) is now along X so the front/back faces are wide enough for windows.
+  const keepH=3.0,keepW=1.5,keepD=1.1;
   g.add(mkMesh(new THREE.BoxGeometry(keepW,keepH,keepD),stoneLight).translateX(CW/2).translateY(keepH/2).translateZ(CD/2));
   // Keep stone detail bands
   g.add(mkMesh(new THREE.BoxGeometry(keepW+0.04,0.06,keepD+0.04),dark).translateX(CW/2).translateY(keepH*0.33).translateZ(CD/2));
   g.add(mkMesh(new THREE.BoxGeometry(keepW+0.04,0.06,keepD+0.04),dark).translateX(CW/2).translateY(keepH*0.66).translateZ(CD/2));
   // Keep top ledge
   g.add(mkMesh(new THREE.BoxGeometry(keepW+0.12,0.08,keepD+0.12),dark).translateX(CW/2).translateY(keepH+0.04).translateZ(CD/2));
-  // Keep crenellations
-  for(let i=0;i<4;i++){
-    const kx=CW/2-keepW/2+0.15+i*(keepW-0.3)/3;
+  // Keep crenellations — front/back walls (run along X, length keepW): 5 merlons
+  for(let i=0;i<5;i++){
+    const kx=CW/2-keepW/2+0.15+i*(keepW-0.3)/4;
     g.add(mkMesh(new THREE.BoxGeometry(0.12,0.18,0.08),dark).translateX(kx).translateY(keepH+0.17).translateZ(CD/2-keepD/2));
     g.add(mkMesh(new THREE.BoxGeometry(0.12,0.18,0.08),dark).translateX(kx).translateY(keepH+0.17).translateZ(CD/2+keepD/2));
   }
-  for(let i=0;i<5;i++){
-    const kz=CD/2-keepD/2+0.15+i*(keepD-0.3)/4;
+  // Keep crenellations — side walls (run along Z, length keepD): 4 merlons
+  for(let i=0;i<4;i++){
+    const kz=CD/2-keepD/2+0.15+i*(keepD-0.3)/3;
     g.add(mkMesh(new THREE.BoxGeometry(0.08,0.18,0.12),dark).translateX(CW/2-keepW/2).translateY(keepH+0.17).translateZ(kz));
     g.add(mkMesh(new THREE.BoxGeometry(0.08,0.18,0.12),dark).translateX(CW/2+keepW/2).translateY(keepH+0.17).translateZ(kz));
   }
   // Keep roof - pitched
   g.add(mkMesh(new THREE.ConeGeometry(0.85,0.7,4),roofMat).translateX(CW/2).translateY(keepH+0.43).translateZ(CD/2).rotateY(Math.PI/4));
 
-  // Keep windows - arched style (two rows)
-  const keepFaceZ=CD/2+keepD/2+0.01;
-  [[-0.25,keepH*0.45],[0.25,keepH*0.45],[-0.25,keepH*0.72],[0.25,keepH*0.72]].forEach(([ox,wy])=>{
-    // Window frame
-    g.add(mkMesh(new THREE.BoxGeometry(0.14,0.22,0.02),mkMat(0x3a3a3a)).translateX(CW/2+ox).translateY(wy).translateZ(keepFaceZ));
-    // Window glow
-    g.add(mkMesh(new THREE.BoxGeometry(0.10,0.18,0.02),winMat).translateX(CW/2+ox).translateY(wy).translateZ(keepFaceZ+0.01));
-    // Arched top (small sphere cap)
-    g.add(mkMesh(new THREE.SphereGeometry(0.07,6,4,0,Math.PI*2,0,Math.PI/2),winMat).translateX(CW/2+ox).translateY(wy+0.09).translateZ(keepFaceZ+0.01));
+  // Keep windows - arched style (two rows), now on the ±X faces so they look toward the opponent
+  const keepFaceX = CW/2 + facing*(keepW/2 + 0.01); // front face (toward opponent)
+  const keepBackX = CW/2 - facing*(keepW/2 + 0.01); // back face (toward own baseline)
+  [[-0.25,keepH*0.45],[0.25,keepH*0.45],[-0.25,keepH*0.72],[0.25,keepH*0.72]].forEach(([oz,wy])=>{
+    g.add(mkMesh(new THREE.BoxGeometry(0.02,0.22,0.14),mkMat(0x3a3a3a)).translateX(keepFaceX).translateY(wy).translateZ(CD/2+oz));
+    g.add(mkMesh(new THREE.BoxGeometry(0.02,0.18,0.10),winMat).translateX(keepFaceX+facing*0.01).translateY(wy).translateZ(CD/2+oz));
+    g.add(mkMesh(new THREE.SphereGeometry(0.07,6,4,0,Math.PI*2,0,Math.PI/2),winMat).translateX(keepFaceX+facing*0.01).translateY(wy+0.09).translateZ(CD/2+oz));
   });
-  // Repeat on back face
-  const keepBackZ=CD/2-keepD/2-0.01;
-  [[-0.25,keepH*0.45],[0.25,keepH*0.45]].forEach(([ox,wy])=>{
-    g.add(mkMesh(new THREE.BoxGeometry(0.14,0.22,0.02),mkMat(0x3a3a3a)).translateX(CW/2+ox).translateY(wy).translateZ(keepBackZ));
-    g.add(mkMesh(new THREE.BoxGeometry(0.10,0.18,0.02),winMat).translateX(CW/2+ox).translateY(wy).translateZ(keepBackZ-0.01));
+  // Back face (fewer windows)
+  [[-0.25,keepH*0.45],[0.25,keepH*0.45]].forEach(([oz,wy])=>{
+    g.add(mkMesh(new THREE.BoxGeometry(0.02,0.22,0.14),mkMat(0x3a3a3a)).translateX(keepBackX).translateY(wy).translateZ(CD/2+oz));
+    g.add(mkMesh(new THREE.BoxGeometry(0.02,0.18,0.10),winMat).translateX(keepBackX-facing*0.01).translateY(wy).translateZ(CD/2+oz));
   });
 
-  // Gate - larger with portcullis look
-  const gateX=CW/2, gateZ=CD+wallT/2;
-  // Gate archway frame
-  g.add(mkMesh(new THREE.BoxGeometry(0.7,1.0,0.16),mkMat(0x2a2a2a)).translateX(gateX).translateY(0.5).translateZ(gateZ));
+  // Gate - on the short wall that faces the opponent (east for P1, west for P2)
+  const gateWallX = facing>0 ? CW : 0;
+  const gateX = gateWallX + facing*wallT/2;
+  const gateZ = CD/2;
+  // Gate archway frame (depth along X, opening along Z)
+  g.add(mkMesh(new THREE.BoxGeometry(0.16,1.0,0.7),mkMat(0x2a2a2a)).translateX(gateX).translateY(0.5).translateZ(gateZ));
   // Gate dark interior
-  g.add(mkMesh(new THREE.BoxGeometry(0.55,0.85,0.08),mkMat(0x0a0a0a)).translateX(gateX).translateY(0.425).translateZ(gateZ+0.04));
-  // Portcullis bars (vertical)
+  g.add(mkMesh(new THREE.BoxGeometry(0.08,0.85,0.55),mkMat(0x0a0a0a)).translateX(gateX+facing*0.04).translateY(0.425).translateZ(gateZ));
+  // Portcullis bars (vertical) spread along Z
   for(let i=-2;i<=2;i++){
-    g.add(mkMesh(new THREE.BoxGeometry(0.02,0.8,0.02),mkMat(0x444444,{metalness:0.5})).translateX(gateX+i*0.12).translateY(0.4).translateZ(gateZ+0.06));
+    g.add(mkMesh(new THREE.BoxGeometry(0.02,0.8,0.02),mkMat(0x444444,{metalness:0.5})).translateX(gateX+facing*0.06).translateY(0.4).translateZ(gateZ+i*0.12));
   }
-  // Portcullis bars (horizontal)
+  // Portcullis bars (horizontal) spanning the Z opening
   for(let j=0;j<3;j++){
-    g.add(mkMesh(new THREE.BoxGeometry(0.5,0.02,0.02),mkMat(0x444444,{metalness:0.5})).translateX(gateX).translateY(0.2+j*0.25).translateZ(gateZ+0.06));
+    g.add(mkMesh(new THREE.BoxGeometry(0.02,0.02,0.5),mkMat(0x444444,{metalness:0.5})).translateX(gateX+facing*0.06).translateY(0.2+j*0.25).translateZ(gateZ));
   }
   // Arch top
   g.add(mkMesh(new THREE.SphereGeometry(0.28,8,4,0,Math.PI*2,0,Math.PI/2),mkMat(0x2a2a2a)).translateX(gateX).translateY(0.95).translateZ(gateZ).rotateX(Math.PI));
   // Team color shield above gate
-  g.add(mkMesh(new THREE.BoxGeometry(0.25,0.25,0.04),accent).translateX(gateX).translateY(1.2).translateZ(gateZ+0.05));
+  g.add(mkMesh(new THREE.BoxGeometry(0.04,0.25,0.25),accent).translateX(gateX+facing*0.05).translateY(1.2).translateZ(gateZ));
 
   // Flags - larger and on multiple towers
   const flagMat=mkMat(owner===1?0x2244AA:0xAA2222);
