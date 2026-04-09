@@ -602,12 +602,7 @@ function createTerrain(){
       const col=Math.floor(px/PX);
       const n=seededRandom(px,py),n2=seededRandom(px*3.7,py*2.3);
       let r,g,b;
-      if((col<=1||col>=38)&&row>=5&&row<=12){// Stone under castles
-        const sv=55+Math.floor(n*20);r=sv;g=sv;b=sv+8;
-        if(px%8===0||py%6===0){r+=12;g+=12;b+=10}
-      }else if(col<=1||col>=38){// Grass at castle edges (above/below castle)
-        const gv=55+Math.floor(n*25);r=gv;g=gv+25+Math.floor(n2*15);b=gv-10;
-      }else if(row>=7&&row<=10){// Dirt road
+      if(row>=7&&row<=10){// Dirt road
         r=120+Math.floor(n*30);g=r-18;b=r-40;
         if(n2>0.88){r+=15;g+=12;b+=10}
       }else if(row===6||row===11){// Transition
@@ -644,7 +639,8 @@ function createTerrain(){
   for(let i=0;i<pos.count;i++){
     const x=pos.getX(i),z=pos.getZ(i);
     const c2=(x-GRID_OX),r2=(z-GRID_OZ);
-    if(!((c2<=2||c2>=38)&&r2>=4.5&&r2<=12.5)&&!(r2>=6.5&&r2<=11.5)){
+    // Skip height variation under castles (near/far edges) and on the dirt road
+    if(!(r2<=2||r2>=ROWS-2)&&!(r2>=6.5&&r2<=11.5)){
       pos.setY(i,(seededRandom(Math.floor(x*2.7),Math.floor(z*3.1))*0.08)-0.03);
     }
   }
@@ -1605,16 +1601,40 @@ const projMeshes=new Map(); // proj obj -> THREE.Group
 let castle1Mesh=null,castle2Mesh=null;
 
 function addCastles(){
+  // Castles sit on the near and far edges of the field (±halfFieldDepth on Z),
+  // centered horizontally (x=0), facing inward toward each other.
+  const halfFieldDepth=ROWS/2;
+
   castle1Mesh=createCastle(1);
-  // Castle model is CW=2 wide, CD=8 deep, built from (0,0,0) to (2,h,8)
-  // Foundation overhangs 0.15 each side, corner towers overhang 0.3
-  // Shift inward 0.35 so nothing goes off terrain edge
-  castle1Mesh.position.set(0.35+GRID_OX, 0, 5+GRID_OZ);
+  // Castle 1 on far edge (-Z). Gate is built on +Z in local coords, so no rotation needed.
+  castle1Mesh.position.set(0, 0, -halfFieldDepth);
   scene.add(castle1Mesh);
+  addCastleFloor(castle1Mesh);
+
   castle2Mesh=createCastle(2);
-  // P2: position so right edge + overhang stays on terrain
-  castle2Mesh.position.set(37.65+GRID_OX, 0, 5+GRID_OZ);
+  // Castle 2 on near edge (+Z). Rotate 180° so gate faces -Z (inward).
+  castle2Mesh.rotation.y=Math.PI;
+  castle2Mesh.position.set(0, 0, halfFieldDepth);
   scene.add(castle2Mesh);
+  addCastleFloor(castle2Mesh);
+}
+
+// Create a stone floor mesh matching the castle's actual bounding box
+// (including corner tower overhang) and centered under it.
+function addCastleFloor(castleMesh){
+  castleMesh.updateMatrixWorld(true);
+  const bbox=new THREE.Box3().setFromObject(castleMesh);
+  const size=new THREE.Vector3();bbox.getSize(size);
+  const center=new THREE.Vector3();bbox.getCenter(center);
+  const pad=0.15;
+  const floorGeo=new THREE.BoxGeometry(size.x+pad, 0.1, size.z+pad);
+  const floorMat=new THREE.MeshStandardMaterial({color:0x5a5a50,roughness:0.95});
+  const floor=new THREE.Mesh(floorGeo,floorMat);
+  // Sit just above terrain, exactly under the castle's XZ center
+  floor.position.set(center.x, 0.05, center.z);
+  floor.receiveShadow=true;
+  floor.castShadow=false;
+  scene.add(floor);
 }
 
 // ==================== HUD CONTROLLER ====================
