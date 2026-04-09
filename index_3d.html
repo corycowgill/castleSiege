@@ -639,8 +639,8 @@ function createTerrain(){
   for(let i=0;i<pos.count;i++){
     const x=pos.getX(i),z=pos.getZ(i);
     const c2=(x-GRID_OX),r2=(z-GRID_OZ);
-    // Skip height variation under castles (near/far edges) and on the dirt road
-    if(!(r2<=2||r2>=ROWS-2)&&!(r2>=6.5&&r2<=11.5)){
+    // Skip height variation under castles (west/east ends, ~9 tiles wide) and on the dirt road
+    if(!(c2<=9||c2>=COLS-9)&&!(r2>=6.5&&r2<=11.5)){
       pos.setY(i,(seededRandom(Math.floor(x*2.7),Math.floor(z*3.1))*0.08)-0.03);
     }
   }
@@ -1601,20 +1601,22 @@ const projMeshes=new Map(); // proj obj -> THREE.Group
 let castle1Mesh=null,castle2Mesh=null;
 
 function addCastles(){
-  // Castles sit on the near and far edges of the field (±halfFieldDepth on Z),
-  // centered horizontally (x=0), facing inward toward each other.
-  const halfFieldDepth=ROWS/2;
+  // Castles sit at the west/east ends of the dirt road (±halfFieldWidth on X),
+  // centered vertically on the road (z=0), gates facing inward toward each other.
+  // The castle model is built CW=2 wide, CD=8 deep with the gate on local +Z,
+  // so we rotate ±90° to turn the long axis along X and point the gate inward.
+  const halfFieldWidth=COLS/2;
+  const CD=8; // must match createCastle()
 
   castle1Mesh=createCastle(1);
-  // Castle 1 on far edge (-Z). Gate is built on +Z in local coords, so no rotation needed.
-  castle1Mesh.position.set(0, 0, -halfFieldDepth);
+  castle1Mesh.rotation.y=-Math.PI/2; // local +Z (gate) -> world +X (east, toward P2)
+  castle1Mesh.position.set(-halfFieldWidth+CD/2, 0, 0);
   scene.add(castle1Mesh);
   addCastleFloor(castle1Mesh);
 
   castle2Mesh=createCastle(2);
-  // Castle 2 on near edge (+Z). Rotate 180° so gate faces -Z (inward).
-  castle2Mesh.rotation.y=Math.PI;
-  castle2Mesh.position.set(0, 0, halfFieldDepth);
+  castle2Mesh.rotation.y=Math.PI/2; // local +Z (gate) -> world -X (west, toward P1)
+  castle2Mesh.position.set(halfFieldWidth-CD/2, 0, 0);
   scene.add(castle2Mesh);
   addCastleFloor(castle2Mesh);
 }
