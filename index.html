@@ -338,118 +338,364 @@ class BootScene extends Phaser.Scene {
       this.textures.addCanvas('tower_'+id,canvas);
     };
 
-    // TURRET - stone watchtower with arrow slit
+    // TURRET - cylindrical stone watchtower with cruciform arrow slit
     drawTower('turret',(c)=>{
-      // Stone base
-      c.fillStyle='#6b6b6b';c.fillRect(6,8,20,22);
-      c.fillStyle='#7a7a7a';c.fillRect(8,10,16,18);
-      // Crenellations
-      c.fillStyle='#5a5a5a';
-      c.fillRect(4,6,6,4);c.fillRect(12,6,8,4);c.fillRect(22,6,6,4);
-      // Stone lines
-      c.fillStyle='#555';c.fillRect(8,16,16,1);c.fillRect(8,22,16,1);
-      c.fillRect(14,10,1,18);
-      // Arrow slit
-      c.fillStyle='#1a1a2e';c.fillRect(14,12,4,6);c.fillRect(15,11,2,8);
-      // Base
-      c.fillStyle='#4a4a4a';c.fillRect(4,28,24,2);c.fillRect(6,30,20,2);
+      // Ground shadow
+      c.fillStyle='rgba(0,0,0,0.35)';c.fillRect(3,30,26,2);
+      // Base plinth (wider than shaft)
+      c.fillStyle='#2a2a30';c.fillRect(3,28,26,2);
+      c.fillStyle='#3a3a42';c.fillRect(3,27,26,1);
+      c.fillStyle='#55555c';c.fillRect(4,26,24,1);
+      c.fillStyle='#6a6a72';c.fillRect(4,25,24,1);
+      // Main shaft with cylindrical shading (light from upper-left)
+      c.fillStyle='#2e2e36';c.fillRect(5,9,22,17); // darkest fill
+      c.fillStyle='#4a4a52';c.fillRect(5,9,20,17); // dark mid
+      c.fillStyle='#5c5c64';c.fillRect(5,9,16,17); // mid tone
+      c.fillStyle='#70707a';c.fillRect(5,9,10,17); // light mid
+      c.fillStyle='#86868e';c.fillRect(6,10,3,15); // highlight edge
+      c.fillStyle='#9a9aa2';c.fillRect(7,10,1,14); // brightest line
+      // Mortar courses (horizontal)
+      c.fillStyle='#1e1e26';
+      c.fillRect(5,13,22,1);c.fillRect(5,18,22,1);c.fillRect(5,23,22,1);
+      // Mortar verticals (staggered brick)
+      c.fillRect(10,9,1,4);c.fillRect(16,9,1,4);c.fillRect(22,9,1,4);
+      c.fillRect(8,14,1,4);c.fillRect(14,14,1,4);c.fillRect(20,14,1,4);
+      c.fillRect(11,19,1,4);c.fillRect(17,19,1,4);c.fillRect(23,19,1,4);
+      c.fillRect(8,24,1,2);c.fillRect(14,24,1,2);c.fillRect(20,24,1,2);
+      // Individual brick highlights (for depth)
+      c.fillStyle='#7e7e88';
+      c.fillRect(8,10,2,2);c.fillRect(17,10,2,2);
+      c.fillRect(6,15,1,2);c.fillRect(15,15,2,2);
+      c.fillRect(12,20,2,2);c.fillRect(24,20,2,2);
+      // Parapet overhang shadow under crenellations
+      c.fillStyle='#1e1e26';c.fillRect(4,9,24,1);
+      // Crenellations (merlons with facets)
+      c.fillStyle='#2a2a32';c.fillRect(4,4,24,5); // back row dark
+      const merlons=[4,10,16,22];
+      for(const mx of merlons){
+        c.fillStyle='#4a4a52';c.fillRect(mx,3,4,6);
+        c.fillStyle='#5c5c64';c.fillRect(mx,3,3,6);
+        c.fillStyle='#70707a';c.fillRect(mx,3,2,6);
+        c.fillStyle='#8a8a92';c.fillRect(mx,3,4,1);
+        c.fillStyle='#9a9aa2';c.fillRect(mx,3,2,1);
+        c.fillStyle='#1e1e26';c.fillRect(mx+3,3,1,6); // right shadow
+      }
+      // Arrow slit (cruciform) with warm glow behind
+      c.fillStyle='#0a0a12';
+      c.fillRect(15,13,2,10); // vertical
+      c.fillRect(13,16,6,2);  // horizontal crossbar
+      c.fillStyle='#ffaa33';c.fillRect(15,16,2,2); // glow
+      c.fillStyle='#ffeb99';c.fillRect(15,17,2,1); // brightest
+      // Weathering: moss patches
+      c.fillStyle='#2d4a1a';
+      c.fillRect(5,22,1,2);c.fillRect(26,12,1,2);c.fillRect(6,25,2,1);
+      c.fillStyle='#4a6a28';
+      c.fillRect(5,22,1,1);c.fillRect(26,12,1,1);
     });
 
-    // MAGIC - purple tower with glowing crystal orb
+    // MAGIC - wizard tower with stepped pointed roof and glowing crystal orb
     drawTower('magic',(c)=>{
-      // Tower body
-      c.fillStyle='#5a4a6b';c.fillRect(8,12,16,18);
-      c.fillStyle='#6b5a7a';c.fillRect(10,14,12,14);
-      // Pointed roof
-      c.fillStyle='#4a3a5a';
-      c.fillRect(10,6,12,2);c.fillRect(12,4,8,2);c.fillRect(14,2,4,2);
-      // Glowing orb on top
-      c.fillStyle='#cf6fff';c.fillRect(14,0,4,3);
-      c.fillStyle='#e8aaff';c.fillRect(15,1,2,1);
-      // Arcane window
-      c.fillStyle='#9b59b6';c.fillRect(13,16,6,5);
-      c.fillStyle='#cf6fff';c.fillRect(14,17,4,3);
-      c.fillStyle='#e8aaff';c.fillRect(15,18,2,1);
-      // Stone lines
-      c.fillStyle='#4a3a5a';c.fillRect(10,20,12,1);c.fillRect(10,24,12,1);
-      // Base
-      c.fillStyle='#3a2a4a';c.fillRect(6,28,20,2);c.fillRect(8,30,16,2);
+      // Ground shadow
+      c.fillStyle='rgba(0,0,0,0.35)';c.fillRect(4,30,24,2);
+      // Glow aura behind orb
+      c.fillStyle='rgba(207,111,255,0.18)';c.fillRect(10,0,12,8);
+      c.fillStyle='rgba(207,111,255,0.12)';c.fillRect(8,0,16,10);
+      // Pointed roof (stepped pyramid, light from left)
+      c.fillStyle='#1a0a28';c.fillRect(6,10,20,2);   // eave shadow
+      c.fillStyle='#2a1a38';c.fillRect(7,9,18,2);    // step 1 back
+      c.fillStyle='#3a2850';c.fillRect(7,9,15,2);    // step 1 mid
+      c.fillStyle='#4a3860';c.fillRect(7,9,8,2);     // step 1 highlight
+      c.fillStyle='#5a4870';c.fillRect(7,9,4,1);
+      c.fillStyle='#2a1a38';c.fillRect(9,6,14,3);    // step 2 back
+      c.fillStyle='#3a2850';c.fillRect(9,6,11,3);
+      c.fillStyle='#4a3860';c.fillRect(9,6,6,3);
+      c.fillStyle='#5a4870';c.fillRect(9,6,3,1);
+      c.fillStyle='#2a1a38';c.fillRect(12,3,8,3);    // step 3 back
+      c.fillStyle='#3a2850';c.fillRect(12,3,6,3);
+      c.fillStyle='#4a3860';c.fillRect(12,3,3,3);
+      c.fillStyle='#5a4870';c.fillRect(12,3,2,1);
+      // Crystal orb on top (layered for radial gradient feel)
+      c.fillStyle='#4a0f6f';c.fillRect(14,0,4,4);
+      c.fillStyle='#6a1f8f';c.fillRect(14,0,3,3);
+      c.fillStyle='#9b4fcf';c.fillRect(14,0,3,2);
+      c.fillStyle='#cf6fff';c.fillRect(14,1,2,1);
+      c.fillStyle='#f0c8ff';c.fillRect(14,1,1,1);
+      // Tower body (light from left)
+      c.fillStyle='#1a0a28';c.fillRect(7,12,18,17); // darkest
+      c.fillStyle='#3a2a48';c.fillRect(7,12,16,17); // dark
+      c.fillStyle='#5a4a6b';c.fillRect(7,12,13,17); // mid
+      c.fillStyle='#6b5a7a';c.fillRect(7,12,8,17);  // light mid
+      c.fillStyle='#7a6888';c.fillRect(8,13,3,15);  // highlight
+      c.fillStyle='#8a7898';c.fillRect(9,13,1,14);  // brightest
+      // Stone courses
+      c.fillStyle='#120620';
+      c.fillRect(7,17,18,1);c.fillRect(7,23,18,1);
+      // Vertical mortar
+      c.fillRect(11,12,1,5);c.fillRect(17,12,1,5);c.fillRect(22,12,1,5);
+      c.fillRect(10,18,1,5);c.fillRect(15,18,1,5);c.fillRect(21,18,1,5);
+      c.fillRect(12,24,1,5);c.fillRect(18,24,1,5);
+      // Arcane rune marks (glowing purple)
+      c.fillStyle='#cf6fff';
+      c.fillRect(9,15,1,1);c.fillRect(11,14,1,1);
+      c.fillRect(22,26,1,1);c.fillRect(20,25,1,1);
+      c.fillStyle='#e8aaff';c.fillRect(9,15,1,1);
+      // Arched arcane window with strong glow
+      c.fillStyle='#0a0018';
+      c.fillRect(13,19,6,6);
+      c.fillRect(14,18,4,1);    // arch top
+      c.fillRect(15,17,2,1);    // arch peak
+      c.fillStyle='#4a1a6b';c.fillRect(14,19,4,5);
+      c.fillStyle='#9b4fcf';c.fillRect(14,20,4,3);
+      c.fillStyle='#cf6fff';c.fillRect(15,20,2,3);
+      c.fillStyle='#f0c8ff';c.fillRect(15,21,2,1);
+      // Window sill
+      c.fillStyle='#2a1a38';c.fillRect(12,24,8,1);
+      c.fillStyle='#5a4a6b';c.fillRect(12,25,8,1);
+      // Base plinth
+      c.fillStyle='#1a0a28';c.fillRect(5,29,22,1);
+      c.fillStyle='#2a1a38';c.fillRect(5,27,22,2);
+      c.fillStyle='#3a2a48';c.fillRect(6,26,20,1);
     });
 
-    // CATAPULT - wooden siege engine with arm
+    // CATAPULT - wooden siege engine with spoked wheels and throwing arm
     drawTower('catapult',(c)=>{
-      // Wooden frame
-      c.fillStyle='#6b4e1e';c.fillRect(4,18,24,10);
-      c.fillStyle='#7a5a28';c.fillRect(6,20,20,6);
-      // Wheels
-      c.fillStyle='#4a3a1e';c.fillRect(6,26,6,4);c.fillRect(20,26,6,4);
-      c.fillStyle='#5a4a28';c.fillRect(7,27,4,2);c.fillRect(21,27,4,2);
-      // Arm mechanism
-      c.fillStyle='#8b6914';c.fillRect(14,8,4,12);
-      // Arm (diagonal)
-      c.fillStyle='#7a5a28';c.fillRect(8,6,12,3);
-      // Bucket
-      c.fillStyle='#5a4a1e';c.fillRect(6,4,6,4);c.fillStyle='#6b4e1e';c.fillRect(7,5,4,2);
+      // Ground shadow
+      c.fillStyle='rgba(0,0,0,0.35)';c.fillRect(2,30,28,2);
+      // Wheels (left and right) with hub and spokes
+      const drawWheel=(wx)=>{
+        c.fillStyle='#1a0f05';c.fillRect(wx,24,9,7);
+        c.fillStyle='#2a1a0a';c.fillRect(wx+1,24,7,7);
+        c.fillStyle='#4a3014';c.fillRect(wx+1,24,6,6);
+        c.fillStyle='#6a4a20';c.fillRect(wx+1,24,4,6);
+        c.fillStyle='#7a5a28';c.fillRect(wx+1,24,2,5);
+        // Hub
+        c.fillStyle='#2a1a0a';c.fillRect(wx+2,26,5,3);
+        c.fillStyle='#8b6914';c.fillRect(wx+3,27,3,1);
+        c.fillStyle='#c89040';c.fillRect(wx+3,27,2,1);
+        // Spokes
+        c.fillStyle='#2a1a0a';
+        c.fillRect(wx+4,24,1,7);
+        c.fillRect(wx+1,27,7,1);
+      };
+      drawWheel(3);
+      drawWheel(20);
+      // Axle
+      c.fillStyle='#2a1a0a';c.fillRect(9,27,13,2);
+      c.fillStyle='#555';c.fillRect(9,27,13,1);
+      // Main frame beam
+      c.fillStyle='#1a0a05';c.fillRect(3,22,26,2);   // bottom shadow
+      c.fillStyle='#5a3a14';c.fillRect(3,19,26,4);   // main beam
+      c.fillStyle='#7a5a28';c.fillRect(3,19,26,2);   // mid highlight
+      c.fillStyle='#a07528';c.fillRect(3,19,26,1);   // top highlight
+      // Wood grain
+      c.fillStyle='#3a2208';
+      c.fillRect(5,21,3,1);c.fillRect(12,20,3,1);c.fillRect(18,21,3,1);c.fillRect(24,20,3,1);
+      // Metal reinforcing bands with rivets
+      c.fillStyle='#1a1a22';c.fillRect(8,19,1,4);c.fillRect(16,19,1,4);c.fillRect(23,19,1,4);
+      c.fillStyle='#444';c.fillRect(9,19,1,4);c.fillRect(17,19,1,4);c.fillRect(24,19,1,4);
+      c.fillStyle='#777';c.fillRect(9,19,1,1);c.fillRect(17,19,1,1);c.fillRect(24,19,1,1);
+      c.fillStyle='#aaa';
+      c.fillRect(8,20,1,1);c.fillRect(16,20,1,1);c.fillRect(23,20,1,1);
+      // Vertical support posts
+      c.fillStyle='#1a0a05';c.fillRect(11,12,4,8);c.fillRect(20,12,4,8);
+      c.fillStyle='#5a3a14';c.fillRect(11,12,3,8);c.fillRect(20,12,3,8);
+      c.fillStyle='#7a5a28';c.fillRect(11,12,2,8);c.fillRect(20,12,2,8);
+      c.fillStyle='#8b6914';c.fillRect(11,12,1,8);c.fillRect(20,12,1,8);
+      // Pivot axle between posts
+      c.fillStyle='#1a1a22';c.fillRect(10,11,15,2);
+      c.fillStyle='#555';c.fillRect(10,11,15,1);
+      c.fillStyle='#888';c.fillRect(11,11,1,1);c.fillRect(23,11,1,1);
+      // Throwing arm (horizontal, from pivot toward top-left)
+      c.fillStyle='#1a0a05';c.fillRect(3,8,15,4);
+      c.fillStyle='#5a3a14';c.fillRect(3,8,15,3);
+      c.fillStyle='#7a5a28';c.fillRect(3,8,15,2);
+      c.fillStyle='#8b6914';c.fillRect(3,8,15,1);
+      // Rope coils on arm
+      c.fillStyle='#aa8855';
+      c.fillRect(12,8,1,3);c.fillRect(14,8,1,3);
+      c.fillStyle='#d4b070';c.fillRect(12,8,1,1);c.fillRect(14,8,1,1);
+      // Bucket at top-left end of arm
+      c.fillStyle='#1a0a05';c.fillRect(2,2,8,7);
+      c.fillStyle='#5a3a14';c.fillRect(2,2,7,6);
+      c.fillStyle='#7a5a28';c.fillRect(2,2,7,2);  // top rim
+      c.fillStyle='#8b6914';c.fillRect(2,2,6,1);  // top highlight
+      c.fillStyle='#8b6914';c.fillRect(2,2,1,6);  // left edge
       // Boulder in bucket
-      c.fillStyle='#888';c.fillRect(8,5,2,2);
-      // Metal bands
-      c.fillStyle='#555';c.fillRect(4,22,24,1);c.fillRect(13,10,6,1);
+      c.fillStyle='#1a1a1a';c.fillRect(3,3,6,5);
+      c.fillStyle='#4a4a4a';c.fillRect(3,3,5,4);
+      c.fillStyle='#6a6a6a';c.fillRect(3,3,4,3);
+      c.fillStyle='#8a8a8a';c.fillRect(3,3,2,2);
+      c.fillStyle='#a8a8a8';c.fillRect(3,3,1,1);
     });
 
-    // BOMBARD - heavy cannon on stone platform
+    // BOMBARD - heavy cannon with glowing barrel on stone platform
     drawTower('bombard',(c)=>{
-      // Stone platform
-      c.fillStyle='#4a4a55';c.fillRect(4,22,24,8);
-      c.fillStyle='#5a5a65';c.fillRect(6,24,20,4);
-      // Cannon barrel
-      c.fillStyle='#2c3e50';c.fillRect(6,12,20,10);
-      c.fillStyle='#34495e';c.fillRect(8,14,16,6);
-      // Barrel opening
-      c.fillStyle='#1a1a2e';c.fillRect(24,14,4,6);
-      c.fillStyle='#f80';c.fillRect(26,15,2,4); // fire glow
-      // Cannon details
-      c.fillStyle='#555';c.fillRect(6,13,20,1);c.fillRect(6,21,20,1);
-      c.fillRect(12,12,2,10);c.fillRect(18,12,2,10);
-      // Fuse
-      c.fillStyle='#8b6914';c.fillRect(14,10,4,3);
-      c.fillStyle='#ff4400';c.fillRect(15,9,2,2);
+      // Ground shadow
+      c.fillStyle='rgba(0,0,0,0.35)';c.fillRect(2,30,28,2);
+      // Wheels peeking beneath platform
+      c.fillStyle='#1a0f05';c.fillRect(4,26,7,5);c.fillRect(21,26,7,5);
+      c.fillStyle='#4a3014';c.fillRect(5,27,5,3);c.fillRect(22,27,5,3);
+      c.fillStyle='#6a4a20';c.fillRect(5,27,3,3);c.fillRect(22,27,3,3);
+      c.fillStyle='#2a1a0a';
+      c.fillRect(7,27,1,3);c.fillRect(24,27,1,3);  // spokes
+      c.fillRect(5,28,5,1);c.fillRect(22,28,5,1);
+      // Stone platform (faceted depth)
+      c.fillStyle='#1e1e26';c.fillRect(2,25,28,3);  // bottom shadow
+      c.fillStyle='#3a3a44';c.fillRect(2,22,28,4);  // dark
+      c.fillStyle='#4a4a55';c.fillRect(2,22,28,3);  // main
+      c.fillStyle='#5a5a65';c.fillRect(2,22,28,2);  // mid highlight
+      c.fillStyle='#6a6a75';c.fillRect(2,22,28,1);  // top highlight
+      // Stone block mortar
+      c.fillStyle='#1e1e26';
+      c.fillRect(2,25,28,1);c.fillRect(10,22,1,3);c.fillRect(20,22,1,3);
+      // Cannon breech (rear block)
+      c.fillStyle='#05050a';c.fillRect(3,10,7,13);
+      c.fillStyle='#1a2030';c.fillRect(3,10,6,12);
+      c.fillStyle='#2c3e50';c.fillRect(3,10,6,11);
+      c.fillStyle='#3c5064';c.fillRect(3,10,6,2);  // top highlight
+      c.fillStyle='#4a5a72';c.fillRect(3,10,4,1);  // brightest
+      c.fillStyle='#0a0a14';c.fillRect(3,21,6,1);  // bottom shadow
+      // Cannon barrel (main tube with strong top highlight)
+      c.fillStyle='#05050a';c.fillRect(8,11,22,12); // deep shadow
+      c.fillStyle='#1a2030';c.fillRect(8,11,22,11);
+      c.fillStyle='#2c3e50';c.fillRect(8,11,22,10); // main
+      c.fillStyle='#3c5064';c.fillRect(8,11,22,3);  // top band
+      c.fillStyle='#4a5a72';c.fillRect(8,12,22,2);  // highlight
+      c.fillStyle='#5a6a82';c.fillRect(9,12,20,1);  // brightest line
+      c.fillStyle='#0a0a14';c.fillRect(8,21,22,1);  // bottom shadow
+      // Reinforcement bands with rivets
+      const bands=[12,18,24];
+      for(const bx of bands){
+        c.fillStyle='#05050a';c.fillRect(bx-1,11,1,12);
+        c.fillStyle='#222';c.fillRect(bx,11,2,12);
+        c.fillStyle='#444';c.fillRect(bx,11,1,12);
+        c.fillStyle='#666';c.fillRect(bx,11,2,1);
+        c.fillStyle='#0a0a14';c.fillRect(bx+2,11,1,12);
+        // Rivets
+        c.fillStyle='#888';c.fillRect(bx,13,1,1);c.fillRect(bx,20,1,1);
+        c.fillStyle='#bbb';c.fillRect(bx,13,1,1);
+      }
+      // Muzzle (front opening) with layered fire glow
+      c.fillStyle='#020205';c.fillRect(27,12,3,10);
+      c.fillStyle='#4a0800';c.fillRect(28,13,2,8);
+      c.fillStyle='#aa2200';c.fillRect(28,14,2,6);
+      c.fillStyle='#ff5500';c.fillRect(28,15,2,4);
+      c.fillStyle='#ffaa00';c.fillRect(28,16,2,2);
+      c.fillStyle='#ffee99';c.fillRect(28,16,1,1);
+      // Muzzle rim
+      c.fillStyle='#555';c.fillRect(27,11,3,1);c.fillRect(27,22,3,1);
+      c.fillStyle='#777';c.fillRect(27,11,3,1);
+      // Fuse on top of breech
+      c.fillStyle='#3a2208';c.fillRect(5,7,2,4);
+      c.fillStyle='#ff8800';c.fillRect(5,6,2,2);
+      c.fillStyle='#ffdd00';c.fillRect(5,6,1,1);
+      c.fillStyle='#ffffcc';c.fillRect(5,5,1,1);
+      // Smoke wisps from barrel top
+      c.fillStyle='rgba(180,180,180,0.35)';
+      c.fillRect(14,9,2,1);c.fillRect(18,7,2,1);c.fillRect(22,9,2,1);
+      c.fillStyle='rgba(200,200,200,0.25)';
+      c.fillRect(16,5,2,1);c.fillRect(20,4,2,1);
     });
 
-    // WALL - stone wall segment matching dungeon style
+    // WALL - stone battlement wall with crenellations and weathering
     const wallCanvas=document.createElement('canvas');wallCanvas.width=S;wallCanvas.height=S;
     const wc=wallCanvas.getContext('2d');
-    wc.fillStyle='#6b6b6b';wc.fillRect(0,4,32,24);
-    wc.fillStyle='#7a7a7a';wc.fillRect(2,6,28,20);
-    // Stone brick pattern
-    wc.fillStyle='#5a5a5a';
-    wc.fillRect(0,10,32,1);wc.fillRect(0,16,32,1);wc.fillRect(0,22,32,1);
-    wc.fillRect(8,4,1,6);wc.fillRect(20,4,1,6);
-    wc.fillRect(4,11,1,5);wc.fillRect(14,11,1,5);wc.fillRect(26,11,1,5);
-    wc.fillRect(8,17,1,5);wc.fillRect(20,17,1,5);
-    // Crenellations
-    wc.fillStyle='#6b6b6b';wc.fillRect(0,0,8,6);wc.fillRect(12,0,8,6);wc.fillRect(24,0,8,6);
-    wc.fillStyle='#5a5a5a';wc.fillRect(0,4,8,1);wc.fillRect(12,4,8,1);wc.fillRect(24,4,8,1);
-    // Base
-    wc.fillStyle='#4a4a4a';wc.fillRect(0,26,32,6);wc.fillStyle='#555';wc.fillRect(0,26,32,1);
+    // Shadow under wall
+    wc.fillStyle='rgba(0,0,0,0.35)';wc.fillRect(0,30,32,2);
+    // Wall body (light from top-left)
+    wc.fillStyle='#2e2e36';wc.fillRect(0,6,32,22);
+    wc.fillStyle='#4a4a52';wc.fillRect(0,6,32,21);
+    wc.fillStyle='#5a5a62';wc.fillRect(0,6,32,20);
+    wc.fillStyle='#6a6a74';wc.fillRect(0,6,32,10); // top half highlight
+    wc.fillStyle='#7a7a84';wc.fillRect(0,6,32,3);  // brighter band
+    wc.fillStyle='#8a8a94';wc.fillRect(0,6,32,1);  // topmost bright line
+    // Parapet overhang shadow
+    wc.fillStyle='#1e1e26';wc.fillRect(0,7,32,1);
+    // Stone brick pattern (staggered courses)
+    wc.fillStyle='#1e1e26';
+    wc.fillRect(0,12,32,1);wc.fillRect(0,17,32,1);wc.fillRect(0,22,32,1);wc.fillRect(0,27,32,1);
+    // Vertical mortar (staggered)
+    wc.fillRect(6,8,1,4);wc.fillRect(14,8,1,4);wc.fillRect(22,8,1,4);wc.fillRect(30,8,1,4);
+    wc.fillRect(3,13,1,4);wc.fillRect(11,13,1,4);wc.fillRect(19,13,1,4);wc.fillRect(27,13,1,4);
+    wc.fillRect(6,18,1,4);wc.fillRect(14,18,1,4);wc.fillRect(22,18,1,4);wc.fillRect(30,18,1,4);
+    wc.fillRect(3,23,1,4);wc.fillRect(11,23,1,4);wc.fillRect(19,23,1,4);wc.fillRect(27,23,1,4);
+    // Individual brick highlights for depth
+    wc.fillStyle='#7e7e88';
+    wc.fillRect(1,9,4,3);wc.fillRect(15,9,6,3);wc.fillRect(24,9,5,3);
+    wc.fillRect(8,14,2,3);wc.fillRect(20,14,6,3);
+    wc.fillRect(1,19,4,3);wc.fillRect(15,19,6,3);wc.fillRect(23,19,6,3);
+    wc.fillRect(8,24,2,3);wc.fillRect(12,24,6,3);wc.fillRect(20,24,6,3);
+    // Crenellations (top battlement)
+    wc.fillStyle='#2a2a32';wc.fillRect(0,0,32,7);
+    const wmerlons=[0,9,18,27];
+    for(const mx of wmerlons){
+      wc.fillStyle='#4a4a52';wc.fillRect(mx,0,6,7);
+      wc.fillStyle='#5a5a62';wc.fillRect(mx,0,5,7);
+      wc.fillStyle='#6e6e78';wc.fillRect(mx,0,3,7);
+      wc.fillStyle='#82828c';wc.fillRect(mx,0,6,1);
+      wc.fillStyle='#9a9aa2';wc.fillRect(mx,0,3,1);
+      wc.fillStyle='#1e1e26';wc.fillRect(mx+5,0,1,7);
+    }
+    // Base plinth (wider shadow)
+    wc.fillStyle='#1e1e26';wc.fillRect(0,29,32,1);
+    wc.fillStyle='#2a2a32';wc.fillRect(0,28,32,1);
+    // Moss patches
+    wc.fillStyle='#2d4a1a';
+    wc.fillRect(1,25,2,2);wc.fillRect(28,24,2,2);wc.fillRect(12,27,3,1);
+    wc.fillStyle='#4a6a28';
+    wc.fillRect(1,25,1,1);wc.fillRect(28,24,1,1);wc.fillRect(13,27,1,1);
+    // Crack
+    wc.fillStyle='#1e1e26';wc.fillRect(16,10,1,5);wc.fillRect(17,13,1,3);
     this.textures.addCanvas('building_wall',wallCanvas);
 
-    // BARRICADE - wooden stakes/fence
+    // BARRICADE - sharpened wooden stakes with rope lashings
     const barCanvas=document.createElement('canvas');barCanvas.width=S;barCanvas.height=S;
     const bc=barCanvas.getContext('2d');
-    // Horizontal rails
-    bc.fillStyle='#6b4e1e';bc.fillRect(0,12,32,4);bc.fillRect(0,22,32,4);
-    bc.fillStyle='#7a5a28';bc.fillRect(2,13,28,2);bc.fillRect(2,23,28,2);
+    // Ground shadow
+    bc.fillStyle='rgba(0,0,0,0.35)';bc.fillRect(0,30,32,2);
+    // Horizontal rails (two bars)
+    bc.fillStyle='#1a0a05';bc.fillRect(0,12,32,5);bc.fillRect(0,22,32,5);
+    bc.fillStyle='#4a2a0a';bc.fillRect(0,12,32,4);bc.fillRect(0,22,32,4);
+    bc.fillStyle='#6a4a1e';bc.fillRect(0,12,32,3);bc.fillRect(0,22,32,3);
+    bc.fillStyle='#7a5a28';bc.fillRect(0,12,32,2);bc.fillRect(0,22,32,2);
+    bc.fillStyle='#8b6914';bc.fillRect(0,12,32,1);bc.fillRect(0,22,32,1);
+    // Wood grain lines
+    bc.fillStyle='#3a2208';
+    bc.fillRect(4,14,3,1);bc.fillRect(12,14,4,1);bc.fillRect(22,14,4,1);
+    bc.fillRect(3,24,4,1);bc.fillRect(13,24,4,1);bc.fillRect(23,24,4,1);
     // Vertical stakes (pointed tops)
-    const stakeX=[3,9,15,21,27];
+    const stakeX=[2,8,14,20,26];
     for(const sx of stakeX){
-      bc.fillStyle='#7a5a28';bc.fillRect(sx,6,4,22);
-      bc.fillStyle='#8b6914';bc.fillRect(sx+1,7,2,20);
-      // Pointed top
-      bc.fillStyle='#7a5a28';bc.fillRect(sx+1,4,2,3);bc.fillRect(sx+1,3,2,1);
+      // Dark outline
+      bc.fillStyle='#0a0500';bc.fillRect(sx,4,5,25);
+      // Shaft shading (light from left)
+      bc.fillStyle='#3a2208';bc.fillRect(sx,4,4,25);
+      bc.fillStyle='#5a3a14';bc.fillRect(sx,4,3,25);
+      bc.fillStyle='#7a5a28';bc.fillRect(sx,4,2,25);
+      bc.fillStyle='#8b6914';bc.fillRect(sx,4,1,25);
+      // Pointed top (triangular taper)
+      bc.fillStyle='#0a0500';bc.fillRect(sx+1,2,3,2);
+      bc.fillStyle='#5a3a14';bc.fillRect(sx+1,2,2,2);
+      bc.fillStyle='#7a5a28';bc.fillRect(sx+1,2,1,2);
+      bc.fillStyle='#0a0500';bc.fillRect(sx+1,0,2,2);
+      bc.fillStyle='#5a3a14';bc.fillRect(sx+1,0,1,2);
     }
-    // Nails
-    bc.fillStyle='#555';
-    for(const sx of stakeX){bc.fillRect(sx+1,13,2,1);bc.fillRect(sx+1,23,2,1)}
+    // Bloodstain on a couple stake tips
+    bc.fillStyle='#5a0a10';bc.fillRect(9,0,2,2);bc.fillRect(21,0,2,2);
+    bc.fillStyle='#a82020';bc.fillRect(9,0,1,1);bc.fillRect(21,0,1,1);
+    // Rope lashings where stakes cross rails (draw after so they sit on top)
+    for(const sx of stakeX){
+      bc.fillStyle='#3a2208';bc.fillRect(sx-1,12,6,1);bc.fillRect(sx-1,15,6,1);
+      bc.fillStyle='#3a2208';bc.fillRect(sx-1,22,6,1);bc.fillRect(sx-1,25,6,1);
+      bc.fillStyle='#9a7838';bc.fillRect(sx-1,13,6,2);
+      bc.fillStyle='#9a7838';bc.fillRect(sx-1,23,6,2);
+      bc.fillStyle='#c89848';bc.fillRect(sx-1,13,6,1);
+      bc.fillStyle='#c89848';bc.fillRect(sx-1,23,6,1);
+      // Diagonal rope weave
+      bc.fillStyle='#6a4a1e';
+      bc.fillRect(sx,13,1,1);bc.fillRect(sx+2,14,1,1);
+      bc.fillRect(sx,23,1,1);bc.fillRect(sx+2,24,1,1);
+    }
     this.textures.addCanvas('building_barricade',barCanvas);
   }
 
@@ -459,101 +705,325 @@ class BootScene extends Phaser.Scene {
     for(let owner=1;owner<=2;owner++){
       const canvas=document.createElement('canvas');canvas.width=cw;canvas.height=ch;
       const c=canvas.getContext('2d');
-      const pc=owner===1; // player color flag
-      const stoneA='#5a5a5a';
-      const stoneB='#4a4a4a';
-      const stoneC='#6a6a6a';
-      const accent=pc?'#3366cc':'#cc3366';
-      const accentLt=pc?'#4488ff':'#ff4488';
-      const dark='#1a1a2e';
+      const pc=owner===1;
+      // Palette
+      const stoneShadow='#1e1e26';
+      const stoneDark='#3a3a44';
+      const stoneMid='#55555e';
+      const stoneLight='#6a6a74';
+      const stoneBright='#82828c';
+      const stoneBrightest='#92929c';
+      const mortar='#14141c';
+      const accent=pc?'#2864cc':'#cc2864';
+      const accentLt=pc?'#5599ff':'#ff5599';
+      const accentDk=pc?'#1a4080':'#801a40';
+      const wood='#4a2e10';
+      const woodLt='#7a5a28';
+      const woodBright='#a07828';
+      const iron='#1a1a1e';
+      const ironLt='#555';
+      const warm='#ffcc44';
+      const warmBright='#ffee99';
+      const dark='#0a0a12';
+      const moss='#2d4a1a';
+      const mossLt='#4a6a28';
 
-      // Fill stone background
-      c.fillStyle=stoneA;c.fillRect(0,0,cw,ch);
+      // Ground shadow band
+      c.fillStyle='rgba(0,0,0,0.5)';c.fillRect(0,ch-3,cw,3);
 
-      // Brick pattern across entire castle
-      c.fillStyle=stoneB;
-      for(let y=0;y<ch;y+=8){
-        c.fillRect(0,y,cw,1); // horizontal mortar
-        const off=(y/8)%2===0?0:10;
-        for(let x=off;x<cw;x+=20)c.fillRect(x,y,1,8); // vertical mortar
+      // Main wall fill with left-to-right cylindrical shading
+      c.fillStyle=stoneDark;c.fillRect(0,0,cw,ch);
+      c.fillStyle=stoneMid;c.fillRect(0,0,cw-6,ch);
+      c.fillStyle=stoneLight;c.fillRect(0,0,cw-20,ch);
+      c.fillStyle=stoneBright;c.fillRect(0,0,cw-40,ch);
+
+      // Brick pattern across entire castle (staggered courses)
+      c.fillStyle=mortar;
+      for(let y=7;y<ch-3;y+=7){
+        c.fillRect(0,y,cw,1);
+        const off=(((y/7)|0)%2===0)?0:9;
+        for(let x=off;x<cw;x+=18)c.fillRect(x,y-6,1,6);
       }
 
-      // Highlight bricks randomly for depth
-      for(let i=0;i<40;i++){
-        const bx=Math.floor(Math.random()*7)*10,by=Math.floor(Math.random()*(ch/8))*8;
-        c.fillStyle=stoneC;c.fillRect(bx+1,by+1,8,6);
+      // Pseudo-random brick highlights for depth (deterministic)
+      const rnd2=(i)=>((i*2654435761)>>>0)/4294967296;
+      for(let i=0;i<120;i++){
+        const bx=Math.floor(rnd2(i+1+owner*50)*(cw/9))*9;
+        const by=Math.floor(rnd2(i+500+owner*50)*((ch-10)/7))*7+1;
+        const roll=rnd2(i+1000+owner*50);
+        if(roll>0.85)c.fillStyle=stoneBrightest;
+        else if(roll>0.55)c.fillStyle=stoneBright;
+        else if(roll>0.3)c.fillStyle=stoneLight;
+        else continue;
+        c.fillRect(bx+1,by,7,5);
       }
 
-      // Top battlements (crenellations)
-      c.fillStyle=dark;c.fillRect(0,0,cw,2);
-      c.fillStyle=stoneA;
-      const merlonW=10,gapW=6;
-      for(let x=0;x<cw;x+=merlonW+gapW){
-        c.fillRect(x,0,merlonW,10);
-        c.fillStyle=stoneC;c.fillRect(x+1,1,merlonW-2,2);
-        c.fillStyle=stoneA;
+      // Corner towers (left & right) - raised cylindrical feel
+      const twW=11;
+      // Left tower shading
+      c.fillStyle=stoneShadow;c.fillRect(0,0,twW,ch);
+      c.fillStyle=stoneDark;c.fillRect(0,0,twW-1,ch);
+      c.fillStyle=stoneMid;c.fillRect(0,0,twW-3,ch);
+      c.fillStyle=stoneLight;c.fillRect(0,0,twW-5,ch);
+      c.fillStyle=stoneBright;c.fillRect(0,0,twW-8,ch);
+      c.fillStyle=stoneBrightest;c.fillRect(1,0,2,ch);
+      // Right tower shading
+      c.fillStyle=stoneShadow;c.fillRect(cw-twW,0,twW,ch);
+      c.fillStyle=stoneDark;c.fillRect(cw-twW+1,0,twW-1,ch);
+      c.fillStyle=stoneMid;c.fillRect(cw-twW+2,0,twW-3,ch);
+      c.fillStyle=stoneLight;c.fillRect(cw-twW+4,0,twW-6,ch);
+      c.fillStyle=stoneBright;c.fillRect(cw-twW+5,0,twW-8,ch);
+      // Corner tower horizontal stone bands
+      c.fillStyle=mortar;
+      for(let y=9;y<ch;y+=10){
+        c.fillRect(0,y,twW,1);c.fillRect(cw-twW,y,twW,1);
+      }
+      // Corner tower vertical seam (center mortar)
+      c.fillStyle=mortar;
+      for(let y=4;y<ch;y+=10){
+        c.fillRect(5,y,1,5);c.fillRect(cw-6,y,1,5);
       }
 
-      // Bottom battlements
-      for(let x=0;x<cw;x+=merlonW+gapW){
-        c.fillRect(x,ch-10,merlonW,10);
+      // Corner tower crenellation caps
+      c.fillStyle=stoneShadow;c.fillRect(0,0,twW,5);c.fillRect(cw-twW,0,twW,5);
+      const cornerMerls=[1,5,9];
+      for(const mx of cornerMerls){
+        c.fillStyle=stoneDark;c.fillRect(mx-1,0,3,5);
+        c.fillStyle=stoneMid;c.fillRect(mx-1,0,2,5);
+        c.fillStyle=stoneLight;c.fillRect(mx-1,0,1,5);
+        c.fillStyle=stoneBright;c.fillRect(mx-1,0,2,1);
+        c.fillStyle=stoneBrightest;c.fillRect(mx-1,0,1,1);
+        // Right tower
+        c.fillStyle=stoneDark;c.fillRect(cw-twW+mx-1,0,3,5);
+        c.fillStyle=stoneMid;c.fillRect(cw-twW+mx-1,0,2,5);
+        c.fillStyle=stoneLight;c.fillRect(cw-twW+mx-1,0,1,5);
+        c.fillStyle=stoneBright;c.fillRect(cw-twW+mx-1,0,2,1);
       }
 
-      // Tower turrets at corners (vertical pillars)
-      c.fillStyle=stoneB;c.fillRect(0,0,8,ch);c.fillRect(cw-8,0,8,ch);
-      c.fillStyle=stoneC;c.fillRect(1,0,2,ch);c.fillRect(cw-3,0,2,ch);
+      // Main top battlements (between corner towers)
+      const merlonW=8,gapW=5;
+      c.fillStyle=stoneShadow;c.fillRect(twW,0,cw-2*twW,9);
+      for(let x=twW+1;x<cw-twW;x+=merlonW+gapW){
+        const mw=Math.min(merlonW,cw-twW-x);
+        if(mw<=0)break;
+        c.fillStyle=stoneDark;c.fillRect(x,0,mw,9);
+        c.fillStyle=stoneMid;c.fillRect(x,0,Math.max(1,mw-1),9);
+        c.fillStyle=stoneLight;c.fillRect(x,0,Math.max(1,mw-3),9);
+        c.fillStyle=stoneBright;c.fillRect(x,0,mw,1);
+        c.fillStyle=stoneBrightest;c.fillRect(x,0,Math.max(1,mw-3),1);
+        // Painted accent trim
+        c.fillStyle=accentDk;c.fillRect(x,1,mw,2);
+        c.fillStyle=accent;c.fillRect(x,1,mw,1);
+        c.fillStyle=accentLt;c.fillRect(x,1,Math.max(1,mw-3),1);
+      }
+      // Parapet overhang shadow
+      c.fillStyle=mortar;c.fillRect(twW,9,cw-2*twW,1);
 
-      // Central keep (raised section)
-      const keepY=ch/2-50,keepH=100;
-      c.fillStyle=stoneC;c.fillRect(8,keepY,cw-16,keepH);
-      c.fillStyle=stoneB;
-      for(let y=keepY;y<keepY+keepH;y+=8)c.fillRect(8,y,cw-16,1);
-
+      // Central keep (raised middle section)
+      const keepX=13,keepW=cw-26;
+      const keepY=ch/2-62,keepH=112;
+      // Keep body with facet shading
+      c.fillStyle=stoneShadow;c.fillRect(keepX-1,keepY,keepW+2,keepH);
+      c.fillStyle=stoneDark;c.fillRect(keepX,keepY,keepW,keepH);
+      c.fillStyle=stoneMid;c.fillRect(keepX,keepY,keepW-2,keepH);
+      c.fillStyle=stoneLight;c.fillRect(keepX,keepY,keepW-6,keepH);
+      c.fillStyle=stoneBright;c.fillRect(keepX+1,keepY+1,3,keepH-2);
+      c.fillStyle=stoneBrightest;c.fillRect(keepX+1,keepY+1,1,keepH-2);
+      // Keep stone courses
+      c.fillStyle=mortar;
+      for(let y=keepY+7;y<keepY+keepH;y+=8)c.fillRect(keepX,y,keepW,1);
+      // Keep vertical mortar
+      c.fillStyle=mortar;
+      for(let y=keepY;y<keepY+keepH;y+=8){
+        const off=(((y/8)|0)%2===0)?3:12;
+        for(let x=keepX+off;x<keepX+keepW;x+=18)c.fillRect(x,y,1,7);
+      }
       // Keep battlements
-      c.fillStyle=stoneA;
-      for(let x=8;x<cw-8;x+=merlonW+gapW){
-        c.fillRect(x,keepY-6,merlonW,8);
+      c.fillStyle=stoneShadow;c.fillRect(keepX-1,keepY-8,keepW+2,9);
+      for(let x=keepX+1;x<keepX+keepW;x+=merlonW+gapW){
+        const mw=Math.min(merlonW,keepX+keepW-x-1);
+        if(mw<=0)break;
+        c.fillStyle=stoneDark;c.fillRect(x,keepY-8,mw,9);
+        c.fillStyle=stoneMid;c.fillRect(x,keepY-8,Math.max(1,mw-1),9);
+        c.fillStyle=stoneLight;c.fillRect(x,keepY-8,Math.max(1,mw-3),9);
+        c.fillStyle=stoneBright;c.fillRect(x,keepY-8,mw,1);
       }
+      c.fillStyle=mortar;c.fillRect(keepX,keepY+1,keepW,1);
 
-      // Gate (centered vertically)
-      const gateY=ch/2+20,gateW=18,gateH=28;
-      c.fillStyle=dark;c.fillRect(cw/2-gateW/2,gateY,gateW,gateH);
-      // Arch top
-      c.fillStyle=stoneB;
-      c.fillRect(cw/2-gateW/2-2,gateY-2,gateW+4,4);
-      c.fillRect(cw/2-gateW/2+2,gateY-4,gateW-4,2);
-      // Portcullis lines
-      c.fillStyle='#555';
-      for(let x=cw/2-gateW/2+3;x<cw/2+gateW/2;x+=4)c.fillRect(x,gateY,1,gateH);
-      for(let y=gateY+4;y<gateY+gateH;y+=5)c.fillRect(cw/2-gateW/2+1,y,gateW-2,1);
-
-      // Windows (3 rows)
-      const windowRows=[keepY+15,keepY+45,keepY+75];
+      // Arched windows (3 rows on keep, each with sill)
+      const windowRows=[keepY+14,keepY+42,keepY+70];
       for(const wy of windowRows){
-        // Left window
-        c.fillStyle=dark;c.fillRect(16,wy,8,10);
-        c.fillStyle='#ffdd33';c.fillRect(17,wy+1,6,8); // warm light
-        c.fillStyle='#ffaa00';c.fillRect(18,wy+3,4,4);
-        // Right window
-        c.fillStyle=dark;c.fillRect(cw-24,wy,8,10);
-        c.fillStyle='#ffdd33';c.fillRect(cw-23,wy+1,6,8);
-        c.fillStyle='#ffaa00';c.fillRect(cw-22,wy+3,4,4);
+        const positions=[keepX+5,cw-keepX-13];
+        for(const wx of positions){
+          // Dark opening (arched)
+          c.fillStyle=dark;
+          c.fillRect(wx,wy,8,11);
+          c.fillRect(wx+1,wy-1,6,1);
+          c.fillRect(wx+2,wy-2,4,1);
+          c.fillRect(wx+3,wy-3,2,1);
+          // Stone arch frame
+          c.fillStyle=stoneDark;
+          c.fillRect(wx-1,wy-1,1,12);c.fillRect(wx+8,wy-1,1,12);
+          // Warm light glow (layered)
+          c.fillStyle='#3a2a0a';c.fillRect(wx+1,wy+1,6,9);
+          c.fillStyle=warm;c.fillRect(wx+2,wy+2,4,7);
+          c.fillStyle=warmBright;c.fillRect(wx+3,wy+3,2,5);
+          c.fillStyle='#fff5cc';c.fillRect(wx+3,wy+4,2,2);
+          // Window sill
+          c.fillStyle=stoneLight;c.fillRect(wx-2,wy+11,12,2);
+          c.fillStyle=stoneBright;c.fillRect(wx-2,wy+11,12,1);
+          c.fillStyle=stoneShadow;c.fillRect(wx-2,wy+13,12,1);
+        }
       }
 
-      // Banner/flag at top
-      const flagX=cw/2,flagY=keepY-6;
-      c.fillStyle='#8b6914';c.fillRect(flagX-1,flagY-24,3,26); // pole
-      c.fillStyle=accent;c.fillRect(flagX+2,flagY-24,14,10); // flag
-      c.fillStyle=accentLt;c.fillRect(flagX+4,flagY-22,4,3); // emblem
-      // Second banner lower
-      c.fillStyle='#8b6914';c.fillRect(flagX-1,ch/2+50,3,20);
-      c.fillStyle=accent;c.fillRect(flagX+2,ch/2+50,12,8);
+      // Gate (centered, arched wooden doors inside stone frame)
+      const gateW=24,gateH=36;
+      const gateX=cw/2-gateW/2,gateY=ch/2+22;
+      // Stone arch frame (stepped)
+      c.fillStyle=stoneShadow;
+      c.fillRect(gateX-4,gateY-4,gateW+8,4);
+      c.fillRect(gateX-3,gateY-6,gateW+6,2);
+      c.fillRect(gateX-1,gateY-8,gateW+2,2);
+      c.fillStyle=stoneDark;
+      c.fillRect(gateX-4,gateY-4,gateW+8,3);
+      c.fillRect(gateX-3,gateY-6,gateW+6,1);
+      c.fillStyle=stoneMid;
+      c.fillRect(gateX-4,gateY-4,gateW+8,2);
+      c.fillRect(gateX-3,gateY-6,gateW+6,1);
+      c.fillStyle=stoneLight;
+      c.fillRect(gateX-4,gateY-4,gateW+8,1);
+      // Side stone jambs
+      c.fillStyle=stoneDark;
+      c.fillRect(gateX-3,gateY-4,2,gateH+4);c.fillRect(gateX+gateW+1,gateY-4,2,gateH+4);
+      c.fillStyle=stoneMid;
+      c.fillRect(gateX-3,gateY-4,1,gateH+4);c.fillRect(gateX+gateW+1,gateY-4,1,gateH+4);
+      // Gate opening (dark backdrop)
+      c.fillStyle=dark;c.fillRect(gateX,gateY-3,gateW,gateH+3);
+      // Wooden doors
+      c.fillStyle=wood;c.fillRect(gateX+1,gateY-2,gateW-2,gateH);
+      c.fillStyle='#6a4218';
+      for(let dy=gateY+1;dy<gateY+gateH-2;dy+=4)c.fillRect(gateX+1,dy,gateW-2,1);
+      c.fillStyle=woodLt;
+      for(let dy=gateY;dy<gateY+gateH-2;dy+=4)c.fillRect(gateX+1,dy,gateW-2,1);
+      // Vertical door planks
+      c.fillStyle='#3a1e08';
+      c.fillRect(gateX+5,gateY-2,1,gateH);c.fillRect(gateX+10,gateY-2,1,gateH);
+      c.fillRect(gateX+15,gateY-2,1,gateH);c.fillRect(gateX+19,gateY-2,1,gateH);
+      // Door split down the middle
+      c.fillStyle=dark;c.fillRect(gateX+gateW/2-1,gateY-2,1,gateH);
+      // Iron reinforcement bands
+      c.fillStyle=iron;
+      c.fillRect(gateX+1,gateY+4,gateW-2,2);
+      c.fillRect(gateX+1,gateY+gateH-8,gateW-2,2);
+      c.fillStyle=ironLt;
+      c.fillRect(gateX+1,gateY+4,gateW-2,1);
+      c.fillRect(gateX+1,gateY+gateH-8,gateW-2,1);
+      // Iron studs on doors
+      c.fillStyle=iron;
+      for(let dy=gateY+10;dy<gateY+gateH-10;dy+=6){
+        for(let dx=gateX+3;dx<gateX+gateW-2;dx+=5){
+          c.fillRect(dx,dy,2,2);
+        }
+      }
+      c.fillStyle='#777';
+      for(let dy=gateY+10;dy<gateY+gateH-10;dy+=6){
+        for(let dx=gateX+3;dx<gateX+gateW-2;dx+=5){
+          c.fillRect(dx,dy,1,1);
+        }
+      }
+      // Portcullis bars in front (semi-transparent)
+      c.fillStyle='rgba(60,60,60,0.7)';
+      for(let px=gateX+2;px<gateX+gateW-1;px+=3)c.fillRect(px,gateY-2,1,gateH);
+      for(let py=gateY+2;py<gateY+gateH-2;py+=7)c.fillRect(gateX+1,py,gateW-2,1);
+      // Arrow slits on corner towers
+      const slitYs=[22,54,86,118,170,202,234];
+      for(const sy of slitYs){
+        // Left tower slit
+        c.fillStyle=dark;c.fillRect(4,sy,2,8);c.fillRect(4,sy+1,2,1);
+        c.fillStyle='#882200';c.fillRect(4,sy+3,2,2);
+        c.fillStyle='#ff8822';c.fillRect(4,sy+4,2,1);
+        // Right tower slit
+        c.fillStyle=dark;c.fillRect(cw-6,sy,2,8);c.fillRect(cw-6,sy+1,2,1);
+        c.fillStyle='#882200';c.fillRect(cw-6,sy+3,2,2);
+        c.fillStyle='#ff8822';c.fillRect(cw-6,sy+4,2,1);
+      }
 
-      // Accent colored trim on battlements only
+      // Main banner at top of keep
+      const flagX=cw/2,flagY=keepY-8;
+      // Pole
+      c.fillStyle=iron;c.fillRect(flagX-1,flagY-34,3,34);
+      c.fillStyle=woodLt;c.fillRect(flagX-1,flagY-34,2,34);
+      c.fillStyle=woodBright;c.fillRect(flagX-1,flagY-34,1,34);
+      // Pole tip (gold finial)
+      c.fillStyle='#5a4010';c.fillRect(flagX-2,flagY-38,5,4);
+      c.fillStyle='#aa8030';c.fillRect(flagX-2,flagY-38,4,3);
+      c.fillStyle='#ddaa40';c.fillRect(flagX-2,flagY-38,3,2);
+      c.fillStyle=warmBright;c.fillRect(flagX-1,flagY-38,1,1);
+      // Flag (draped rectangular with tails)
+      c.fillStyle=accentDk;
+      c.fillRect(flagX+2,flagY-34,18,16);
+      c.fillRect(flagX+2,flagY-34,20,3);
       c.fillStyle=accent;
-      for(let x=0;x<cw;x+=merlonW+gapW){
-        c.fillRect(x,0,merlonW,3);c.fillRect(x,ch-3,merlonW,3);
+      c.fillRect(flagX+2,flagY-34,17,14);
+      c.fillStyle=accentLt;
+      c.fillRect(flagX+2,flagY-34,16,1);     // top highlight
+      c.fillRect(flagX+2,flagY-34,1,13);     // left highlight
+      // Flag tails (bottom)
+      c.fillStyle=accentDk;
+      c.fillRect(flagX+2,flagY-18,5,4);c.fillRect(flagX+9,flagY-18,5,4);c.fillRect(flagX+16,flagY-18,4,4);
+      c.fillStyle=accent;
+      c.fillRect(flagX+2,flagY-18,4,3);c.fillRect(flagX+9,flagY-18,4,3);c.fillRect(flagX+16,flagY-18,3,3);
+      // Emblem on flag (diamond/cross)
+      c.fillStyle=warmBright;
+      c.fillRect(flagX+9,flagY-30,4,8);
+      c.fillRect(flagX+7,flagY-28,8,4);
+      c.fillStyle='#fff5cc';
+      c.fillRect(flagX+10,flagY-29,2,6);
+      c.fillRect(flagX+8,flagY-27,6,2);
+      c.fillStyle=warm;
+      c.fillRect(flagX+9,flagY-30,1,1);c.fillRect(flagX+12,flagY-23,1,1);
+
+      // Side banners hanging above gate (flanking)
+      const drawSideBanner=(bx,by)=>{
+        c.fillStyle=iron;c.fillRect(bx-3,by-1,7,2);
+        c.fillStyle=accentDk;c.fillRect(bx-3,by,7,14);
+        c.fillStyle=accent;c.fillRect(bx-3,by,6,13);
+        c.fillStyle=accentLt;c.fillRect(bx-3,by,5,1);
+        c.fillRect(bx-3,by,1,12);
+        // Pointed bottom tail
+        c.fillStyle=accentDk;c.fillRect(bx-2,by+14,5,2);c.fillRect(bx-1,by+16,3,2);c.fillRect(bx,by+18,1,2);
+        c.fillStyle=accent;c.fillRect(bx-2,by+14,4,2);c.fillRect(bx-1,by+16,2,2);
+        // Emblem
+        c.fillStyle=warmBright;c.fillRect(bx-1,by+4,3,4);c.fillRect(bx-2,by+5,5,2);
+        c.fillStyle='#fff5cc';c.fillRect(bx,by+5,1,2);
+      };
+      drawSideBanner(gateX-4,gateY+4);
+      drawSideBanner(gateX+gateW+4,gateY+4);
+
+      // Cracks for weathering
+      c.fillStyle=mortar;
+      c.fillRect(15,30,1,7);c.fillRect(16,34,1,4);c.fillRect(15,38,1,2);
+      c.fillRect(cw-18,60,1,6);c.fillRect(cw-17,63,1,4);
+      c.fillRect(18,ch-60,1,9);c.fillRect(17,ch-54,1,4);
+      c.fillRect(cw-20,ch-90,1,7);c.fillRect(cw-19,ch-85,1,3);
+
+      // Moss patches (lower sections mostly)
+      const mossPos=[
+        [3,ch-20],[cw-8,ch-15],[14,ch-8],[cw-18,ch-25],
+        [5,ch/2+70],[cw-10,ch/2+66],[16,ch-40],[cw-20,ch-50],
+        [2,ch/2+30],[cw-6,ch-70]
+      ];
+      c.fillStyle=moss;
+      for(const[mx,my] of mossPos){
+        c.fillRect(mx,my,3,2);c.fillRect(mx+1,my-1,2,1);c.fillRect(mx-1,my+1,1,1);
       }
+      c.fillStyle=mossLt;
+      for(const[mx,my] of mossPos){
+        c.fillRect(mx+1,my,2,1);c.fillRect(mx,my-1,1,1);
+      }
+
+      // Final bottom ground shadow line
+      c.fillStyle=mortar;c.fillRect(0,ch-1,cw,1);
 
       this.textures.addCanvas('castle_p'+owner,canvas);
     }
