@@ -351,10 +351,11 @@ class BootScene extends Phaser.Scene {
   }
 
   generateBuildingTextures(){
-    // Procedural pixel art towers/walls matching 0x72 dungeon style (32x32)
-    const S=32;
+    // Procedural pixel art towers (32x48 - taller than tile for architectural detail)
+    // Walls and barricades stay 32x32 matching their tile footprint.
+    const S=32, TH=48;
     const drawTower=(id,fn)=>{
-      const canvas=document.createElement('canvas');canvas.width=S;canvas.height=S;
+      const canvas=document.createElement('canvas');canvas.width=S;canvas.height=TH;
       fn(canvas.getContext('2d'));
       this.textures.addCanvas('tower_'+id,canvas);
     };
@@ -362,260 +363,424 @@ class BootScene extends Phaser.Scene {
     // TURRET - cylindrical stone watchtower with cruciform arrow slit
     drawTower('turret',(c)=>{
       // Ground shadow
-      c.fillStyle='rgba(0,0,0,0.35)';c.fillRect(3,30,26,2);
-      // Base plinth (wider than shaft)
-      c.fillStyle='#2a2a30';c.fillRect(3,28,26,2);
-      c.fillStyle='#3a3a42';c.fillRect(3,27,26,1);
-      c.fillStyle='#55555c';c.fillRect(4,26,24,1);
-      c.fillStyle='#6a6a72';c.fillRect(4,25,24,1);
+      c.fillStyle='rgba(0,0,0,0.45)';c.fillRect(3,46,26,2);
+      // Base plinth (stepped)
+      c.fillStyle='#1e1e26';c.fillRect(3,43,26,4);
+      c.fillStyle='#3a3a42';c.fillRect(4,41,24,3);
+      c.fillStyle='#55555c';c.fillRect(4,40,24,1);
+      c.fillStyle='#6a6a72';c.fillRect(5,39,22,1);
+      c.fillStyle='#2a2a32';c.fillRect(3,44,26,1);
+      // Wooden door at base
+      c.fillStyle='#0a0a12';c.fillRect(14,34,5,8);
+      c.fillStyle='#2a1a0a';c.fillRect(14,34,5,7);
+      c.fillStyle='#5a3a14';c.fillRect(14,35,4,6);
+      c.fillStyle='#7a5a28';c.fillRect(14,35,3,6);
+      c.fillStyle='#8b6914';c.fillRect(14,35,1,6);
+      c.fillStyle='#3a2208';c.fillRect(14,34,5,1); // lintel shadow
+      c.fillStyle='#444';c.fillRect(14,34,5,1); // iron lintel
+      // Door studs
+      c.fillStyle='#222';c.fillRect(15,37,1,1);c.fillRect(17,37,1,1);c.fillRect(16,40,1,1);
       // Main shaft with cylindrical shading (light from upper-left)
-      c.fillStyle='#2e2e36';c.fillRect(5,9,22,17); // darkest fill
-      c.fillStyle='#4a4a52';c.fillRect(5,9,20,17); // dark mid
-      c.fillStyle='#5c5c64';c.fillRect(5,9,16,17); // mid tone
-      c.fillStyle='#70707a';c.fillRect(5,9,10,17); // light mid
-      c.fillStyle='#86868e';c.fillRect(6,10,3,15); // highlight edge
-      c.fillStyle='#9a9aa2';c.fillRect(7,10,1,14); // brightest line
-      // Mortar courses (horizontal)
-      c.fillStyle='#1e1e26';
-      c.fillRect(5,13,22,1);c.fillRect(5,18,22,1);c.fillRect(5,23,22,1);
-      // Mortar verticals (staggered brick)
-      c.fillRect(10,9,1,4);c.fillRect(16,9,1,4);c.fillRect(22,9,1,4);
-      c.fillRect(8,14,1,4);c.fillRect(14,14,1,4);c.fillRect(20,14,1,4);
-      c.fillRect(11,19,1,4);c.fillRect(17,19,1,4);c.fillRect(23,19,1,4);
-      c.fillRect(8,24,1,2);c.fillRect(14,24,1,2);c.fillRect(20,24,1,2);
-      // Individual brick highlights (for depth)
+      c.fillStyle='#1e1e26';c.fillRect(4,14,24,26);
+      c.fillStyle='#3a3a42';c.fillRect(4,14,22,26);
+      c.fillStyle='#55555c';c.fillRect(4,14,18,26);
+      c.fillStyle='#6a6a72';c.fillRect(4,14,12,26);
+      c.fillStyle='#82828c';c.fillRect(5,15,3,24);
+      c.fillStyle='#9a9aa2';c.fillRect(6,15,1,23);
+      // Horizontal stone courses
+      c.fillStyle='#14141c';
+      c.fillRect(4,19,24,1);c.fillRect(4,25,24,1);c.fillRect(4,31,24,1);c.fillRect(4,37,24,1);
+      // Vertical staggered mortar
+      c.fillRect(10,14,1,5);c.fillRect(17,14,1,5);c.fillRect(23,14,1,5);
+      c.fillRect(7,20,1,5);c.fillRect(14,20,1,5);c.fillRect(20,20,1,5);c.fillRect(25,20,1,5);
+      c.fillRect(10,26,1,5);c.fillRect(17,26,1,5);c.fillRect(23,26,1,5);
+      c.fillRect(7,32,1,5);c.fillRect(20,32,1,5);c.fillRect(25,32,1,5);
+      // Individual brick highlights
       c.fillStyle='#7e7e88';
-      c.fillRect(8,10,2,2);c.fillRect(17,10,2,2);
-      c.fillRect(6,15,1,2);c.fillRect(15,15,2,2);
-      c.fillRect(12,20,2,2);c.fillRect(24,20,2,2);
-      // Parapet overhang shadow under crenellations
-      c.fillStyle='#1e1e26';c.fillRect(4,9,24,1);
-      // Crenellations (merlons with facets)
-      c.fillStyle='#2a2a32';c.fillRect(4,4,24,5); // back row dark
-      const merlons=[4,10,16,22];
-      for(const mx of merlons){
-        c.fillStyle='#4a4a52';c.fillRect(mx,3,4,6);
-        c.fillStyle='#5c5c64';c.fillRect(mx,3,3,6);
-        c.fillStyle='#70707a';c.fillRect(mx,3,2,6);
-        c.fillStyle='#8a8a92';c.fillRect(mx,3,4,1);
-        c.fillStyle='#9a9aa2';c.fillRect(mx,3,2,1);
-        c.fillStyle='#1e1e26';c.fillRect(mx+3,3,1,6); // right shadow
-      }
-      // Arrow slit (cruciform) with warm glow behind
+      c.fillRect(8,15,2,3);c.fillRect(18,15,3,3);c.fillRect(24,15,2,3);
+      c.fillRect(5,21,1,3);c.fillRect(15,21,4,3);c.fillRect(21,21,3,3);
+      c.fillRect(11,27,2,3);c.fillRect(24,27,3,3);
+      c.fillRect(8,33,2,3);c.fillRect(21,33,3,3);
+      // Arrow slit cruciform (centered on shaft)
       c.fillStyle='#0a0a12';
-      c.fillRect(15,13,2,10); // vertical
-      c.fillRect(13,16,6,2);  // horizontal crossbar
-      c.fillStyle='#ffaa33';c.fillRect(15,16,2,2); // glow
-      c.fillStyle='#ffeb99';c.fillRect(15,17,2,1); // brightest
+      c.fillRect(15,21,2,12); // vertical
+      c.fillRect(13,25,6,2);  // horizontal crossbar
+      c.fillStyle='#ffaa33';c.fillRect(15,25,2,2);
+      c.fillStyle='#ffeb99';c.fillRect(15,26,2,1);
+      // Secondary small arrow slit near top
+      c.fillStyle='#0a0a12';c.fillRect(23,16,2,3);
+      c.fillStyle='#ffaa33';c.fillRect(23,17,2,1);
+      // Parapet overhang
+      c.fillStyle='#14141c';c.fillRect(3,14,26,1);
+      c.fillStyle='#1e1e26';c.fillRect(2,13,28,1);
+      // Machicolations (corbels under crenellations)
+      c.fillStyle='#55555c';
+      for(let mx=4;mx<28;mx+=4)c.fillRect(mx,12,2,1);
+      c.fillStyle='#82828c';
+      for(let mx=4;mx<28;mx+=4)c.fillRect(mx,12,1,1);
+      // Crenellations (4 merlons with facets)
+      c.fillStyle='#1e1e26';c.fillRect(2,7,28,6);
+      const merlons=[2,10,17,25];
+      for(const mx of merlons){
+        c.fillStyle='#3a3a42';c.fillRect(mx,4,5,9);
+        c.fillStyle='#55555c';c.fillRect(mx,4,4,9);
+        c.fillStyle='#6a6a72';c.fillRect(mx,4,3,9);
+        c.fillStyle='#82828c';c.fillRect(mx,4,5,1);
+        c.fillStyle='#9a9aa2';c.fillRect(mx,4,2,1);
+        c.fillStyle='#14141c';c.fillRect(mx+4,4,1,9); // right shadow
+      }
+      // Flag pole on central merlon
+      c.fillStyle='#1a1a1e';c.fillRect(14,0,2,4);
+      c.fillStyle='#444';c.fillRect(14,0,1,4);
+      // Gold finial ball
+      c.fillStyle='#6a4810';c.fillRect(13,0,3,2);
+      c.fillStyle='#aa8030';c.fillRect(13,0,3,1);
+      c.fillStyle='#ffdd55';c.fillRect(14,0,1,1);
       // Weathering: moss patches
       c.fillStyle='#2d4a1a';
-      c.fillRect(5,22,1,2);c.fillRect(26,12,1,2);c.fillRect(6,25,2,1);
+      c.fillRect(4,36,2,2);c.fillRect(26,22,1,3);c.fillRect(5,41,3,1);
       c.fillStyle='#4a6a28';
-      c.fillRect(5,22,1,1);c.fillRect(26,12,1,1);
+      c.fillRect(4,36,1,1);c.fillRect(26,22,1,1);
+      // Vine crawling up
+      c.fillStyle='#2d4a1a';
+      c.fillRect(26,32,1,1);c.fillRect(27,34,1,1);c.fillRect(26,36,1,1);c.fillRect(27,38,1,1);
     });
 
-    // MAGIC - wizard tower with stepped pointed roof and glowing crystal orb
+    // MAGIC - wizard tower with 4-tier pointed roof and dual glowing windows
     drawTower('magic',(c)=>{
       // Ground shadow
-      c.fillStyle='rgba(0,0,0,0.35)';c.fillRect(4,30,24,2);
+      c.fillStyle='rgba(0,0,0,0.45)';c.fillRect(4,46,24,2);
       // Glow aura behind orb
-      c.fillStyle='rgba(207,111,255,0.18)';c.fillRect(10,0,12,8);
-      c.fillStyle='rgba(207,111,255,0.12)';c.fillRect(8,0,16,10);
-      // Pointed roof (stepped pyramid, light from left)
-      c.fillStyle='#1a0a28';c.fillRect(6,10,20,2);   // eave shadow
-      c.fillStyle='#2a1a38';c.fillRect(7,9,18,2);    // step 1 back
-      c.fillStyle='#3a2850';c.fillRect(7,9,15,2);    // step 1 mid
-      c.fillStyle='#4a3860';c.fillRect(7,9,8,2);     // step 1 highlight
-      c.fillStyle='#5a4870';c.fillRect(7,9,4,1);
-      c.fillStyle='#2a1a38';c.fillRect(9,6,14,3);    // step 2 back
-      c.fillStyle='#3a2850';c.fillRect(9,6,11,3);
-      c.fillStyle='#4a3860';c.fillRect(9,6,6,3);
-      c.fillStyle='#5a4870';c.fillRect(9,6,3,1);
-      c.fillStyle='#2a1a38';c.fillRect(12,3,8,3);    // step 3 back
-      c.fillStyle='#3a2850';c.fillRect(12,3,6,3);
-      c.fillStyle='#4a3860';c.fillRect(12,3,3,3);
-      c.fillStyle='#5a4870';c.fillRect(12,3,2,1);
-      // Crystal orb on top (layered for radial gradient feel)
-      c.fillStyle='#4a0f6f';c.fillRect(14,0,4,4);
+      c.fillStyle='rgba(207,111,255,0.22)';c.fillRect(11,0,10,6);
+      c.fillStyle='rgba(207,111,255,0.14)';c.fillRect(9,0,14,8);
+      c.fillStyle='rgba(207,111,255,0.08)';c.fillRect(7,0,18,10);
+      // Crystal orb on top (layered radial gradient)
+      c.fillStyle='#3a0a5a';c.fillRect(14,0,4,4);
+      c.fillStyle='#4a0f6f';c.fillRect(14,0,4,3);
       c.fillStyle='#6a1f8f';c.fillRect(14,0,3,3);
-      c.fillStyle='#9b4fcf';c.fillRect(14,0,3,2);
+      c.fillStyle='#9b4fcf';c.fillRect(14,1,3,2);
       c.fillStyle='#cf6fff';c.fillRect(14,1,2,1);
       c.fillStyle='#f0c8ff';c.fillRect(14,1,1,1);
-      // Tower body (light from left)
-      c.fillStyle='#1a0a28';c.fillRect(7,12,18,17); // darkest
-      c.fillStyle='#3a2a48';c.fillRect(7,12,16,17); // dark
-      c.fillStyle='#5a4a6b';c.fillRect(7,12,13,17); // mid
-      c.fillStyle='#6b5a7a';c.fillRect(7,12,8,17);  // light mid
-      c.fillStyle='#7a6888';c.fillRect(8,13,3,15);  // highlight
-      c.fillStyle='#8a7898';c.fillRect(9,13,1,14);  // brightest
-      // Stone courses
+      // 4-tier pointed roof (stepped pyramid, light from left)
+      // Tier 4 (topmost, smallest)
+      c.fillStyle='#1a0a28';c.fillRect(12,4,8,3);
+      c.fillStyle='#2a1a38';c.fillRect(13,4,7,3);
+      c.fillStyle='#3a2850';c.fillRect(13,4,5,3);
+      c.fillStyle='#4a3860';c.fillRect(13,4,3,3);
+      c.fillStyle='#5a4870';c.fillRect(13,4,2,1);
+      // Tier 3
+      c.fillStyle='#1a0a28';c.fillRect(10,7,12,3);
+      c.fillStyle='#2a1a38';c.fillRect(11,7,11,3);
+      c.fillStyle='#3a2850';c.fillRect(11,7,8,3);
+      c.fillStyle='#4a3860';c.fillRect(11,7,5,3);
+      c.fillStyle='#5a4870';c.fillRect(11,7,3,1);
+      // Tier 2
+      c.fillStyle='#1a0a28';c.fillRect(8,10,16,3);
+      c.fillStyle='#2a1a38';c.fillRect(9,10,15,3);
+      c.fillStyle='#3a2850';c.fillRect(9,10,11,3);
+      c.fillStyle='#4a3860';c.fillRect(9,10,6,3);
+      c.fillStyle='#5a4870';c.fillRect(9,10,3,1);
+      // Tier 1 (widest, eave)
+      c.fillStyle='#1a0a28';c.fillRect(6,13,20,3);
+      c.fillStyle='#2a1a38';c.fillRect(7,13,19,3);
+      c.fillStyle='#3a2850';c.fillRect(7,13,15,3);
+      c.fillStyle='#4a3860';c.fillRect(7,13,8,3);
+      c.fillStyle='#5a4870';c.fillRect(7,13,4,1);
+      // Eave overhang shadow
+      c.fillStyle='#0a0018';c.fillRect(6,16,20,1);
+      // Tower body (light from left, taller)
+      c.fillStyle='#1a0a28';c.fillRect(7,16,18,25);
+      c.fillStyle='#3a2a48';c.fillRect(7,16,16,25);
+      c.fillStyle='#5a4a6b';c.fillRect(7,16,13,25);
+      c.fillStyle='#6b5a7a';c.fillRect(7,16,8,25);
+      c.fillStyle='#7a6888';c.fillRect(8,17,3,23);
+      c.fillStyle='#8a7898';c.fillRect(9,17,1,22);
+      // Horizontal stone courses
       c.fillStyle='#120620';
-      c.fillRect(7,17,18,1);c.fillRect(7,23,18,1);
-      // Vertical mortar
-      c.fillRect(11,12,1,5);c.fillRect(17,12,1,5);c.fillRect(22,12,1,5);
-      c.fillRect(10,18,1,5);c.fillRect(15,18,1,5);c.fillRect(21,18,1,5);
-      c.fillRect(12,24,1,5);c.fillRect(18,24,1,5);
-      // Arcane rune marks (glowing purple)
+      c.fillRect(7,21,18,1);c.fillRect(7,27,18,1);c.fillRect(7,33,18,1);c.fillRect(7,39,18,1);
+      // Vertical staggered mortar
+      c.fillRect(11,16,1,5);c.fillRect(17,16,1,5);c.fillRect(22,16,1,5);
+      c.fillRect(9,22,1,5);c.fillRect(14,22,1,5);c.fillRect(20,22,1,5);
+      c.fillRect(11,28,1,5);c.fillRect(17,28,1,5);c.fillRect(22,28,1,5);
+      c.fillRect(9,34,1,5);c.fillRect(14,34,1,5);c.fillRect(20,34,1,5);
+      // Arcane runes (glowing purple)
       c.fillStyle='#cf6fff';
-      c.fillRect(9,15,1,1);c.fillRect(11,14,1,1);
-      c.fillRect(22,26,1,1);c.fillRect(20,25,1,1);
-      c.fillStyle='#e8aaff';c.fillRect(9,15,1,1);
-      // Arched arcane window with strong glow
+      c.fillRect(9,19,1,1);c.fillRect(22,31,1,1);c.fillRect(10,37,1,1);c.fillRect(21,18,1,1);
+      c.fillStyle='#f0c8ff';
+      c.fillRect(9,19,1,1);c.fillRect(22,31,1,1);
+      // Upper arched window
       c.fillStyle='#0a0018';
-      c.fillRect(13,19,6,6);
-      c.fillRect(14,18,4,1);    // arch top
-      c.fillRect(15,17,2,1);    // arch peak
-      c.fillStyle='#4a1a6b';c.fillRect(14,19,4,5);
-      c.fillStyle='#9b4fcf';c.fillRect(14,20,4,3);
-      c.fillStyle='#cf6fff';c.fillRect(15,20,2,3);
-      c.fillStyle='#f0c8ff';c.fillRect(15,21,2,1);
-      // Window sill
-      c.fillStyle='#2a1a38';c.fillRect(12,24,8,1);
-      c.fillStyle='#5a4a6b';c.fillRect(12,25,8,1);
+      c.fillRect(13,23,6,5);c.fillRect(14,22,4,1);c.fillRect(15,21,2,1);
+      c.fillStyle='#4a1a6b';c.fillRect(14,23,4,4);
+      c.fillStyle='#9b4fcf';c.fillRect(14,24,4,3);
+      c.fillStyle='#cf6fff';c.fillRect(15,24,2,3);
+      c.fillStyle='#f0c8ff';c.fillRect(15,25,2,1);
+      // Upper window sill
+      c.fillStyle='#2a1a38';c.fillRect(12,28,8,1);
+      c.fillStyle='#5a4a6b';c.fillRect(12,29,8,1);
+      // Lower arched window
+      c.fillStyle='#0a0018';
+      c.fillRect(13,35,6,5);c.fillRect(14,34,4,1);c.fillRect(15,33,2,1);
+      c.fillStyle='#4a1a6b';c.fillRect(14,35,4,4);
+      c.fillStyle='#9b4fcf';c.fillRect(14,36,4,3);
+      c.fillStyle='#cf6fff';c.fillRect(15,36,2,3);
+      c.fillStyle='#f0c8ff';c.fillRect(15,37,2,1);
+      // Lower window sill
+      c.fillStyle='#2a1a38';c.fillRect(12,40,8,1);
       // Base plinth
-      c.fillStyle='#1a0a28';c.fillRect(5,29,22,1);
-      c.fillStyle='#2a1a38';c.fillRect(5,27,22,2);
-      c.fillStyle='#3a2a48';c.fillRect(6,26,20,1);
+      c.fillStyle='#0a0018';c.fillRect(5,45,22,2);
+      c.fillStyle='#1a0a28';c.fillRect(5,43,22,3);
+      c.fillStyle='#2a1a38';c.fillRect(5,42,22,1);
+      c.fillStyle='#3a2a48';c.fillRect(6,41,20,1);
     });
 
-    // CATAPULT - wooden siege engine with spoked wheels and throwing arm
+    // CATAPULT - wooden siege engine with big spoked wheels, counterweight and ammo pile
     drawTower('catapult',(c)=>{
       // Ground shadow
-      c.fillStyle='rgba(0,0,0,0.35)';c.fillRect(2,30,28,2);
-      // Wheels (left and right) with hub and spokes
+      c.fillStyle='rgba(0,0,0,0.45)';c.fillRect(2,46,28,2);
+      // Wheels (big, detailed spokes)
       const drawWheel=(wx)=>{
-        c.fillStyle='#1a0f05';c.fillRect(wx,24,9,7);
-        c.fillStyle='#2a1a0a';c.fillRect(wx+1,24,7,7);
-        c.fillStyle='#4a3014';c.fillRect(wx+1,24,6,6);
-        c.fillStyle='#6a4a20';c.fillRect(wx+1,24,4,6);
-        c.fillStyle='#7a5a28';c.fillRect(wx+1,24,2,5);
+        // Outer tire (dark ring)
+        c.fillStyle='#0a0500';c.fillRect(wx,35,11,11);
+        c.fillStyle='#1a0f05';c.fillRect(wx+1,34,9,12);
+        c.fillStyle='#2a1a0a';c.fillRect(wx+1,35,9,10);
+        // Tire wood tones
+        c.fillStyle='#4a3014';c.fillRect(wx+1,35,8,10);
+        c.fillStyle='#6a4a20';c.fillRect(wx+1,35,6,10);
+        c.fillStyle='#7a5a28';c.fillRect(wx+1,35,3,8);
         // Hub
-        c.fillStyle='#2a1a0a';c.fillRect(wx+2,26,5,3);
-        c.fillStyle='#8b6914';c.fillRect(wx+3,27,3,1);
-        c.fillStyle='#c89040';c.fillRect(wx+3,27,2,1);
-        // Spokes
-        c.fillStyle='#2a1a0a';
-        c.fillRect(wx+4,24,1,7);
-        c.fillRect(wx+1,27,7,1);
+        c.fillStyle='#1a0f05';c.fillRect(wx+3,38,5,5);
+        c.fillStyle='#5a3a14';c.fillRect(wx+3,38,5,4);
+        c.fillStyle='#8b6914';c.fillRect(wx+4,39,3,2);
+        c.fillStyle='#c89040';c.fillRect(wx+4,39,2,1);
+        // Iron rim studs
+        c.fillStyle='#333';
+        c.fillRect(wx+1,36,1,1);c.fillRect(wx+9,36,1,1);
+        c.fillRect(wx+1,43,1,1);c.fillRect(wx+9,43,1,1);
+        // Spokes (4-way cross)
+        c.fillStyle='#1a0f05';
+        c.fillRect(wx+4,35,1,10);       // vertical
+        c.fillRect(wx+1,39,10,1);       // horizontal
+        // Diagonal spokes (approximation)
+        c.fillRect(wx+2,36,1,1);c.fillRect(wx+3,37,1,1);
+        c.fillRect(wx+7,42,1,1);c.fillRect(wx+8,43,1,1);
       };
-      drawWheel(3);
-      drawWheel(20);
+      drawWheel(2);
+      drawWheel(19);
       // Axle
-      c.fillStyle='#2a1a0a';c.fillRect(9,27,13,2);
-      c.fillStyle='#555';c.fillRect(9,27,13,1);
-      // Main frame beam
-      c.fillStyle='#1a0a05';c.fillRect(3,22,26,2);   // bottom shadow
-      c.fillStyle='#5a3a14';c.fillRect(3,19,26,4);   // main beam
-      c.fillStyle='#7a5a28';c.fillRect(3,19,26,2);   // mid highlight
-      c.fillStyle='#a07528';c.fillRect(3,19,26,1);   // top highlight
+      c.fillStyle='#0a0500';c.fillRect(10,39,12,3);
+      c.fillStyle='#444';c.fillRect(10,39,12,2);
+      c.fillStyle='#777';c.fillRect(10,39,12,1);
+      c.fillStyle='#aaa';c.fillRect(11,39,1,1);c.fillRect(20,39,1,1);
+      // Main frame platform beam (with wood grain)
+      c.fillStyle='#0a0500';c.fillRect(3,32,26,3);
+      c.fillStyle='#1a0f05';c.fillRect(3,29,26,6);
+      c.fillStyle='#5a3a14';c.fillRect(3,29,26,5);
+      c.fillStyle='#7a5a28';c.fillRect(3,29,26,3);
+      c.fillStyle='#8b6914';c.fillRect(3,29,26,1);
+      c.fillStyle='#a07528';c.fillRect(4,29,24,1);
       // Wood grain
       c.fillStyle='#3a2208';
-      c.fillRect(5,21,3,1);c.fillRect(12,20,3,1);c.fillRect(18,21,3,1);c.fillRect(24,20,3,1);
-      // Metal reinforcing bands with rivets
-      c.fillStyle='#1a1a22';c.fillRect(8,19,1,4);c.fillRect(16,19,1,4);c.fillRect(23,19,1,4);
-      c.fillStyle='#444';c.fillRect(9,19,1,4);c.fillRect(17,19,1,4);c.fillRect(24,19,1,4);
-      c.fillStyle='#777';c.fillRect(9,19,1,1);c.fillRect(17,19,1,1);c.fillRect(24,19,1,1);
+      c.fillRect(5,31,3,1);c.fillRect(12,30,4,1);c.fillRect(18,31,4,1);c.fillRect(24,30,4,1);
+      c.fillRect(7,33,3,1);c.fillRect(16,32,4,1);c.fillRect(22,33,4,1);
+      // Metal reinforcement bands with rivets
+      c.fillStyle='#0a0a12';c.fillRect(8,29,1,6);c.fillRect(16,29,1,6);c.fillRect(24,29,1,6);
+      c.fillStyle='#222';c.fillRect(8,29,2,6);c.fillRect(16,29,2,6);c.fillRect(24,29,2,6);
+      c.fillStyle='#444';c.fillRect(8,29,1,6);c.fillRect(16,29,1,6);c.fillRect(24,29,1,6);
+      c.fillStyle='#777';c.fillRect(8,29,2,1);c.fillRect(16,29,2,1);c.fillRect(24,29,2,1);
+      // Rivets
       c.fillStyle='#aaa';
-      c.fillRect(8,20,1,1);c.fillRect(16,20,1,1);c.fillRect(23,20,1,1);
-      // Vertical support posts
-      c.fillStyle='#1a0a05';c.fillRect(11,12,4,8);c.fillRect(20,12,4,8);
-      c.fillStyle='#5a3a14';c.fillRect(11,12,3,8);c.fillRect(20,12,3,8);
-      c.fillStyle='#7a5a28';c.fillRect(11,12,2,8);c.fillRect(20,12,2,8);
-      c.fillStyle='#8b6914';c.fillRect(11,12,1,8);c.fillRect(20,12,1,8);
-      // Pivot axle between posts
-      c.fillStyle='#1a1a22';c.fillRect(10,11,15,2);
-      c.fillStyle='#555';c.fillRect(10,11,15,1);
-      c.fillStyle='#888';c.fillRect(11,11,1,1);c.fillRect(23,11,1,1);
+      c.fillRect(8,30,1,1);c.fillRect(16,30,1,1);c.fillRect(24,30,1,1);
+      c.fillRect(8,33,1,1);c.fillRect(16,33,1,1);c.fillRect(24,33,1,1);
+      c.fillStyle='#ccc';
+      c.fillRect(8,30,1,1);c.fillRect(16,30,1,1);c.fillRect(24,30,1,1);
+      // Vertical support posts (A-frame)
+      c.fillStyle='#0a0500';c.fillRect(10,17,5,12);c.fillRect(18,17,5,12);
+      c.fillStyle='#5a3a14';c.fillRect(10,17,4,12);c.fillRect(18,17,4,12);
+      c.fillStyle='#7a5a28';c.fillRect(10,17,3,12);c.fillRect(18,17,3,12);
+      c.fillStyle='#8b6914';c.fillRect(10,17,2,12);c.fillRect(18,17,2,12);
+      c.fillStyle='#a07528';c.fillRect(10,17,1,12);c.fillRect(18,17,1,12);
+      // Post diagonal braces
+      c.fillStyle='#3a2208';
+      c.fillRect(14,22,1,1);c.fillRect(15,23,1,1);c.fillRect(16,24,1,1);c.fillRect(17,25,1,1);
+      // Crossbeam joining posts at top
+      c.fillStyle='#0a0500';c.fillRect(9,15,16,3);
+      c.fillStyle='#5a3a14';c.fillRect(9,15,16,2);
+      c.fillStyle='#7a5a28';c.fillRect(9,15,16,1);
+      c.fillStyle='#8b6914';c.fillRect(10,15,14,1);
+      // Pivot axle with bearings
+      c.fillStyle='#0a0a12';c.fillRect(9,16,16,2);
+      c.fillStyle='#333';c.fillRect(9,16,16,2);
+      c.fillStyle='#666';c.fillRect(9,16,16,1);
+      c.fillStyle='#999';c.fillRect(10,16,1,1);c.fillRect(23,16,1,1);
+      // Tension rope coils around pivot
+      c.fillStyle='#8b6914';c.fillRect(12,16,1,2);c.fillRect(20,16,1,2);
+      c.fillStyle='#c89040';c.fillRect(12,16,1,1);c.fillRect(20,16,1,1);
       // Throwing arm (horizontal, from pivot toward top-left)
-      c.fillStyle='#1a0a05';c.fillRect(3,8,15,4);
-      c.fillStyle='#5a3a14';c.fillRect(3,8,15,3);
-      c.fillStyle='#7a5a28';c.fillRect(3,8,15,2);
-      c.fillStyle='#8b6914';c.fillRect(3,8,15,1);
-      // Rope coils on arm
+      c.fillStyle='#0a0500';c.fillRect(3,11,17,5);
+      c.fillStyle='#5a3a14';c.fillRect(3,11,17,4);
+      c.fillStyle='#7a5a28';c.fillRect(3,11,17,3);
+      c.fillStyle='#8b6914';c.fillRect(3,11,17,2);
+      c.fillStyle='#a07528';c.fillRect(3,11,17,1);
+      // Metal arm bands
+      c.fillStyle='#333';c.fillRect(6,11,1,4);c.fillRect(12,11,1,4);c.fillRect(17,11,1,4);
+      c.fillStyle='#666';c.fillRect(6,11,1,1);c.fillRect(12,11,1,1);c.fillRect(17,11,1,1);
+      // Tension ropes wrapping arm
       c.fillStyle='#aa8855';
-      c.fillRect(12,8,1,3);c.fillRect(14,8,1,3);
-      c.fillStyle='#d4b070';c.fillRect(12,8,1,1);c.fillRect(14,8,1,1);
-      // Bucket at top-left end of arm
-      c.fillStyle='#1a0a05';c.fillRect(2,2,8,7);
-      c.fillStyle='#5a3a14';c.fillRect(2,2,7,6);
-      c.fillStyle='#7a5a28';c.fillRect(2,2,7,2);  // top rim
-      c.fillStyle='#8b6914';c.fillRect(2,2,6,1);  // top highlight
-      c.fillStyle='#8b6914';c.fillRect(2,2,1,6);  // left edge
-      // Boulder in bucket
-      c.fillStyle='#1a1a1a';c.fillRect(3,3,6,5);
-      c.fillStyle='#4a4a4a';c.fillRect(3,3,5,4);
-      c.fillStyle='#6a6a6a';c.fillRect(3,3,4,3);
-      c.fillStyle='#8a8a8a';c.fillRect(3,3,2,2);
-      c.fillStyle='#a8a8a8';c.fillRect(3,3,1,1);
+      c.fillRect(8,11,1,4);c.fillRect(14,11,1,4);
+      c.fillStyle='#d4b070';c.fillRect(8,11,1,1);c.fillRect(14,11,1,1);
+      // Bucket/sling at top-left end of arm
+      c.fillStyle='#0a0500';c.fillRect(1,3,10,9);
+      c.fillStyle='#1a0f05';c.fillRect(1,3,9,8);
+      c.fillStyle='#5a3a14';c.fillRect(2,3,8,7);
+      c.fillStyle='#7a5a28';c.fillRect(2,3,8,2);
+      c.fillStyle='#8b6914';c.fillRect(2,3,7,1);
+      c.fillStyle='#8b6914';c.fillRect(2,3,1,7);
+      // Bucket iron rim
+      c.fillStyle='#333';c.fillRect(1,3,10,1);c.fillRect(1,3,1,9);
+      c.fillStyle='#888';c.fillRect(1,3,10,1);
+      // Boulder in bucket (rough, shaded)
+      c.fillStyle='#1a1a1a';c.fillRect(3,4,7,7);
+      c.fillStyle='#3a3a3a';c.fillRect(3,4,6,6);
+      c.fillStyle='#555';c.fillRect(3,4,5,5);
+      c.fillStyle='#777';c.fillRect(3,4,4,4);
+      c.fillStyle='#999';c.fillRect(3,4,2,2);
+      c.fillStyle='#bbb';c.fillRect(3,4,1,1);
+      // Boulder cracks
+      c.fillStyle='#1a1a1a';c.fillRect(5,6,1,2);c.fillRect(6,8,2,1);
+      // Ammo pile next to wheels (extra boulders)
+      c.fillStyle='#0a0500';c.fillRect(12,41,8,5);
+      c.fillStyle='#2a2a2a';c.fillRect(12,41,7,4);
+      c.fillStyle='#555';c.fillRect(12,41,6,3);
+      c.fillStyle='#777';c.fillRect(12,41,3,2);
+      c.fillStyle='#999';c.fillRect(12,41,1,1);
+      // Second boulder in pile
+      c.fillStyle='#1a1a1a';c.fillRect(16,42,4,4);
+      c.fillStyle='#444';c.fillRect(16,42,3,3);
+      c.fillStyle='#666';c.fillRect(16,42,2,2);
     });
 
-    // BOMBARD - heavy cannon with glowing barrel on stone platform
+    // BOMBARD - heavy cannon on stone platform with ammo stacks and rising smoke
     drawTower('bombard',(c)=>{
       // Ground shadow
-      c.fillStyle='rgba(0,0,0,0.35)';c.fillRect(2,30,28,2);
-      // Wheels peeking beneath platform
-      c.fillStyle='#1a0f05';c.fillRect(4,26,7,5);c.fillRect(21,26,7,5);
-      c.fillStyle='#4a3014';c.fillRect(5,27,5,3);c.fillRect(22,27,5,3);
-      c.fillStyle='#6a4a20';c.fillRect(5,27,3,3);c.fillRect(22,27,3,3);
-      c.fillStyle='#2a1a0a';
-      c.fillRect(7,27,1,3);c.fillRect(24,27,1,3);  // spokes
-      c.fillRect(5,28,5,1);c.fillRect(22,28,5,1);
+      c.fillStyle='rgba(0,0,0,0.45)';c.fillRect(2,46,28,2);
+      // Wheels full under platform
+      c.fillStyle='#0a0500';c.fillRect(4,39,8,8);c.fillRect(20,39,8,8);
+      c.fillStyle='#1a0f05';c.fillRect(5,39,7,7);c.fillRect(21,39,7,7);
+      c.fillStyle='#4a3014';c.fillRect(5,40,6,6);c.fillRect(21,40,6,6);
+      c.fillStyle='#6a4a20';c.fillRect(5,40,4,6);c.fillRect(21,40,4,6);
+      c.fillStyle='#7a5a28';c.fillRect(5,40,2,5);c.fillRect(21,40,2,5);
+      // Wheel hubs
+      c.fillStyle='#1a0f05';c.fillRect(7,42,3,2);c.fillRect(23,42,3,2);
+      c.fillStyle='#8b6914';c.fillRect(8,42,1,2);c.fillRect(24,42,1,2);
+      // Spokes
+      c.fillStyle='#1a0f05';
+      c.fillRect(8,40,1,6);c.fillRect(24,40,1,6);
+      c.fillRect(5,43,7,1);c.fillRect(21,43,7,1);
       // Stone platform (faceted depth)
-      c.fillStyle='#1e1e26';c.fillRect(2,25,28,3);  // bottom shadow
-      c.fillStyle='#3a3a44';c.fillRect(2,22,28,4);  // dark
-      c.fillStyle='#4a4a55';c.fillRect(2,22,28,3);  // main
-      c.fillStyle='#5a5a65';c.fillRect(2,22,28,2);  // mid highlight
-      c.fillStyle='#6a6a75';c.fillRect(2,22,28,1);  // top highlight
+      c.fillStyle='#0a0a14';c.fillRect(2,38,28,3);
+      c.fillStyle='#1e1e26';c.fillRect(2,34,28,5);
+      c.fillStyle='#3a3a44';c.fillRect(2,34,28,4);
+      c.fillStyle='#4a4a55';c.fillRect(2,34,28,3);
+      c.fillStyle='#5a5a65';c.fillRect(2,34,28,2);
+      c.fillStyle='#6a6a75';c.fillRect(2,34,28,1);
+      c.fillStyle='#82828c';c.fillRect(3,34,26,1);
       // Stone block mortar
       c.fillStyle='#1e1e26';
-      c.fillRect(2,25,28,1);c.fillRect(10,22,1,3);c.fillRect(20,22,1,3);
-      // Cannon breech (rear block)
-      c.fillStyle='#05050a';c.fillRect(3,10,7,13);
-      c.fillStyle='#1a2030';c.fillRect(3,10,6,12);
-      c.fillStyle='#2c3e50';c.fillRect(3,10,6,11);
-      c.fillStyle='#3c5064';c.fillRect(3,10,6,2);  // top highlight
-      c.fillStyle='#4a5a72';c.fillRect(3,10,4,1);  // brightest
-      c.fillStyle='#0a0a14';c.fillRect(3,21,6,1);  // bottom shadow
-      // Cannon barrel (main tube with strong top highlight)
-      c.fillStyle='#05050a';c.fillRect(8,11,22,12); // deep shadow
-      c.fillStyle='#1a2030';c.fillRect(8,11,22,11);
-      c.fillStyle='#2c3e50';c.fillRect(8,11,22,10); // main
-      c.fillStyle='#3c5064';c.fillRect(8,11,22,3);  // top band
-      c.fillStyle='#4a5a72';c.fillRect(8,12,22,2);  // highlight
-      c.fillStyle='#5a6a82';c.fillRect(9,12,20,1);  // brightest line
-      c.fillStyle='#0a0a14';c.fillRect(8,21,22,1);  // bottom shadow
-      // Reinforcement bands with rivets
-      const bands=[12,18,24];
+      c.fillRect(2,37,28,1);c.fillRect(10,34,1,4);c.fillRect(20,34,1,4);
+      // Cannon breech (rear block) with trunnion
+      c.fillStyle='#020208';c.fillRect(3,17,8,17);
+      c.fillStyle='#1a2030';c.fillRect(3,17,7,16);
+      c.fillStyle='#2c3e50';c.fillRect(3,17,7,15);
+      c.fillStyle='#3c5064';c.fillRect(3,17,7,3);
+      c.fillStyle='#4a5a72';c.fillRect(3,18,5,2);
+      c.fillStyle='#5a6a82';c.fillRect(3,18,3,1);
+      c.fillStyle='#0a0a14';c.fillRect(3,32,7,1);
+      // Breech cascabel ball
+      c.fillStyle='#1a2030';c.fillRect(3,22,3,6);
+      c.fillStyle='#3c5064';c.fillRect(3,23,2,4);
+      c.fillStyle='#5a6a82';c.fillRect(3,23,1,2);
+      // Cannon barrel (main tube, taller/longer)
+      c.fillStyle='#020208';c.fillRect(8,19,22,14);
+      c.fillStyle='#1a2030';c.fillRect(8,19,22,13);
+      c.fillStyle='#2c3e50';c.fillRect(8,19,22,12);
+      c.fillStyle='#3c5064';c.fillRect(8,19,22,4);
+      c.fillStyle='#4a5a72';c.fillRect(8,20,22,2);
+      c.fillStyle='#5a6a82';c.fillRect(9,20,20,1);
+      c.fillStyle='#6a7a92';c.fillRect(9,20,12,1);
+      c.fillStyle='#0a0a14';c.fillRect(8,31,22,1);
+      // Reinforcement bands with rivets (4 bands now)
+      const bands=[11,16,21,26];
       for(const bx of bands){
-        c.fillStyle='#05050a';c.fillRect(bx-1,11,1,12);
-        c.fillStyle='#222';c.fillRect(bx,11,2,12);
-        c.fillStyle='#444';c.fillRect(bx,11,1,12);
-        c.fillStyle='#666';c.fillRect(bx,11,2,1);
-        c.fillStyle='#0a0a14';c.fillRect(bx+2,11,1,12);
+        c.fillStyle='#020208';c.fillRect(bx-1,19,1,13);
+        c.fillStyle='#1a1a22';c.fillRect(bx,19,3,13);
+        c.fillStyle='#333';c.fillRect(bx,19,2,13);
+        c.fillStyle='#555';c.fillRect(bx,19,1,13);
+        c.fillStyle='#777';c.fillRect(bx,19,3,1);
+        c.fillStyle='#999';c.fillRect(bx,19,2,1);
+        c.fillStyle='#0a0a14';c.fillRect(bx+3,19,1,13);
         // Rivets
-        c.fillStyle='#888';c.fillRect(bx,13,1,1);c.fillRect(bx,20,1,1);
-        c.fillStyle='#bbb';c.fillRect(bx,13,1,1);
+        c.fillStyle='#888';c.fillRect(bx,22,1,1);c.fillRect(bx,28,1,1);
+        c.fillStyle='#ccc';c.fillRect(bx,22,1,1);c.fillRect(bx,28,1,1);
       }
-      // Muzzle (front opening) with layered fire glow
-      c.fillStyle='#020205';c.fillRect(27,12,3,10);
-      c.fillStyle='#4a0800';c.fillRect(28,13,2,8);
-      c.fillStyle='#aa2200';c.fillRect(28,14,2,6);
-      c.fillStyle='#ff5500';c.fillRect(28,15,2,4);
-      c.fillStyle='#ffaa00';c.fillRect(28,16,2,2);
-      c.fillStyle='#ffee99';c.fillRect(28,16,1,1);
-      // Muzzle rim
-      c.fillStyle='#555';c.fillRect(27,11,3,1);c.fillRect(27,22,3,1);
-      c.fillStyle='#777';c.fillRect(27,11,3,1);
-      // Fuse on top of breech
-      c.fillStyle='#3a2208';c.fillRect(5,7,2,4);
-      c.fillStyle='#ff8800';c.fillRect(5,6,2,2);
-      c.fillStyle='#ffdd00';c.fillRect(5,6,1,1);
-      c.fillStyle='#ffffcc';c.fillRect(5,5,1,1);
-      // Smoke wisps from barrel top
-      c.fillStyle='rgba(180,180,180,0.35)';
-      c.fillRect(14,9,2,1);c.fillRect(18,7,2,1);c.fillRect(22,9,2,1);
-      c.fillStyle='rgba(200,200,200,0.25)';
-      c.fillRect(16,5,2,1);c.fillRect(20,4,2,1);
+      // Muzzle (front opening) with 6-layer fire glow
+      c.fillStyle='#020205';c.fillRect(27,20,3,12);
+      c.fillStyle='#2a0400';c.fillRect(28,20,2,12);
+      c.fillStyle='#4a0800';c.fillRect(28,21,2,10);
+      c.fillStyle='#aa2200';c.fillRect(28,22,2,8);
+      c.fillStyle='#ff5500';c.fillRect(28,23,2,6);
+      c.fillStyle='#ffaa00';c.fillRect(28,24,2,4);
+      c.fillStyle='#ffdd55';c.fillRect(28,25,2,2);
+      c.fillStyle='#ffee99';c.fillRect(28,25,1,1);
+      // Muzzle rim (thicker)
+      c.fillStyle='#444';c.fillRect(27,19,3,1);c.fillRect(27,32,3,1);
+      c.fillStyle='#777';c.fillRect(27,19,3,1);
+      c.fillStyle='#aaa';c.fillRect(28,19,1,1);
+      // Fuse on top of breech with glowing ember
+      c.fillStyle='#2a1208';c.fillRect(5,13,2,5);
+      c.fillStyle='#3a2208';c.fillRect(5,13,2,4);
+      c.fillStyle='#5a3a14';c.fillRect(5,13,1,4);
+      // Fuse ember
+      c.fillStyle='#ff4400';c.fillRect(5,11,2,3);
+      c.fillStyle='#ff8800';c.fillRect(5,11,2,2);
+      c.fillStyle='#ffdd00';c.fillRect(5,11,1,1);
+      c.fillStyle='#ffffcc';c.fillRect(5,10,1,1);
+      // Small spark leaving fuse
+      c.fillStyle='#ffaa00';c.fillRect(6,9,1,1);
+      // Smoke wisps rising from barrel top
+      c.fillStyle='rgba(180,180,180,0.45)';
+      c.fillRect(13,17,2,1);c.fillRect(17,15,2,1);c.fillRect(22,17,2,1);
+      c.fillStyle='rgba(200,200,200,0.35)';
+      c.fillRect(14,13,2,1);c.fillRect(18,11,2,1);c.fillRect(23,13,2,1);
+      c.fillStyle='rgba(210,210,210,0.3)';
+      c.fillRect(15,9,2,1);c.fillRect(20,7,2,1);c.fillRect(17,5,2,1);
+      c.fillStyle='rgba(220,220,220,0.22)';
+      c.fillRect(18,3,2,1);c.fillRect(21,1,2,1);
+      // Powder keg next to breech (on platform)
+      c.fillStyle='#0a0500';c.fillRect(11,28,5,6);
+      c.fillStyle='#1a0f05';c.fillRect(11,28,5,5);
+      c.fillStyle='#5a3a14';c.fillRect(11,29,4,5);
+      c.fillStyle='#7a5a28';c.fillRect(11,29,4,2);
+      c.fillStyle='#8b6914';c.fillRect(11,29,3,1);
+      // Iron keg bands
+      c.fillStyle='#222';c.fillRect(11,30,5,1);c.fillRect(11,33,5,1);
+      c.fillStyle='#555';c.fillRect(11,30,5,1);c.fillRect(11,33,5,1);
+      c.fillStyle='#777';c.fillRect(11,30,1,1);c.fillRect(14,30,1,1);
+      // Danger marking
+      c.fillStyle='#ffdd00';c.fillRect(12,32,2,1);
+      // Cannonball stack at base (pyramid)
+      c.fillStyle='#0a0a0a';c.fillRect(18,41,8,5);
+      // Back row (3 balls)
+      c.fillStyle='#2a2a2a';
+      c.fillRect(18,42,3,3);c.fillRect(21,42,3,3);c.fillRect(24,42,3,3);
+      c.fillStyle='#444';
+      c.fillRect(18,42,2,2);c.fillRect(21,42,2,2);c.fillRect(24,42,2,2);
+      c.fillStyle='#666';
+      c.fillRect(18,42,1,1);c.fillRect(21,42,1,1);c.fillRect(24,42,1,1);
+      // Top ball
+      c.fillStyle='#2a2a2a';c.fillRect(20,40,3,3);
+      c.fillStyle='#444';c.fillRect(20,40,2,2);
+      c.fillStyle='#888';c.fillRect(20,40,1,1);
     });
 
     // WALL - stone battlement wall with crenellations and weathering
@@ -2157,9 +2322,10 @@ class GameScene extends Phaser.Scene {
       if(best&&t.cooldown<=0){
         t.cooldown=t.rate;
         const pType=t.type==='turret'?'proj_arrow':t.type==='magic'?'proj_magic':t.type==='catapult'?'proj_boulder':'proj_cannonball';
-        // Launch from barrel tip, not tower center
+        // Launch from upper structure of tower (offset -10 on Y since tower
+        // sprites now extend upward from tile bottom)
         const launchX=t.x+Math.cos(t.angle)*12;
-        const launchY=t.y+Math.sin(t.angle)*12;
+        const launchY=t.y-10+Math.sin(t.angle)*12;
         projectiles.push({x:launchX,y:launchY,target:best,tx:best.x,ty:best.y,
           dmg:t.dmg,spd:t.projSpd*T,splash:t.splash,type:pType,owner:t.owner,alive:true,
           trail:[],angle:t.angle});
@@ -2392,15 +2558,21 @@ class GameScene extends Phaser.Scene {
     this.shadowGfx.clear();
 
     for(const t of towers){
-      // Drop shadow ellipse under tower
-      this.shadowGfx.fillStyle(0x000000,0.45);
-      this.shadowGfx.fillEllipse(t.x,t.y+T/2-2,T*0.8,T*0.3);
+      // Drop shadow ellipse under tower (at tile bottom where tower base sits)
+      this.shadowGfx.fillStyle(0x000000,0.5);
+      this.shadowGfx.fillEllipse(t.x,t.y+T/2-2,T*0.85,T*0.32);
       this.shadowGfx.fillStyle(0x000000,0.25);
-      this.shadowGfx.fillEllipse(t.x,t.y+T/2-2,T*0.95,T*0.38);
+      this.shadowGfx.fillEllipse(t.x,t.y+T/2-2,T*1.0,T*0.4);
 
       const texKey='tower_'+t.type;
       if(this.textures.exists(texKey)){
-        const s=this.add.image(t.x,t.y,texKey).setDisplaySize(T,T).setDepth(4);
+        // Display taller (32x48) with bottom-center origin so tower bottom aligns
+        // to tile bottom and structure extends upward. Depth based on row so
+        // lower-row towers occlude higher-row ones cleanly.
+        const s=this.add.image(t.x,t.y+T/2,texKey)
+          .setOrigin(0.5,1)
+          .setDisplaySize(T,T*1.5)
+          .setDepth(4+t.row*0.01);
         this.towerSprites.push(s);
       }
       // Owner indicator circle on ground
@@ -2418,10 +2590,11 @@ class GameScene extends Phaser.Scene {
         this.towerGfx.lineTo(t.x+Math.cos(t.angle)*12,t.y+Math.sin(t.angle)*12);
         this.towerGfx.strokePath();
       }
-      // Muzzle flash (drawn on top of sprite)
+      // Muzzle flash (drawn on top of sprite, offset upward to align with new
+      // taller tower's upper structure where cannon/arm/orb lives)
       if(t.flashTimer>0){
         const a=Math.max(0,Math.min(1,t.flashTimer/0.08));
-        const fx=t.x+Math.cos(t.angle)*14,fy=t.y+Math.sin(t.angle)*14;
+        const fx=t.x+Math.cos(t.angle)*14,fy=t.y-10+Math.sin(t.angle)*14;
         this.towerGfx.fillStyle(0xffaa22,a*0.6);
         this.towerGfx.fillCircle(fx,fy,9);
         this.towerGfx.fillStyle(0xffdd55,a*0.8);
