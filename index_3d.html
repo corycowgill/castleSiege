@@ -407,6 +407,10 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0604}
       <button id="btn-help" class="hud-btn">? HELP</button>
       <a href="guide.html" class="hud-btn" style="text-decoration:none;pointer-events:auto">FIELD GUIDE</a>
     </div>
+    <div style="margin-top:16px;display:flex;justify-content:space-between;align-items:center;font-family:'Cinzel',monospace;font-size:11px;opacity:0.85">
+      <span style="color:#555">Three.js &bull; Procedural</span>
+      <span style="color:#ffd700;font-weight:bold;letter-spacing:1px">v1.8 &bull; Build 2026-04-12</span>
+    </div>
   </div>
 </div>
 
@@ -1161,53 +1165,94 @@ function createTower(type,owner){
 
   if(type==='turret'){
     const stone=mkMat(0x8a8a7a),dark=mkMat(0x6a6a5a),vdark=mkMat(0x5a5a4a);
-    const tH=1.5;
+    const light=mkMat(0x9a9a8a);
+    const tH=1.8; // Taller than before
     // Tower base - tapered
-    g.add(mkMesh(new THREE.BoxGeometry(0.65,0.2,0.65),dark).translateY(0.2));
-    // Tower shaft
-    g.add(mkMesh(new THREE.BoxGeometry(0.55,tH,0.55),stone).translateY(0.1+tH/2));
-    // Stone detail bands
-    g.add(mkMesh(new THREE.BoxGeometry(0.58,0.05,0.58),dark).translateY(0.5));
-    g.add(mkMesh(new THREE.BoxGeometry(0.58,0.05,0.58),dark).translateY(1.0));
-    // Top platform ledge
-    g.add(mkMesh(new THREE.BoxGeometry(0.7,0.08,0.7),dark).translateY(tH+0.14));
+    g.add(mkMesh(new THREE.BoxGeometry(0.72,0.22,0.72),vdark).translateY(0.11));
+    g.add(mkMesh(new THREE.BoxGeometry(0.65,0.18,0.65),dark).translateY(0.22));
+    // Tower shaft (main)
+    g.add(mkMesh(new THREE.BoxGeometry(0.55,tH,0.55),stone).translateY(0.3+tH/2));
+    // Brighter highlight side (light from +x direction)
+    g.add(mkMesh(new THREE.BoxGeometry(0.02,tH*0.9,0.5),light).translateX(0.28).translateY(0.3+tH/2));
+    // Stone detail bands (more of them)
+    [0.55,0.95,1.35,1.75].forEach(y=>{
+      g.add(mkMesh(new THREE.BoxGeometry(0.58,0.04,0.58),dark).translateY(y));
+    });
+    // Top platform ledge (machicolations)
+    g.add(mkMesh(new THREE.BoxGeometry(0.78,0.08,0.78),dark).translateY(tH+0.34));
+    g.add(mkMesh(new THREE.BoxGeometry(0.74,0.04,0.74),vdark).translateY(tH+0.42));
     // Crenellations - 8 merlons around top
-    const mp=[[-.22,-.22],[0,-.22],[.22,-.22],[-.22,0],[.22,0],[-.22,.22],[0,.22],[.22,.22]];
+    const mp=[[-.24,-.24],[0,-.24],[.24,-.24],[-.24,0],[.24,0],[-.24,.24],[0,.24],[.24,.24]];
     mp.forEach(([dx,dz])=>{
-      g.add(mkMesh(new THREE.BoxGeometry(0.1,0.16,0.1),vdark).translateX(dx).translateY(tH+0.26).translateZ(dz));
+      g.add(mkMesh(new THREE.BoxGeometry(0.11,0.18,0.11),vdark).translateX(dx).translateY(tH+0.55).translateZ(dz));
+      // Merlon cap highlight
+      g.add(mkMesh(new THREE.BoxGeometry(0.11,0.02,0.11),light).translateX(dx).translateY(tH+0.65).translateZ(dz));
     });
-    // Arrow slits on each face
+    // Conical inner roof over central keep
+    g.add(mkMesh(new THREE.ConeGeometry(0.22,0.35,8),mkMat(0x5a3a1a)).translateY(tH+0.75));
+    // Arrow slits on each face with warm glow
     [[ 0,0.28],[ 0,-0.28],[0.28,0],[-0.28,0]].forEach(([dx,dz])=>{
-      g.add(mkMesh(new THREE.BoxGeometry(0.035,0.25,0.035),mkMat(0x1a1a1a)).translateX(dx).translateY(0.85).translateZ(dz));
+      g.add(mkMesh(new THREE.BoxGeometry(0.035,0.28,0.035),mkMat(0x1a1a1a)).translateX(dx).translateY(1.0).translateZ(dz));
+      g.add(mkMesh(new THREE.BoxGeometry(0.02,0.12,0.02),mkMat(0xffaa44,{emissive:0xff8822,emissiveIntensity:0.8})).translateX(dx).translateY(1.0).translateZ(dz));
     });
-    // Team color banner
-    g.add(mkMesh(new THREE.BoxGeometry(0.2,0.15,0.02),accent).translateZ(0.29).translateY(1.3));
+    // Wooden door at base
+    g.add(mkMesh(new THREE.BoxGeometry(0.16,0.22,0.02),mkMat(0x4a2a0a)).translateY(0.42).translateZ(0.28));
+    g.add(mkMesh(new THREE.BoxGeometry(0.14,0.20,0.02),mkMat(0x6a3a14)).translateY(0.42).translateZ(0.29));
+    // Tall flag pole on top (central spire)
+    g.add(mkMesh(new THREE.CylinderGeometry(0.015,0.015,0.6,6),mkMat(0x3a3a3a)).translateY(tH+1.0));
+    // Gold finial ball
+    g.add(mkMesh(new THREE.SphereGeometry(0.04,8,6),mkMat(0xffd700,{emissive:0xaa7700,emissiveIntensity:0.6})).translateY(tH+1.32));
+    // Large team-colored flag flying from pole
+    const flag=mkMesh(new THREE.BoxGeometry(0.26,0.16,0.02),accent);
+    flag.position.set(0.14,tH+1.1,0);g.add(flag);
+    g.add(mkMesh(new THREE.BoxGeometry(0.26,0.025,0.025),accentDark).translateX(0.14).translateY(tH+1.2));
+    g.add(mkMesh(new THREE.BoxGeometry(0.26,0.025,0.025),accentDark).translateX(0.14).translateY(tH+1.0));
   }else if(type==='magic'){
-    const purple=mkMat(0x7B2D8E),darkP=mkMat(0x5A1D6E);
-    const mH=1.6;
-    // Base ring
-    g.add(mkMesh(new THREE.CylinderGeometry(0.36,0.4,0.15,8),darkP).translateY(0.18));
-    // Tower shaft - taller
-    g.add(mkMesh(new THREE.CylinderGeometry(0.28,0.35,mH,8),purple).translateY(0.1+mH/2));
-    // Decorative rings
-    g.add(mkMesh(new THREE.TorusGeometry(0.3,0.025,6,8),mkMat(0x9944CC,{emissive:0x6622AA,emissiveIntensity:0.4})).translateY(0.5).rotateX(Math.PI/2));
-    g.add(mkMesh(new THREE.TorusGeometry(0.3,0.025,6,8),mkMat(0x9944CC,{emissive:0x6622AA,emissiveIntensity:0.4})).translateY(1.1).rotateX(Math.PI/2));
-    // Conical roof
-    g.add(mkMesh(new THREE.ConeGeometry(0.36,0.6,8),mkMat(0x9944CC)).translateY(mH+0.4));
-    // Crystal orb on top - larger
-    g.add(mkMesh(new THREE.SphereGeometry(0.12,8,8),mkMat(0xCC66FF,{emissive:0xCC66FF,emissiveIntensity:1.5})).translateY(mH+0.8));
-    // Orbiting glow ring
-    g.add(mkMesh(new THREE.TorusGeometry(0.16,0.015,6,12),mkMat(0xDD88FF,{emissive:0xCC66FF,emissiveIntensity:1.0,transparent:true,opacity:0.6})).translateY(mH+0.8).rotateX(Math.PI/3));
-    // Glow windows - arched
-    const gw=mkMat(0xCC66FF,{emissive:0xCC66FF,emissiveIntensity:0.8});
-    [0,Math.PI/2,Math.PI,Math.PI*1.5].forEach(a=>{
-      const r=0.3;
-      g.add(mkMesh(new THREE.BoxGeometry(0.04,0.18,0.025),gw).translateX(Math.cos(a)*r).translateY(0.8).translateZ(Math.sin(a)*r));
-      // Arch top
-      g.add(mkMesh(new THREE.SphereGeometry(0.025,4,4),gw).translateX(Math.cos(a)*r).translateY(0.92).translateZ(Math.sin(a)*r));
+    const purple=mkMat(0x7B2D8E),darkP=mkMat(0x5A1D6E),lightP=mkMat(0x9B3DAE);
+    const mH=2.0; // Much taller
+    // Base ring - stepped
+    g.add(mkMesh(new THREE.CylinderGeometry(0.42,0.46,0.12,10),darkP).translateY(0.16));
+    g.add(mkMesh(new THREE.CylinderGeometry(0.36,0.42,0.12,10),darkP).translateY(0.28));
+    // Tower shaft - taller with highlight
+    g.add(mkMesh(new THREE.CylinderGeometry(0.28,0.36,mH,10),purple).translateY(0.34+mH/2));
+    // Vertical highlight strip
+    g.add(mkMesh(new THREE.BoxGeometry(0.02,mH*0.9,0.04),lightP).translateX(0.28).translateY(0.34+mH/2));
+    // Decorative rings with emissive glow (more of them)
+    [0.55,1.0,1.45,1.9].forEach(y=>{
+      g.add(mkMesh(new THREE.TorusGeometry(0.31,0.028,6,10),mkMat(0x9944CC,{emissive:0x6622AA,emissiveIntensity:0.5})).translateY(y).rotateX(Math.PI/2));
     });
-    // Team accent band
-    g.add(mkMesh(new THREE.CylinderGeometry(0.33,0.33,0.08,8),accent).translateY(0.35));
+    // 4-tier stepped conical roof
+    g.add(mkMesh(new THREE.ConeGeometry(0.4,0.2,10),mkMat(0x5a1d6e)).translateY(mH+0.42));
+    g.add(mkMesh(new THREE.ConeGeometry(0.32,0.2,10),mkMat(0x6a2d7e)).translateY(mH+0.55));
+    g.add(mkMesh(new THREE.ConeGeometry(0.22,0.2,10),mkMat(0x7b2d8e)).translateY(mH+0.68));
+    g.add(mkMesh(new THREE.ConeGeometry(0.12,0.2,10),mkMat(0x8b3d9e)).translateY(mH+0.82));
+    // Crystal orb on top - much larger and more emissive
+    g.add(mkMesh(new THREE.SphereGeometry(0.15,12,10),mkMat(0xDD88FF,{emissive:0xCC66FF,emissiveIntensity:2.0})).translateY(mH+1.0));
+    // Inner bright core
+    g.add(mkMesh(new THREE.SphereGeometry(0.08,10,8),mkMat(0xffffff,{emissive:0xffccff,emissiveIntensity:3.0})).translateY(mH+1.0));
+    // Orbiting glow rings (3 rings at different orientations)
+    g.add(mkMesh(new THREE.TorusGeometry(0.22,0.018,6,16),mkMat(0xDD88FF,{emissive:0xCC66FF,emissiveIntensity:1.2,transparent:true,opacity:0.7})).translateY(mH+1.0).rotateX(Math.PI/3));
+    g.add(mkMesh(new THREE.TorusGeometry(0.22,0.018,6,16),mkMat(0xDD88FF,{emissive:0xCC66FF,emissiveIntensity:1.2,transparent:true,opacity:0.7})).translateY(mH+1.0).rotateZ(Math.PI/3));
+    g.add(mkMesh(new THREE.TorusGeometry(0.26,0.015,6,16),mkMat(0xDD88FF,{emissive:0xCC66FF,emissiveIntensity:1.0,transparent:true,opacity:0.5})).translateY(mH+1.0));
+    // Arched glowing windows (more of them, at multiple heights)
+    const gw=mkMat(0xCC66FF,{emissive:0xCC66FF,emissiveIntensity:1.0});
+    [0.8,1.5].forEach(wy=>{
+      [0,Math.PI/2,Math.PI,Math.PI*1.5].forEach(a=>{
+        const r=0.32;
+        g.add(mkMesh(new THREE.BoxGeometry(0.04,0.2,0.025),gw).translateX(Math.cos(a)*r).translateY(wy).translateZ(Math.sin(a)*r));
+        g.add(mkMesh(new THREE.SphereGeometry(0.028,6,5),gw).translateX(Math.cos(a)*r).translateY(wy+0.13).translateZ(Math.sin(a)*r));
+      });
+    });
+    // Rune marks on shaft (glowing)
+    const rune=mkMat(0xff88ff,{emissive:0xcc66cc,emissiveIntensity:0.9});
+    [0.5,1.1,1.7].forEach(y=>{
+      [0,Math.PI].forEach(a=>{
+        g.add(mkMesh(new THREE.BoxGeometry(0.03,0.03,0.025),rune).translateX(Math.cos(a)*0.32).translateY(y).translateZ(Math.sin(a)*0.32));
+      });
+    });
+    // Team accent bands
+    g.add(mkMesh(new THREE.CylinderGeometry(0.33,0.33,0.06,10),accent).translateY(0.42));
+    g.add(mkMesh(new THREE.CylinderGeometry(0.31,0.31,0.06,10),accent).translateY(mH+0.3));
   }else if(type==='catapult'){
     const wood=mkMat(0x8B5A2B),woodD=mkMat(0x6B3A1B),metal=mkMat(0x555555,{metalness:0.4});
     // Platform - thicker
