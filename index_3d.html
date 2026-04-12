@@ -409,7 +409,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0604}
     </div>
     <div style="margin-top:16px;display:flex;justify-content:space-between;align-items:center;font-family:'Cinzel',monospace;font-size:11px;opacity:0.85">
       <span style="color:#555">Three.js &bull; Procedural</span>
-      <span style="color:#ffd700;font-weight:bold;letter-spacing:1px">v1.8 &bull; Build 2026-04-12</span>
+      <span style="color:#ffd700;font-weight:bold;letter-spacing:1px">v1.9 &bull; Build 2026-04-12</span>
     </div>
   </div>
 </div>
@@ -1254,70 +1254,184 @@ function createTower(type,owner){
     g.add(mkMesh(new THREE.CylinderGeometry(0.33,0.33,0.06,10),accent).translateY(0.42));
     g.add(mkMesh(new THREE.CylinderGeometry(0.31,0.31,0.06,10),accent).translateY(mH+0.3));
   }else if(type==='catapult'){
-    const wood=mkMat(0x8B5A2B),woodD=mkMat(0x6B3A1B),metal=mkMat(0x555555,{metalness:0.4});
-    // Platform - thicker
-    g.add(mkMesh(new THREE.BoxGeometry(0.8,0.1,0.7),woodD).translateY(0.15));
-    // Reinforced edges
-    g.add(mkMesh(new THREE.BoxGeometry(0.82,0.04,0.04),metal).translateY(0.1).translateZ(0.34));
-    g.add(mkMesh(new THREE.BoxGeometry(0.82,0.04,0.04),metal).translateY(0.1).translateZ(-0.34));
-    // Wheels - larger
+    const wood=mkMat(0x8B5A2B),woodD=mkMat(0x6B3A1B),woodL=mkMat(0xa07028),metal=mkMat(0x555555,{metalness:0.4}),iron=mkMat(0x2a2a2a,{metalness:0.55,roughness:0.4});
+    // Platform - thicker, stepped
+    g.add(mkMesh(new THREE.BoxGeometry(0.88,0.06,0.76),woodD).translateY(0.12));
+    g.add(mkMesh(new THREE.BoxGeometry(0.8,0.1,0.7),wood).translateY(0.2));
+    g.add(mkMesh(new THREE.BoxGeometry(0.8,0.02,0.7),woodL).translateY(0.255));
+    // Reinforced edges (iron bands wrapping the platform)
+    g.add(mkMesh(new THREE.BoxGeometry(0.82,0.04,0.04),iron).translateY(0.2).translateZ(0.34));
+    g.add(mkMesh(new THREE.BoxGeometry(0.82,0.04,0.04),iron).translateY(0.2).translateZ(-0.34));
+    g.add(mkMesh(new THREE.BoxGeometry(0.04,0.04,0.7),iron).translateY(0.2).translateX(0.38));
+    g.add(mkMesh(new THREE.BoxGeometry(0.04,0.04,0.7),iron).translateY(0.2).translateX(-0.38));
+    // Iron rivets on bands
+    for(const sx of[-0.3,-0.1,0.1,0.3])for(const sz of[0.34,-0.34]){
+      g.add(mkMesh(new THREE.SphereGeometry(0.015,5,4),metal).translateX(sx).translateY(0.215).translateZ(sz));
+    }
+    // Wheels - larger, with spokes
     [[-0.38,-0.32],[-0.38,0.32],[0.38,-0.32],[0.38,0.32]].forEach(([wx,wz])=>{
-      const wh=mkMesh(new THREE.CylinderGeometry(0.12,0.12,0.04,10),woodD);
-      wh.rotation.x=Math.PI/2;wh.position.set(wx,0.12,wz);g.add(wh);
-      // Wheel hub
-      const hub=mkMesh(new THREE.CylinderGeometry(0.03,0.03,0.05,6),metal);
-      hub.rotation.x=Math.PI/2;hub.position.set(wx,0.12,wz);g.add(hub);
+      // Outer tire
+      const tire=mkMesh(new THREE.CylinderGeometry(0.15,0.15,0.05,12),woodD);
+      tire.rotation.x=Math.PI/2;tire.position.set(wx,0.15,wz);g.add(tire);
+      // Inner wood
+      const inner=mkMesh(new THREE.CylinderGeometry(0.12,0.12,0.055,12),wood);
+      inner.rotation.x=Math.PI/2;inner.position.set(wx,0.15,wz);g.add(inner);
+      // Hub (gold)
+      const hub=mkMesh(new THREE.CylinderGeometry(0.04,0.04,0.07,8),mkMat(0xaa7f28,{metalness:0.5}));
+      hub.rotation.x=Math.PI/2;hub.position.set(wx,0.15,wz);g.add(hub);
+      // Spokes (4-way)
+      for(let s=0;s<4;s++){
+        const ang=s*Math.PI/2;
+        const spoke=mkMesh(new THREE.BoxGeometry(0.02,0.22,0.02),woodD);
+        spoke.position.set(wx,0.15,wz);
+        spoke.rotation.x=Math.PI/2;spoke.rotation.z=ang;
+        g.add(spoke);
+      }
     });
-    // A-frame supports - taller
-    const frameH=0.9;
-    g.add(mkMesh(new THREE.BoxGeometry(0.08,frameH,0.08),wood).translateX(-0.22).translateY(0.15+frameH/2));
-    g.add(mkMesh(new THREE.BoxGeometry(0.08,frameH,0.08),wood).translateX(0.22).translateY(0.15+frameH/2));
-    // Cross beam
-    g.add(mkMesh(new THREE.BoxGeometry(0.55,0.08,0.08),wood).translateY(0.15+frameH));
-    // Diagonal braces
-    const brace1=mkMesh(new THREE.BoxGeometry(0.04,0.45,0.04),woodD);
-    brace1.position.set(-0.12,0.5,0);brace1.rotation.z=0.4;g.add(brace1);
-    const brace2=mkMesh(new THREE.BoxGeometry(0.04,0.45,0.04),woodD);
-    brace2.position.set(0.12,0.5,0);brace2.rotation.z=-0.4;g.add(brace2);
-    // Throwing arm - taller
-    const arm=mkMesh(new THREE.BoxGeometry(0.06,1.0,0.06),wood);
-    arm.position.set(0,0.95,0.18);arm.rotation.x=-0.4;g.add(arm);
-    // Sling/bucket
-    g.add(mkMesh(new THREE.BoxGeometry(0.12,0.06,0.12),woodD).translateY(1.38).translateZ(0.55));
-    // Boulder
-    g.add(mkMesh(new THREE.SphereGeometry(0.08,6,6),mkMat(0x888888)).translateY(1.44).translateZ(0.55));
-    // Counterweight
-    g.add(mkMesh(new THREE.BoxGeometry(0.14,0.14,0.14),mkMat(0x555555,{metalness:0.3})).translateY(0.75).translateZ(-0.2));
-    // Team accent
-    g.add(mkMesh(new THREE.BoxGeometry(0.15,0.12,0.02),accent).translateZ(0.36).translateY(0.55));
+    // A-frame supports - taller, tapered
+    const frameH=1.0;
+    g.add(mkMesh(new THREE.BoxGeometry(0.09,frameH,0.09),wood).translateX(-0.24).translateY(0.22+frameH/2));
+    g.add(mkMesh(new THREE.BoxGeometry(0.09,frameH,0.09),wood).translateX(0.24).translateY(0.22+frameH/2));
+    // Highlight strip on lit side of each post
+    g.add(mkMesh(new THREE.BoxGeometry(0.015,frameH*0.95,0.09),woodL).translateX(-0.19).translateY(0.22+frameH/2));
+    g.add(mkMesh(new THREE.BoxGeometry(0.015,frameH*0.95,0.09),woodL).translateX(0.29).translateY(0.22+frameH/2));
+    // Cross beam at top of frame
+    g.add(mkMesh(new THREE.BoxGeometry(0.6,0.08,0.08),wood).translateY(0.22+frameH));
+    g.add(mkMesh(new THREE.BoxGeometry(0.6,0.015,0.08),woodL).translateY(0.22+frameH+0.045));
+    // Pivot axle (horizontal iron cylinder through posts)
+    const axle=mkMesh(new THREE.CylinderGeometry(0.025,0.025,0.6,8),iron);
+    axle.rotation.z=Math.PI/2;axle.position.set(0,0.22+frameH-0.05,0);g.add(axle);
+    // Tension rope coils around axle (two groups)
+    [-0.1,0.1].forEach(rx=>{
+      const rope=mkMesh(new THREE.CylinderGeometry(0.04,0.04,0.06,8),mkMat(0xaa8855));
+      rope.rotation.z=Math.PI/2;rope.position.set(rx,0.22+frameH-0.05,0);g.add(rope);
+    });
+    // Diagonal knee braces
+    const brace1=mkMesh(new THREE.BoxGeometry(0.05,0.5,0.05),woodD);
+    brace1.position.set(-0.14,0.55,0);brace1.rotation.z=0.45;g.add(brace1);
+    const brace2=mkMesh(new THREE.BoxGeometry(0.05,0.5,0.05),woodD);
+    brace2.position.set(0.14,0.55,0);brace2.rotation.z=-0.45;g.add(brace2);
+    // Throwing arm - longer, thicker
+    const arm=mkMesh(new THREE.BoxGeometry(0.07,1.15,0.07),wood);
+    arm.position.set(0,1.05,0.22);arm.rotation.x=-0.42;g.add(arm);
+    // Arm metal reinforcement bands
+    for(const ay of[-0.3,0,0.3]){
+      const band=mkMesh(new THREE.BoxGeometry(0.08,0.02,0.08),iron);
+      band.position.set(0,1.05+ay*Math.cos(0.42),0.22+ay*Math.sin(0.42));
+      band.rotation.x=-0.42;g.add(band);
+    }
+    // Rope lashing (visible wrap at top of arm)
+    const lash=mkMesh(new THREE.CylinderGeometry(0.05,0.05,0.07,6),mkMat(0xaa8855));
+    lash.rotation.x=-0.42+Math.PI/2;lash.position.set(0,1.45,0.5);g.add(lash);
+    // Sling/bucket (wider, iron rimmed)
+    g.add(mkMesh(new THREE.BoxGeometry(0.16,0.08,0.16),woodD).translateY(1.52).translateZ(0.62));
+    g.add(mkMesh(new THREE.BoxGeometry(0.18,0.02,0.18),iron).translateY(1.49).translateZ(0.62));
+    g.add(mkMesh(new THREE.BoxGeometry(0.18,0.02,0.18),iron).translateY(1.55).translateZ(0.62));
+    // Boulder in bucket (rough rock)
+    g.add(mkMesh(new THREE.DodecahedronGeometry(0.1,0),mkMat(0x666666,{flatShading:true})).translateY(1.6).translateZ(0.62));
+    g.add(mkMesh(new THREE.DodecahedronGeometry(0.08,0),mkMat(0x888888,{flatShading:true})).translateY(1.62).translateZ(0.62));
+    // Counterweight box on the back (with iron bands)
+    g.add(mkMesh(new THREE.BoxGeometry(0.18,0.18,0.18),mkMat(0x444444,{metalness:0.4})).translateY(0.8).translateZ(-0.28));
+    g.add(mkMesh(new THREE.BoxGeometry(0.19,0.025,0.19),iron).translateY(0.8).translateZ(-0.28));
+    g.add(mkMesh(new THREE.BoxGeometry(0.19,0.025,0.19),iron).translateY(0.75).translateZ(-0.28));
+    // Ammo pile beside platform (3 boulders stacked)
+    g.add(mkMesh(new THREE.DodecahedronGeometry(0.075,0),mkMat(0x555555,{flatShading:true})).translateY(0.26).translateX(0.32).translateZ(0));
+    g.add(mkMesh(new THREE.DodecahedronGeometry(0.065,0),mkMat(0x666666,{flatShading:true})).translateY(0.32).translateX(0.38).translateZ(0.05));
+    g.add(mkMesh(new THREE.DodecahedronGeometry(0.06,0),mkMat(0x777777,{flatShading:true})).translateY(0.36).translateX(0.3).translateZ(-0.05));
+    // Team accent pennant hanging off cross beam
+    g.add(mkMesh(new THREE.BoxGeometry(0.18,0.14,0.018),accent).translateZ(0.045).translateY(0.22+frameH-0.08));
+    g.add(mkMesh(new THREE.BoxGeometry(0.18,0.02,0.018),accentDark).translateZ(0.045).translateY(0.22+frameH-0.15));
   }else if(type==='bombard'){
-    const stone=mkMat(0x8a8a7a),dark=mkMat(0x6a6a5a),metal=mkMat(0x2a2a2a,{metalness:0.6,roughness:0.3});
-    // Stone emplacement - taller
-    g.add(mkMesh(new THREE.BoxGeometry(0.8,0.35,0.7),stone).translateY(0.28));
-    g.add(mkMesh(new THREE.BoxGeometry(0.84,0.06,0.74),dark).translateY(0.09));
-    // Front embrasure (notch in wall)
-    g.add(mkMesh(new THREE.BoxGeometry(0.35,0.15,0.08),dark).translateY(0.52).translateZ(0.35));
-    g.add(mkMesh(new THREE.BoxGeometry(0.1,0.15,0.08),dark).translateX(-0.3).translateY(0.52).translateZ(0.35));
-    g.add(mkMesh(new THREE.BoxGeometry(0.1,0.15,0.08),dark).translateX(0.3).translateY(0.52).translateZ(0.35));
-    // Cannon barrel - longer and thicker
-    const barrel=mkMesh(new THREE.CylinderGeometry(0.1,0.13,0.85,10),metal);
-    barrel.position.set(0,0.5,0.15);barrel.rotation.x=Math.PI/2-0.15;g.add(barrel);
-    // Barrel flare at muzzle
-    const flare=mkMesh(new THREE.CylinderGeometry(0.14,0.1,0.1,10),metal);
-    flare.position.set(0,0.55,0.58);flare.rotation.x=Math.PI/2-0.15;g.add(flare);
-    // Fire glow at muzzle
-    g.add(mkMesh(new THREE.SphereGeometry(0.07,6,6),mkMat(0xFF6600,{emissive:0xFF6600,emissiveIntensity:1.5})).translateY(0.58).translateZ(0.65));
-    // Reinforcement rings
-    [0.0,0.22,0.44].forEach(t=>{
-      const ring=mkMesh(new THREE.TorusGeometry(0.12,0.015,6,10),mkMat(0x444444,{metalness:0.4}));
-      ring.position.set(0,0.5+Math.sin(0.15)*t,0.15+Math.cos(0.15)*t);ring.rotation.x=Math.PI/2-0.15;g.add(ring);
+    const stone=mkMat(0x8a8a7a),dark=mkMat(0x6a6a5a),light=mkMat(0x9a9a8a);
+    const metal=mkMat(0x2a2a2a,{metalness:0.7,roughness:0.25});
+    const iron=mkMat(0x444,{metalness:0.5});
+    const wood=mkMat(0x6b3a1b),woodL=mkMat(0x8b5a2b);
+    // Stone emplacement (stepped, taller)
+    g.add(mkMesh(new THREE.BoxGeometry(0.88,0.08,0.78),dark).translateY(0.09));
+    g.add(mkMesh(new THREE.BoxGeometry(0.82,0.36,0.72),stone).translateY(0.31));
+    // Highlight edge on lit face
+    g.add(mkMesh(new THREE.BoxGeometry(0.02,0.34,0.72),light).translateX(0.41).translateY(0.31));
+    // Stone courses (horizontal brick lines)
+    g.add(mkMesh(new THREE.BoxGeometry(0.84,0.02,0.74),dark).translateY(0.22));
+    g.add(mkMesh(new THREE.BoxGeometry(0.84,0.02,0.74),dark).translateY(0.35));
+    g.add(mkMesh(new THREE.BoxGeometry(0.84,0.02,0.74),dark).translateY(0.44));
+    // Top ledge platform
+    g.add(mkMesh(new THREE.BoxGeometry(0.86,0.04,0.76),dark).translateY(0.51));
+    // Wheels partially visible on sides
+    [[-0.45,-0.25],[-0.45,0.25],[0.45,-0.25],[0.45,0.25]].forEach(([wx,wz])=>{
+      const wh=mkMesh(new THREE.CylinderGeometry(0.14,0.14,0.05,12),wood);
+      wh.rotation.x=Math.PI/2;wh.position.set(wx,0.14,wz);g.add(wh);
+      const hub=mkMesh(new THREE.CylinderGeometry(0.035,0.035,0.06,6),iron);
+      hub.rotation.x=Math.PI/2;hub.position.set(wx,0.14,wz);g.add(hub);
+      // Spokes
+      for(let s=0;s<4;s++){
+        const ang=s*Math.PI/2;
+        const spoke=mkMesh(new THREE.BoxGeometry(0.02,0.2,0.02),wood);
+        spoke.position.set(wx,0.14,wz);spoke.rotation.x=Math.PI/2;spoke.rotation.z=ang;
+        g.add(spoke);
+      }
     });
-    // Cannonball stack
-    [[-0.2,0],[0.2,0],[0,0]].forEach(([dx,dz],i)=>{
-      g.add(mkMesh(new THREE.SphereGeometry(0.05,6,6),mkMat(0x222222,{metalness:0.5})).translateX(dx).translateY(0.5).translateZ(-0.2+dz));
+    // Front embrasure (sloped cannon notch)
+    g.add(mkMesh(new THREE.BoxGeometry(0.38,0.16,0.08),dark).translateY(0.56).translateZ(0.35));
+    g.add(mkMesh(new THREE.BoxGeometry(0.12,0.16,0.08),dark).translateX(-0.32).translateY(0.56).translateZ(0.35));
+    g.add(mkMesh(new THREE.BoxGeometry(0.12,0.16,0.08),dark).translateX(0.32).translateY(0.56).translateZ(0.35));
+    // Breech block (rear of cannon, blockier)
+    g.add(mkMesh(new THREE.BoxGeometry(0.26,0.24,0.26),metal).translateY(0.58).translateZ(-0.18));
+    g.add(mkMesh(new THREE.BoxGeometry(0.1,0.1,0.1),iron).translateY(0.58).translateZ(-0.32));
+    // Cascabel ball at back of breech
+    g.add(mkMesh(new THREE.SphereGeometry(0.06,10,8),metal).translateY(0.58).translateZ(-0.38));
+    // Cannon barrel - longer, thicker, tapered
+    const barrel=mkMesh(new THREE.CylinderGeometry(0.11,0.14,0.95,14),metal);
+    barrel.position.set(0,0.56,0.18);barrel.rotation.x=Math.PI/2-0.18;g.add(barrel);
+    // Barrel flare (muzzle)
+    const flare=mkMesh(new THREE.CylinderGeometry(0.16,0.11,0.12,14),metal);
+    flare.position.set(0,0.62,0.6);flare.rotation.x=Math.PI/2-0.18;g.add(flare);
+    // Muzzle rim (bright ring)
+    const rim=mkMesh(new THREE.TorusGeometry(0.155,0.015,6,14),mkMat(0x777,{metalness:0.6}));
+    rim.position.set(0,0.635,0.66);rim.rotation.x=-0.18;g.add(rim);
+    // Fire glow inside muzzle (layered)
+    g.add(mkMesh(new THREE.SphereGeometry(0.1,8,6),mkMat(0xff2200,{emissive:0xff2200,emissiveIntensity:1.3})).translateY(0.625).translateZ(0.68));
+    g.add(mkMesh(new THREE.SphereGeometry(0.07,8,6),mkMat(0xffaa00,{emissive:0xffaa00,emissiveIntensity:2.2})).translateY(0.625).translateZ(0.68));
+    g.add(mkMesh(new THREE.SphereGeometry(0.035,6,4),mkMat(0xffeecc,{emissive:0xffeecc,emissiveIntensity:3.5})).translateY(0.625).translateZ(0.7));
+    // Reinforcement rings on barrel (more of them)
+    [-0.3,-0.1,0.1,0.3].forEach(t=>{
+      const ring=mkMesh(new THREE.TorusGeometry(0.125,0.018,6,12),iron);
+      ring.position.set(0,0.56+Math.sin(0.18)*t*-1,0.18+Math.cos(0.18)*t);
+      ring.rotation.x=Math.PI/2-0.18;g.add(ring);
+      // Rivet detail
+      for(let r=0;r<3;r++){
+        const rr=r*Math.PI*2/3;
+        const rivet=mkMesh(new THREE.SphereGeometry(0.012,4,3),mkMat(0xbbb));
+        rivet.position.set(Math.cos(rr)*0.13,0.56+Math.sin(0.18)*t*-1+Math.sin(rr)*0.13*Math.cos(0.18),0.18+Math.cos(0.18)*t+Math.sin(rr)*0.13*Math.sin(0.18));
+        g.add(rivet);
+      }
     });
-    // Team accent
-    g.add(mkMesh(new THREE.BoxGeometry(0.82,0.05,0.72),accent).translateY(0.06));
+    // Fuse on top with glowing ember
+    g.add(mkMesh(new THREE.CylinderGeometry(0.012,0.012,0.08,5),mkMat(0x3a2208)).translateY(0.73).translateZ(-0.14));
+    g.add(mkMesh(new THREE.SphereGeometry(0.022,6,5),mkMat(0xffcc00,{emissive:0xff8800,emissiveIntensity:2.5})).translateY(0.78).translateZ(-0.14));
+    // Cannonball pyramid stack (7 balls: 4+2+1)
+    for(let row=0;row<3;row++){
+      const count=3-row;
+      for(let k=0;k<count;k++){
+        const bx=-0.22+(k+row*0.5)*0.09;
+        const by=0.57+row*0.08;
+        const bz=-0.33;
+        g.add(mkMesh(new THREE.SphereGeometry(0.04,8,6),mkMat(0x222,{metalness:0.55})).translateX(bx).translateY(by).translateZ(bz));
+      }
+    }
+    // Powder keg next to cannon
+    g.add(mkMesh(new THREE.CylinderGeometry(0.07,0.07,0.14,10),woodL).translateX(0.26).translateY(0.62).translateZ(-0.15));
+    g.add(mkMesh(new THREE.TorusGeometry(0.07,0.012,5,10),iron).translateX(0.26).translateY(0.66).translateZ(-0.15).rotateX(Math.PI/2));
+    g.add(mkMesh(new THREE.TorusGeometry(0.07,0.012,5,10),iron).translateX(0.26).translateY(0.58).translateZ(-0.15).rotateX(Math.PI/2));
+    // Smoke sphere floating above muzzle (subtle, semi-transparent)
+    g.add(mkMesh(new THREE.SphereGeometry(0.08,6,5),mkMat(0xaaaaaa,{transparent:true,opacity:0.35})).translateY(0.95).translateZ(0.55));
+    g.add(mkMesh(new THREE.SphereGeometry(0.06,6,5),mkMat(0xbbbbbb,{transparent:true,opacity:0.3})).translateY(1.1).translateZ(0.48));
+    // Team accent base
+    g.add(mkMesh(new THREE.BoxGeometry(0.88,0.05,0.78),accent).translateY(0.06));
+    // Team flag on back pole
+    g.add(mkMesh(new THREE.CylinderGeometry(0.015,0.015,0.55,6),mkMat(0x2a2a2a)).translateY(0.85).translateZ(-0.4));
+    g.add(mkMesh(new THREE.BoxGeometry(0.22,0.14,0.02),accent).translateX(0.12).translateY(1.05).translateZ(-0.4));
+    g.add(mkMesh(new THREE.SphereGeometry(0.025,6,4),mkMat(0xffd700,{emissive:0xaa7700,emissiveIntensity:0.6})).translateY(1.14).translateZ(-0.4));
   }
   return g;
 }
