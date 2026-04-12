@@ -409,7 +409,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0604}
     </div>
     <div style="margin-top:16px;display:flex;justify-content:space-between;align-items:center;font-family:'Cinzel',monospace;font-size:11px;opacity:0.85">
       <span style="color:#555">Three.js &bull; Procedural</span>
-      <span style="color:#ffd700;font-weight:bold;letter-spacing:1px">v2.2 &bull; Build 2026-04-12</span>
+      <span style="color:#ffd700;font-weight:bold;letter-spacing:1px">v2.3 &bull; Build 2026-04-12</span>
     </div>
   </div>
 </div>
@@ -1290,6 +1290,435 @@ function createAtmosphere(){
     }
     grp.position.set(gx,0,gz);
     scene.add(grp);
+  }
+}
+
+// ==================== EXTRA SCENERY (landmarks, encampments, ruins) ====================
+function createExtraScenery(){
+  const FIELD_HX=COLS/2, FIELD_HZ=ROWS/2;
+  const stone=mkMat(0x7a7a6a,{roughness:0.9});
+  const stoneD=mkMat(0x5a5a4a);
+  const stoneL=mkMat(0x8a8a7a);
+  const wood=mkMat(0x5a3a1a,{roughness:0.85});
+  const woodL=mkMat(0x7a5a28,{roughness:0.85});
+  const woodD=mkMat(0x3a2208,{roughness:0.9});
+  const cloth=mkMat(0xccbb88,{roughness:0.95});
+  const iron=mkMat(0x2a2a2a,{metalness:0.5,roughness:0.4});
+
+  // ---- WINDMILL (iconic landmark, rotating blades) ----
+  {
+    const mg=new THREE.Group();
+    // Stone base (tapered cylinder)
+    mg.add(mkMesh(new THREE.CylinderGeometry(1.3,1.6,3.0,12),stone).translateY(1.5));
+    // Stone blocks pattern (darker bands)
+    for(let y=0.6;y<3.0;y+=0.8){
+      mg.add(mkMesh(new THREE.TorusGeometry(1.45-y*0.1,0.04,5,14),stoneD).translateY(y).rotateX(Math.PI/2));
+    }
+    // Arched door
+    mg.add(mkMesh(new THREE.BoxGeometry(0.55,1.0,0.08),woodD).translateY(0.55).translateZ(1.55));
+    mg.add(mkMesh(new THREE.BoxGeometry(0.45,0.85,0.1),wood).translateY(0.5).translateZ(1.6));
+    // Windows
+    for(let y=1.2;y<2.7;y+=0.7){
+      mg.add(mkMesh(new THREE.BoxGeometry(0.25,0.3,0.08),mkMat(0xffcc55,{emissive:0xff8822,emissiveIntensity:1.2}))
+        .translateY(y).translateZ(1.4));
+    }
+    // Thatched roof cone
+    mg.add(mkMesh(new THREE.ConeGeometry(1.5,1.2,12),mkMat(0x8a5a28,{roughness:0.95})).translateY(3.6));
+    mg.add(mkMesh(new THREE.ConeGeometry(1.52,0.1,12),woodD).translateY(3.05));
+    // Blade hub pole jutting forward
+    mg.add(mkMesh(new THREE.CylinderGeometry(0.08,0.08,0.4,8),iron).translateY(3.0).translateZ(1.3).rotateX(Math.PI/2));
+    mg.add(mkMesh(new THREE.SphereGeometry(0.15,10,8),iron).translateY(3.0).translateZ(1.5));
+    // Rotating blades group
+    const blades=new THREE.Group();
+    blades.position.set(0,3.0,1.55);
+    for(let i=0;i<4;i++){
+      const blade=new THREE.Group();
+      blade.rotation.z=i*Math.PI/2;
+      // Blade frame
+      blade.add(mkMesh(new THREE.BoxGeometry(0.08,1.8,0.06),wood).translateY(0.9));
+      // Blade sail (canvas)
+      blade.add(mkMesh(new THREE.BoxGeometry(0.5,1.6,0.02),cloth).translateX(0.25).translateY(0.9));
+      // Cross ribs
+      for(let r=0;r<4;r++){
+        blade.add(mkMesh(new THREE.BoxGeometry(0.5,0.02,0.03),woodD).translateX(0.25).translateY(0.35+r*0.35));
+      }
+      blades.add(blade);
+    }
+    mg.add(blades);
+    mg.position.set(-36,0,22);
+    mg.rotation.y=0.3;
+    scene.add(mg);
+    // Rotation animation
+    addVfx({update(dt){
+      blades.rotation.z+=0.25*dt;
+      return true;
+    }});
+  }
+
+  // ---- WOODEN WATCHTOWER ----
+  {
+    const wg=new THREE.Group();
+    // 4 legs
+    const legH=4.0;
+    const legPos=[[-0.7,-0.7],[0.7,-0.7],[-0.7,0.7],[0.7,0.7]];
+    for(const[lx,lz] of legPos){
+      wg.add(mkMesh(new THREE.BoxGeometry(0.14,legH,0.14),wood).translateX(lx).translateY(legH/2).translateZ(lz));
+    }
+    // Cross braces
+    for(let side=0;side<4;side++){
+      const ang=side*Math.PI/2;
+      const cx=Math.cos(ang)*0.7,cz=Math.sin(ang)*0.7;
+      for(let y=0.8;y<legH-0.5;y+=1.2){
+        const brace=mkMesh(new THREE.BoxGeometry(1.4,0.06,0.06),woodD);
+        brace.position.set(cx,y,cz);
+        brace.rotation.y=ang+Math.PI/2;
+        brace.rotation.z=0.35;
+        wg.add(brace);
+      }
+    }
+    // Platform deck
+    wg.add(mkMesh(new THREE.BoxGeometry(2.0,0.15,2.0),wood).translateY(legH+0.075));
+    wg.add(mkMesh(new THREE.BoxGeometry(1.9,0.05,1.9),woodL).translateY(legH+0.155));
+    // Railings
+    for(let side=0;side<4;side++){
+      const ang=side*Math.PI/2;
+      const rx=Math.cos(ang)*0.95,rz=Math.sin(ang)*0.95;
+      const rail=mkMesh(new THREE.BoxGeometry(2.0,0.06,0.06),woodL);
+      rail.position.set(rx,legH+0.5,rz);
+      rail.rotation.y=ang+Math.PI/2;
+      wg.add(rail);
+      // Railing posts
+      for(let p=-1;p<=1;p++){
+        const post=mkMesh(new THREE.BoxGeometry(0.08,0.45,0.08),wood);
+        post.position.set(rx+Math.sin(ang)*p*0.7,legH+0.3,rz-Math.cos(ang)*p*0.7);
+        wg.add(post);
+      }
+    }
+    // Pitched roof
+    const roofG=new THREE.Group();
+    roofG.add(mkMesh(new THREE.ConeGeometry(1.55,0.9,4),mkMat(0x6a3a1a,{roughness:0.9})).translateY(0.45).rotateY(Math.PI/4));
+    roofG.position.y=legH+0.9;
+    wg.add(roofG);
+    // Small beacon fire on the platform
+    const beacon=mkMesh(new THREE.SphereGeometry(0.15,10,8),
+      new THREE.MeshStandardMaterial({color:0xff5500,emissive:0xff5500,emissiveIntensity:2.5,transparent:true,opacity:0.9}));
+    beacon.position.y=legH+0.35;wg.add(beacon);
+    const beaconLight=new THREE.PointLight(0xff7722,2.5,10,1.5);
+    beaconLight.position.y=legH+0.5;wg.add(beaconLight);
+    // Ladder
+    for(let r=0;r<12;r++){
+      wg.add(mkMesh(new THREE.BoxGeometry(0.6,0.04,0.04),woodD).translateY(0.3+r*0.3).translateZ(-0.75));
+    }
+    wg.add(mkMesh(new THREE.BoxGeometry(0.04,legH-0.4,0.04),wood).translateX(-0.28).translateY(legH/2).translateZ(-0.78));
+    wg.add(mkMesh(new THREE.BoxGeometry(0.04,legH-0.4,0.04),wood).translateX(0.28).translateY(legH/2).translateZ(-0.78));
+    wg.position.set(32,0,18);
+    wg.rotation.y=-0.4;
+    scene.add(wg);
+    addVfx({update(dt){
+      const f=Math.sin(performance.now()*0.01)*0.4+Math.random()*0.3;
+      beaconLight.intensity=2.5+f;
+      beacon.scale.setScalar(1+f*0.2);
+      return true;
+    }});
+  }
+
+  // ---- STONE RUINS (3 clusters of broken pillars and partial walls) ----
+  const ruinPositions=[[-20,28],[24,-30],[-40,-12]];
+  for(const[rx,rz] of ruinPositions){
+    const rg=new THREE.Group();
+    // Broken pillars
+    for(let i=0;i<4;i++){
+      const h=0.4+Math.random()*1.5;
+      const px=(Math.random()-0.5)*3;
+      const pz=(Math.random()-0.5)*3;
+      rg.add(mkMesh(new THREE.CylinderGeometry(0.22,0.24,h,8),stone).translateX(px).translateY(h/2).translateZ(pz));
+      // Pillar base
+      rg.add(mkMesh(new THREE.BoxGeometry(0.55,0.1,0.55),stoneD).translateX(px).translateY(0.05).translateZ(pz));
+      // Capital on taller pillars
+      if(h>1.0){
+        rg.add(mkMesh(new THREE.BoxGeometry(0.4,0.1,0.4),stoneL).translateX(px).translateY(h+0.05).translateZ(pz));
+      }
+    }
+    // Partial wall
+    rg.add(mkMesh(new THREE.BoxGeometry(2.2,0.9,0.3),stone).translateX(-0.8).translateY(0.45).translateZ(1.2));
+    rg.add(mkMesh(new THREE.BoxGeometry(0.4,1.3,0.3),stone).translateX(0.5).translateY(0.65).translateZ(1.2));
+    // Rubble pile
+    for(let r=0;r<6;r++){
+      rg.add(mkMesh(new THREE.DodecahedronGeometry(0.12+Math.random()*0.1,0),stoneD)
+        .translateX((Math.random()-0.5)*2.5).translateY(0.08).translateZ((Math.random()-0.5)*2.5));
+    }
+    // Moss patches
+    const moss=mkMat(0x3a6a1a);
+    for(let m=0;m<4;m++){
+      rg.add(mkMesh(new THREE.SphereGeometry(0.15,6,4),moss)
+        .translateX((Math.random()-0.5)*2.5).translateY(0.08).translateZ((Math.random()-0.5)*2.5));
+    }
+    rg.position.set(rx,0,rz);
+    rg.rotation.y=Math.random()*Math.PI*2;
+    scene.add(rg);
+  }
+
+  // ---- TENT ENCAMPMENTS (near each castle) ----
+  const tentClusters=[[-24,-18],[24,18],[-28,10],[28,-10]];
+  for(const[tx,tz] of tentClusters){
+    const cluster=new THREE.Group();
+    const nTents=2+Math.floor(Math.random()*2);
+    for(let t=0;t<nTents;t++){
+      const tent=new THREE.Group();
+      const color=[0xcc4444,0x446688,0x88aa44,0xaa7722,0x884488][Math.floor(Math.random()*5)];
+      const tentMat=mkMat(color,{roughness:0.95});
+      // Center pole
+      tent.add(mkMesh(new THREE.CylinderGeometry(0.04,0.04,1.2,5),woodD).translateY(0.6));
+      // 4-sided conical canvas (using cone geometry)
+      tent.add(mkMesh(new THREE.ConeGeometry(0.75,1.1,4),tentMat).translateY(0.55).rotateY(Math.PI/4));
+      // Canvas stripe bands
+      tent.add(mkMesh(new THREE.ConeGeometry(0.76,0.1,4),mkMat(color===0xcc4444?0xffdd44:0xddaa44)).translateY(0.75).rotateY(Math.PI/4));
+      // Flag at top
+      tent.add(mkMesh(new THREE.BoxGeometry(0.18,0.08,0.01),cloth).translateX(0.1).translateY(1.2));
+      tent.add(mkMesh(new THREE.CylinderGeometry(0.012,0.012,0.25,4),iron).translateY(1.15));
+      // Tent stakes + ropes (4 corner stakes)
+      for(let s=0;s<4;s++){
+        const ang=s*Math.PI/2+Math.PI/4;
+        tent.add(mkMesh(new THREE.ConeGeometry(0.02,0.08,4),woodD)
+          .translateX(Math.cos(ang)*0.9).translateY(0.04).translateZ(Math.sin(ang)*0.9));
+      }
+      tent.position.set((Math.random()-0.5)*4,0,(Math.random()-0.5)*4);
+      tent.rotation.y=Math.random()*Math.PI*2;
+      cluster.add(tent);
+    }
+    // Crates and barrels around the camp
+    for(let c=0;c<3;c++){
+      const crate=mkMesh(new THREE.BoxGeometry(0.35,0.35,0.35),wood);
+      crate.position.set((Math.random()-0.5)*5,0.18,(Math.random()-0.5)*5);
+      // Crate slats
+      cluster.add(crate);
+      cluster.add(mkMesh(new THREE.BoxGeometry(0.36,0.04,0.36),woodD).translateX(crate.position.x).translateY(0.28).translateZ(crate.position.z));
+    }
+    for(let b=0;b<2;b++){
+      const bgrp=new THREE.Group();
+      bgrp.add(mkMesh(new THREE.CylinderGeometry(0.18,0.18,0.4,10),wood).translateY(0.2));
+      // Barrel bands
+      bgrp.add(mkMesh(new THREE.TorusGeometry(0.185,0.012,4,12),iron).translateY(0.1).rotateX(Math.PI/2));
+      bgrp.add(mkMesh(new THREE.TorusGeometry(0.185,0.012,4,12),iron).translateY(0.3).rotateX(Math.PI/2));
+      bgrp.position.set((Math.random()-0.5)*5,0,(Math.random()-0.5)*5);
+      cluster.add(bgrp);
+    }
+    // Small cooking fire with tripod
+    const fire=mkMesh(new THREE.SphereGeometry(0.1,8,6),
+      new THREE.MeshStandardMaterial({color:0xff5500,emissive:0xff5500,emissiveIntensity:2.2,transparent:true,opacity:0.9}));
+    fire.position.set(0,0.1,0);cluster.add(fire);
+    const tripodLight=new THREE.PointLight(0xff7722,1.5,4,1.5);
+    tripodLight.position.set(0,0.3,0);cluster.add(tripodLight);
+    addVfx({update(dt){
+      tripodLight.intensity=1.5+Math.sin(performance.now()*0.013)*0.3+Math.random()*0.2;
+      fire.scale.setScalar(1+Math.sin(performance.now()*0.013)*0.1);
+      return true;
+    }});
+    cluster.position.set(tx,0,tz);
+    scene.add(cluster);
+  }
+
+  // ---- CEMETERY / GRAVESTONES ----
+  const cemeteryX=38,cemeteryZ=-32;
+  const cg=new THREE.Group();
+  for(let i=0;i<12;i++){
+    const gx=(i%4)*1.2-2;
+    const gz=Math.floor(i/4)*1.5-1.5;
+    const grav=new THREE.Group();
+    // Cross or rounded stone (random)
+    if(Math.random()>0.5){
+      // Cross
+      grav.add(mkMesh(new THREE.BoxGeometry(0.1,0.7,0.08),stoneL).translateY(0.35));
+      grav.add(mkMesh(new THREE.BoxGeometry(0.35,0.08,0.08),stoneL).translateY(0.55));
+    }else{
+      // Rounded headstone
+      grav.add(mkMesh(new THREE.BoxGeometry(0.3,0.55,0.1),stone).translateY(0.27));
+      grav.add(mkMesh(new THREE.CylinderGeometry(0.15,0.15,0.1,8,1,false,0,Math.PI),stone).translateY(0.55).rotateZ(Math.PI/2));
+    }
+    // Base
+    grav.add(mkMesh(new THREE.BoxGeometry(0.45,0.08,0.2),stoneD).translateY(0.04));
+    // Random tilt for aged look
+    grav.rotation.z=(Math.random()-0.5)*0.15;
+    grav.position.set(gx+(Math.random()-0.5)*0.3,0,gz+(Math.random()-0.5)*0.3);
+    cg.add(grav);
+  }
+  // Wrought iron fence around cemetery
+  for(let f=-3;f<=3;f++){
+    cg.add(mkMesh(new THREE.BoxGeometry(0.04,0.5,0.04),iron).translateX(f*0.9).translateY(0.25).translateZ(-2.3));
+    cg.add(mkMesh(new THREE.BoxGeometry(0.04,0.5,0.04),iron).translateX(f*0.9).translateY(0.25).translateZ(2.3));
+  }
+  cg.add(mkMesh(new THREE.BoxGeometry(6,0.03,0.03),iron).translateY(0.4).translateZ(-2.3));
+  cg.add(mkMesh(new THREE.BoxGeometry(6,0.03,0.03),iron).translateY(0.15).translateZ(-2.3));
+  cg.add(mkMesh(new THREE.BoxGeometry(6,0.03,0.03),iron).translateY(0.4).translateZ(2.3));
+  cg.add(mkMesh(new THREE.BoxGeometry(6,0.03,0.03),iron).translateY(0.15).translateZ(2.3));
+  cg.position.set(cemeteryX,0,cemeteryZ);
+  cg.rotation.y=0.3;
+  scene.add(cg);
+
+  // ---- BANNER POLES with waving team flags (scattered) ----
+  const bannerPositions=[[-14,28],[14,28],[-14,-28],[14,-28],[-34,0],[34,0]];
+  for(const[bx,bz] of bannerPositions){
+    const bp=new THREE.Group();
+    // Pole
+    bp.add(mkMesh(new THREE.CylinderGeometry(0.05,0.06,2.5,6),wood).translateY(1.25));
+    // Gold finial ball
+    bp.add(mkMesh(new THREE.SphereGeometry(0.09,10,8),mkMat(0xccaa44,{metalness:0.6,emissive:0x664400,emissiveIntensity:0.3})).translateY(2.6));
+    // Flag (random team color)
+    const team=Math.random()>0.5?1:2;
+    const flagMat=mkMat(team===1?0x3366cc:0xcc3366);
+    const flagDark=mkMat(team===1?0x1a3d7a:0x7a1a3d);
+    const flag=mkMesh(new THREE.BoxGeometry(0.7,0.4,0.02),flagMat);
+    flag.position.set(0.4,2.25,0);bp.add(flag);
+    // Flag trim
+    bp.add(mkMesh(new THREE.BoxGeometry(0.7,0.04,0.025),flagDark).translateX(0.4).translateY(2.05));
+    bp.add(mkMesh(new THREE.BoxGeometry(0.7,0.04,0.025),flagDark).translateX(0.4).translateY(2.45));
+    // Emblem
+    bp.add(mkMesh(new THREE.BoxGeometry(0.2,0.15,0.03),mkMat(0xffdd55)).translateX(0.4).translateY(2.25).translateZ(0.02));
+    bp.position.set(bx,0,bz);
+    scene.add(bp);
+    // Slight sway animation for the flag
+    addVfx({update(dt){
+      flag.rotation.y=Math.sin(performance.now()*0.002+bx)*0.15;
+      return true;
+    }});
+  }
+
+  // ---- SCARECROWS in open grass ----
+  const scarecrowMat=mkMat(0x9a7830,{roughness:0.95});
+  const strawMat=mkMat(0xd4b060);
+  const shirtMat=mkMat(0x884444);
+  const scarePositions=[[-18,40],[28,38],[-38,-20],[36,28],[-48,0]];
+  for(const[sx,sz] of scarePositions){
+    const sg=new THREE.Group();
+    // Cross pole
+    sg.add(mkMesh(new THREE.BoxGeometry(0.08,1.6,0.08),wood).translateY(0.8));
+    sg.add(mkMesh(new THREE.BoxGeometry(0.9,0.06,0.08),wood).translateY(1.1));
+    // Shirt (torso)
+    sg.add(mkMesh(new THREE.BoxGeometry(0.55,0.55,0.15),shirtMat).translateY(0.95));
+    // Arms (straw sleeves)
+    sg.add(mkMesh(new THREE.CylinderGeometry(0.06,0.06,0.35,6),strawMat).translateX(0.3).translateY(1.1).rotateZ(Math.PI/2));
+    sg.add(mkMesh(new THREE.CylinderGeometry(0.06,0.06,0.35,6),strawMat).translateX(-0.3).translateY(1.1).rotateZ(Math.PI/2));
+    // Straw sticking out of sleeves
+    sg.add(mkMesh(new THREE.ConeGeometry(0.05,0.15,4),strawMat).translateX(0.5).translateY(1.1).rotateZ(-Math.PI/2));
+    sg.add(mkMesh(new THREE.ConeGeometry(0.05,0.15,4),strawMat).translateX(-0.5).translateY(1.1).rotateZ(Math.PI/2));
+    // Head (burlap sack)
+    sg.add(mkMesh(new THREE.SphereGeometry(0.18,10,8),scarecrowMat).translateY(1.4));
+    // Eyes (black X)
+    sg.add(mkMesh(new THREE.BoxGeometry(0.05,0.03,0.02),mkMat(0x000000)).translateX(-0.05).translateY(1.42).translateZ(0.17));
+    sg.add(mkMesh(new THREE.BoxGeometry(0.05,0.03,0.02),mkMat(0x000000)).translateX(0.05).translateY(1.42).translateZ(0.17));
+    // Mouth stitch
+    sg.add(mkMesh(new THREE.BoxGeometry(0.08,0.015,0.02),mkMat(0x000000)).translateY(1.34).translateZ(0.17));
+    // Pointed hat
+    sg.add(mkMesh(new THREE.ConeGeometry(0.22,0.35,8),mkMat(0x3a2208)).translateY(1.65));
+    sg.add(mkMesh(new THREE.TorusGeometry(0.2,0.02,4,12),mkMat(0x3a2208)).translateY(1.5).rotateX(Math.PI/2));
+    sg.position.set(sx,0,sz);
+    sg.rotation.y=Math.random()*Math.PI*2;
+    scene.add(sg);
+  }
+
+  // ---- SHEEP PEN ----
+  {
+    const pg=new THREE.Group();
+    // Fence
+    for(let i=-2;i<=2;i++){
+      pg.add(mkMesh(new THREE.BoxGeometry(0.08,0.5,0.08),wood).translateX(i*1.0).translateY(0.25).translateZ(-1.8));
+      pg.add(mkMesh(new THREE.BoxGeometry(0.08,0.5,0.08),wood).translateX(i*1.0).translateY(0.25).translateZ(1.8));
+      pg.add(mkMesh(new THREE.BoxGeometry(0.08,0.5,0.08),wood).translateX(-2.0).translateY(0.25).translateZ(i*0.7));
+      pg.add(mkMesh(new THREE.BoxGeometry(0.08,0.5,0.08),wood).translateX(2.0).translateY(0.25).translateZ(i*0.7));
+    }
+    // Rails
+    for(const dz of[-1.8,1.8]){
+      pg.add(mkMesh(new THREE.BoxGeometry(4.5,0.05,0.05),woodL).translateY(0.4).translateZ(dz));
+      pg.add(mkMesh(new THREE.BoxGeometry(4.5,0.05,0.05),woodL).translateY(0.15).translateZ(dz));
+    }
+    for(const dx of[-2.0,2.0]){
+      pg.add(mkMesh(new THREE.BoxGeometry(0.05,0.05,3.5),woodL).translateX(dx).translateY(0.4));
+      pg.add(mkMesh(new THREE.BoxGeometry(0.05,0.05,3.5),woodL).translateX(dx).translateY(0.15));
+    }
+    // Sheep (4-5 cute blob sheep)
+    const woolMat=mkMat(0xf0ecdd,{roughness:0.95});
+    const sheepFace=mkMat(0x333333);
+    for(let s=0;s<5;s++){
+      const sheep=new THREE.Group();
+      // Body
+      sheep.add(mkMesh(new THREE.SphereGeometry(0.18,10,8),woolMat).translateY(0.25));
+      // Head
+      sheep.add(mkMesh(new THREE.SphereGeometry(0.08,8,6),sheepFace).translateX(0.15).translateY(0.28));
+      // Legs
+      for(const[lx,lz] of[[-0.08,-0.08],[0.08,-0.08],[-0.08,0.08],[0.08,0.08]]){
+        sheep.add(mkMesh(new THREE.CylinderGeometry(0.02,0.02,0.12,5),sheepFace).translateX(lx).translateY(0.06).translateZ(lz));
+      }
+      // Tiny ears
+      sheep.add(mkMesh(new THREE.SphereGeometry(0.025,5,4),sheepFace).translateX(0.17).translateY(0.34).translateZ(-0.04));
+      sheep.add(mkMesh(new THREE.SphereGeometry(0.025,5,4),sheepFace).translateX(0.17).translateY(0.34).translateZ(0.04));
+      sheep.position.set((Math.random()-0.5)*3.5,0,(Math.random()-0.5)*3.0);
+      sheep.rotation.y=Math.random()*Math.PI*2;
+      pg.add(sheep);
+    }
+    pg.position.set(-42,0,30);
+    scene.add(pg);
+  }
+
+  // ---- MARKET STALLS ----
+  const stallPositions=[[-4,35],[4,35],[-12,35]];
+  for(const[sx,sz] of stallPositions){
+    const st=new THREE.Group();
+    const canvasColor=[0xcc4444,0x4488cc,0x44aa44,0xccaa44][Math.floor(Math.random()*4)];
+    const canvas=mkMat(canvasColor,{roughness:0.95});
+    const canvasAlt=mkMat(canvasColor^0x222222);
+    // 4 posts
+    for(const[px,pz] of[[-0.7,-0.5],[0.7,-0.5],[-0.7,0.5],[0.7,0.5]]){
+      st.add(mkMesh(new THREE.BoxGeometry(0.08,1.3,0.08),wood).translateX(px).translateY(0.65).translateZ(pz));
+    }
+    // Cross bars top
+    st.add(mkMesh(new THREE.BoxGeometry(1.5,0.06,0.06),wood).translateY(1.3).translateZ(-0.5));
+    st.add(mkMesh(new THREE.BoxGeometry(1.5,0.06,0.06),wood).translateY(1.3).translateZ(0.5));
+    // Sloped canvas roof (pyramidal)
+    const roof=mkMesh(new THREE.ConeGeometry(1.1,0.5,4),canvas);
+    roof.position.set(0,1.55,0);roof.rotation.y=Math.PI/4;st.add(roof);
+    // Roof stripe
+    const roofStripe=mkMesh(new THREE.ConeGeometry(1.12,0.08,4),canvasAlt);
+    roofStripe.position.set(0,1.4,0);roofStripe.rotation.y=Math.PI/4;st.add(roofStripe);
+    // Counter/table
+    st.add(mkMesh(new THREE.BoxGeometry(1.5,0.08,1.0),wood).translateY(0.8));
+    st.add(mkMesh(new THREE.BoxGeometry(1.52,0.03,1.02),woodL).translateY(0.84));
+    // Goods on table (fruits/baskets)
+    for(let g=0;g<3;g++){
+      const basket=mkMesh(new THREE.CylinderGeometry(0.1,0.12,0.08,8),woodD);
+      basket.position.set(-0.4+g*0.4,0.92,0);st.add(basket);
+      const fruit=mkMesh(new THREE.SphereGeometry(0.07,8,6),mkMat([0xcc2222,0xccaa22,0x22aa22][g]));
+      fruit.position.set(-0.4+g*0.4,0.96,0);st.add(fruit);
+    }
+    // Hanging lantern
+    const lan=mkMesh(new THREE.SphereGeometry(0.08,8,6),
+      mkMat(0xffcc55,{emissive:0xff8822,emissiveIntensity:1.5,transparent:true,opacity:0.9}));
+    lan.position.set(0.5,1.2,0.3);st.add(lan);
+    const lanLight=new THREE.PointLight(0xffaa55,0.6,3,1.5);
+    lanLight.position.set(0.5,1.2,0.3);st.add(lanLight);
+    st.position.set(sx,0,sz);
+    st.rotation.y=-0.3;
+    scene.add(st);
+  }
+
+  // ---- SIGNPOST at intersection ----
+  {
+    const sp=new THREE.Group();
+    sp.add(mkMesh(new THREE.BoxGeometry(0.12,2.2,0.12),wood).translateY(1.1));
+    // Pointing arrows (board signs)
+    const sign1=mkMesh(new THREE.BoxGeometry(0.8,0.25,0.04),woodL);
+    sign1.position.set(0.3,1.8,0);sp.add(sign1);
+    const sign2=mkMesh(new THREE.BoxGeometry(0.7,0.22,0.04),woodL);
+    sign2.position.set(-0.25,1.5,0);sp.add(sign2);
+    const sign3=mkMesh(new THREE.BoxGeometry(0.75,0.22,0.04),woodL);
+    sign3.position.set(0.3,1.2,0);sp.add(sign3);
+    // Dark text marks on signs
+    for(const s of[sign1,sign2,sign3]){
+      const m=mkMesh(new THREE.BoxGeometry(0.5,0.04,0.045),woodD);
+      m.position.copy(s.position);m.position.y-=0.02;sp.add(m);
+    }
+    sp.position.set(-8,0,32);
+    sp.rotation.y=0.4;
+    scene.add(sp);
   }
 }
 
@@ -3951,6 +4380,7 @@ function init(){
   createTerrain();
   createScenery();
   createAtmosphere();
+  createExtraScenery();
   initGrid();
   addCastles();
   initParticles();
