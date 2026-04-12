@@ -1426,10 +1426,18 @@ class BootScene extends Phaser.Scene {
   }
 
   generateParticleTexture(){
+    // Soft radial glow: alpha gradient from white center to transparent edge
+    const S=16;
     const canvas = document.createElement('canvas');
-    canvas.width=4;canvas.height=4;
+    canvas.width=S;canvas.height=S;
     const c=canvas.getContext('2d');
-    c.fillStyle='#ffffff';c.fillRect(0,0,4,4);
+    const grad=c.createRadialGradient(S/2,S/2,0,S/2,S/2,S/2);
+    grad.addColorStop(0,'rgba(255,255,255,1)');
+    grad.addColorStop(0.35,'rgba(255,255,255,0.85)');
+    grad.addColorStop(0.7,'rgba(255,255,255,0.35)');
+    grad.addColorStop(1,'rgba(255,255,255,0)');
+    c.fillStyle=grad;
+    c.fillRect(0,0,S,S);
     this.textures.addCanvas('particle', canvas);
   }
 
@@ -1716,6 +1724,7 @@ class GameScene extends Phaser.Scene {
 
     // Persistent graphics layers
     this.buildingGfx = this.add.graphics().setDepth(2);
+    this.shadowGfx = this.add.graphics().setDepth(3.5);
     this.towerGfx = this.add.graphics().setDepth(4);
     this.enemyBarGfx = this.add.graphics().setDepth(6);
     this.projGfx = this.add.graphics().setDepth(8);
@@ -2143,11 +2152,18 @@ class GameScene extends Phaser.Scene {
       }
       t.target=best;
       if(best)t.angle=Math.atan2(best.y-t.y,best.x-t.x);
+      // Decay muzzle flash
+      if(t.flashTimer>0)t.flashTimer-=dt;
       if(best&&t.cooldown<=0){
         t.cooldown=t.rate;
         const pType=t.type==='turret'?'proj_arrow':t.type==='magic'?'proj_magic':t.type==='catapult'?'proj_boulder':'proj_cannonball';
-        projectiles.push({x:t.x,y:t.y,target:best,tx:best.x,ty:best.y,
-          dmg:t.dmg,spd:t.projSpd*T,splash:t.splash,type:pType,owner:t.owner,alive:true});
+        // Launch from barrel tip, not tower center
+        const launchX=t.x+Math.cos(t.angle)*12;
+        const launchY=t.y+Math.sin(t.angle)*12;
+        projectiles.push({x:launchX,y:launchY,target:best,tx:best.x,ty:best.y,
+          dmg:t.dmg,spd:t.projSpd*T,splash:t.splash,type:pType,owner:t.owner,alive:true,
+          trail:[],angle:t.angle});
+        t.flashTimer=0.08;
         sndShoot();
       }
     }
@@ -2157,6 +2173,12 @@ class GameScene extends Phaser.Scene {
       if(!p.alive)continue;
       if(p.target&&p.target.alive){p.tx=p.target.x;p.ty=p.target.y}
       const dx=p.tx-p.x,dy=p.ty-p.y,d=Math.hypot(dx,dy);
+      // Record trail position
+      if(!p.trail)p.trail=[];
+      p.trail.push({x:p.x,y:p.y});
+      if(p.trail.length>10)p.trail.shift();
+      // Update facing angle
+      if(d>0.01)p.angle=Math.atan2(dy,dx);
       if(d<p.spd*dt+4){
         p.alive=false;
         if(p.splash>0){
@@ -2367,16 +2389,26 @@ class GameScene extends Phaser.Scene {
     this.towerSprites.forEach(s=>{if(s&&s.active)s.destroy()});
     this.towerSprites=[];
     this.towerGfx.clear();
+    this.shadowGfx.clear();
 
     for(const t of towers){
+      // Drop shadow ellipse under tower
+      this.shadowGfx.fillStyle(0x000000,0.45);
+      this.shadowGfx.fillEllipse(t.x,t.y+T/2-2,T*0.8,T*0.3);
+      this.shadowGfx.fillStyle(0x000000,0.25);
+      this.shadowGfx.fillEllipse(t.x,t.y+T/2-2,T*0.95,T*0.38);
+
       const texKey='tower_'+t.type;
       if(this.textures.exists(texKey)){
         const s=this.add.image(t.x,t.y,texKey).setDisplaySize(T,T).setDepth(4);
         this.towerSprites.push(s);
       }
-      // Owner indicator
-      this.towerGfx.fillStyle(t.owner===1?0x3264c8:0xc83232,0.3);
-      this.towerGfx.fillRect(t.x-T/2,t.y+T/2-3,T,3);
+      // Owner indicator circle on ground
+      const ownerColor=t.owner===1?0x3264c8:0xc83232;
+      this.towerGfx.lineStyle(2,ownerColor,0.5);
+      this.towerGfx.strokeEllipse(t.x,t.y+T/2-2,T*0.75,T*0.25);
+      this.towerGfx.fillStyle(ownerColor,0.15);
+      this.towerGfx.fillEllipse(t.x,t.y+T/2-2,T*0.75,T*0.25);
       // Direction line if targeting
       if(t.target){
         const towerColor=parseInt(t.color.replace('#',''),16);
@@ -2386,6 +2418,17 @@ class GameScene extends Phaser.Scene {
         this.towerGfx.lineTo(t.x+Math.cos(t.angle)*12,t.y+Math.sin(t.angle)*12);
         this.towerGfx.strokePath();
       }
+      // Muzzle flash (drawn on top of sprite)
+      if(t.flashTimer>0){
+        const a=Math.max(0,Math.min(1,t.flashTimer/0.08));
+        const fx=t.x+Math.cos(t.angle)*14,fy=t.y+Math.sin(t.angle)*14;
+        this.towerGfx.fillStyle(0xffaa22,a*0.6);
+        this.towerGfx.fillCircle(fx,fy,9);
+        this.towerGfx.fillStyle(0xffdd55,a*0.8);
+        this.towerGfx.fillCircle(fx,fy,6);
+        this.towerGfx.fillStyle(0xffffee,a);
+        this.towerGfx.fillCircle(fx,fy,3);
+      }
     }
   }
 
@@ -2393,6 +2436,12 @@ class GameScene extends Phaser.Scene {
     this.enemyBarGfx.clear();
     for(const e of enemies){
       if(!e.alive)continue;
+
+      // Drop shadow under enemy (drawn to shadowGfx, cleared in renderTowers)
+      this.shadowGfx.fillStyle(0x000000,0.45);
+      this.shadowGfx.fillEllipse(e.x,e.y+T/2-3,T*0.55,T*0.22);
+      this.shadowGfx.fillStyle(0x000000,0.25);
+      this.shadowGfx.fillEllipse(e.x,e.y+T/2-3,T*0.7,T*0.28);
 
       // Update existing sprite position
       if(e._sprite && e._sprite.active){
@@ -2418,18 +2467,36 @@ class GameScene extends Phaser.Scene {
         this.enemyBarGfx.strokeRect(e.x-T/2+4,e.y-T/2+4,T-8,T-8);
       }
 
-      // HP bar (draw via shared graphics - lightweight)
-      const bw=T-4,bh=3,bx=e.x-bw/2,by=e.y-T/2-4;
-      this.enemyBarGfx.fillStyle(0x330000);this.enemyBarGfx.fillRect(bx,by,bw,bh);
-      const hpRatio=e.hp/e.maxHp;
-      const hpColor=hpRatio>0.5?0x00ff00:hpRatio>0.25?0xffff00:0xff0000;
-      this.enemyBarGfx.fillStyle(hpColor);this.enemyBarGfx.fillRect(bx,by,bw*hpRatio,bh);
+      // HP bar with gradient and border
+      const bw=T-6,bh=4,bx=e.x-bw/2,by=e.y-T/2-5;
+      // Outer dark border
+      this.enemyBarGfx.fillStyle(0x000000,0.75);
+      this.enemyBarGfx.fillRect(bx-1,by-1,bw+2,bh+2);
+      // Depleted background
+      this.enemyBarGfx.fillStyle(0x2a0a0a,1);
+      this.enemyBarGfx.fillRect(bx,by,bw,bh);
+      // HP fill (3-tone gradient)
+      const hpRatio=Math.max(0,e.hp/e.maxHp);
+      const fillW=Math.max(0,bw*hpRatio);
+      let hpDark,hpMid,hpLight;
+      if(hpRatio>0.5){hpDark=0x0a6608;hpMid=0x22aa22;hpLight=0x77ff77}
+      else if(hpRatio>0.25){hpDark=0xaa7700;hpMid=0xddaa00;hpLight=0xffdd55}
+      else{hpDark=0x880000;hpMid=0xcc2200;hpLight=0xff5544}
+      this.enemyBarGfx.fillStyle(hpDark,1);
+      this.enemyBarGfx.fillRect(bx,by,fillW,bh);
+      this.enemyBarGfx.fillStyle(hpMid,1);
+      this.enemyBarGfx.fillRect(bx,by,fillW,Math.max(1,bh-1));
+      this.enemyBarGfx.fillStyle(hpLight,1);
+      this.enemyBarGfx.fillRect(bx,by,fillW,1);
+      // Team color tick
+      this.enemyBarGfx.fillStyle(e.owner===1?0x3264c8:0xc83232,1);
+      this.enemyBarGfx.fillRect(bx-1,by+bh-1,2,2);
 
       // Combat indicator
       if(e.combatTarget&&e.combatTarget.alive){
-        this.enemyBarGfx.lineStyle(2,0xff4400,0.7);
-        this.enemyBarGfx.beginPath();this.enemyBarGfx.moveTo(e.x-5,e.y-T/2-6);this.enemyBarGfx.lineTo(e.x+5,e.y-T/2+2);this.enemyBarGfx.strokePath();
-        this.enemyBarGfx.beginPath();this.enemyBarGfx.moveTo(e.x+5,e.y-T/2-6);this.enemyBarGfx.lineTo(e.x-5,e.y-T/2+2);this.enemyBarGfx.strokePath();
+        this.enemyBarGfx.lineStyle(2,0xff4400,0.75);
+        this.enemyBarGfx.beginPath();this.enemyBarGfx.moveTo(e.x-5,e.y-T/2-8);this.enemyBarGfx.lineTo(e.x+5,e.y-T/2);this.enemyBarGfx.strokePath();
+        this.enemyBarGfx.beginPath();this.enemyBarGfx.moveTo(e.x+5,e.y-T/2-8);this.enemyBarGfx.lineTo(e.x-5,e.y-T/2);this.enemyBarGfx.strokePath();
       }
     }
   }
@@ -2438,11 +2505,48 @@ class GameScene extends Phaser.Scene {
     // Projectiles are short-lived so recreating is fine
     this.projSprites.forEach(s=>{if(s&&s.active)s.destroy()});
     this.projSprites=[];
+    this.projGfx.clear();
+
+    // Trail colors per projectile type
+    const trailColors={
+      proj_arrow:0xccaa66,
+      proj_magic:0xcf6fff,
+      proj_boulder:0x888888,
+      proj_cannonball:0xff6622,
+    };
+    const displaySizes={
+      proj_arrow:14,
+      proj_magic:14,
+      proj_boulder:14,
+      proj_cannonball:13,
+    };
 
     for(const p of projectiles){
       if(!p.alive)continue;
+      // Draw fading trail
+      if(p.trail&&p.trail.length>1){
+        const col=trailColors[p.type]||0xffffff;
+        for(let i=0;i<p.trail.length;i++){
+          const t=p.trail[i];
+          const a=(i+1)/p.trail.length;
+          this.projGfx.fillStyle(col,a*0.45);
+          this.projGfx.fillCircle(t.x,t.y,1+a*2.5);
+          if(p.type==='proj_magic'||p.type==='proj_cannonball'){
+            this.projGfx.fillStyle(0xffeeaa,a*0.55);
+            this.projGfx.fillCircle(t.x,t.y,a*1.5);
+          }
+        }
+      }
       if(this.textures.exists(p.type)){
-        const s=this.add.image(p.x,p.y,p.type).setDisplaySize(10,10).setDepth(8);
+        const sz=displaySizes[p.type]||12;
+        const s=this.add.image(p.x,p.y,p.type).setDisplaySize(sz,sz).setDepth(8);
+        // Rotate arrow to face direction of travel; leave spheres/boulders alone
+        if(p.type==='proj_arrow'){
+          s.setRotation(p.angle||0);
+        }else if(p.type==='proj_cannonball'){
+          // Cannonball trail fire faces backwards: rotate so fire trail is behind
+          s.setRotation((p.angle||0)+Math.PI);
+        }
         this.projSprites.push(s);
       }
     }
