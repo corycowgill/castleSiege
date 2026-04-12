@@ -1713,12 +1713,152 @@ class TitleScene extends Phaser.Scene {
   constructor(){super('Title')}
   create(){
     this.cameras.main.setBackgroundColor('#0a0a1a');
-    this.add.text(W/2,140,'CASTLE SIEGE',{fontSize:'48px',fontFamily:'monospace',fontStyle:'bold',color:'#ffd700'}).setOrigin(0.5);
-    this.add.text(W/2,185,'2-Player Tower Defense',{fontSize:'20px',fontFamily:'monospace',color:'#aaaaaa'}).setOrigin(0.5);
 
+    // --- Gradient night sky ---
+    const sky=this.add.graphics();
+    for(let y=0;y<H;y++){
+      const a=y/H;
+      const r=Math.floor(8+a*28);
+      const gn=Math.floor(8+a*18);
+      const b=Math.floor(24+a*45);
+      sky.fillStyle((r<<16)|(gn<<8)|b,1);
+      sky.fillRect(0,y,W,1);
+    }
+
+    // --- Twinkling stars ---
+    for(let i=0;i<100;i++){
+      const s=this.add.circle(Math.random()*W,Math.random()*340,Math.random()*1.4+0.4,0xffffff,0.9);
+      this.tweens.add({targets:s,alpha:0.15,duration:800+Math.random()*2400,yoyo:true,repeat:-1,delay:Math.random()*2000});
+    }
+
+    // --- Moon with halo ---
+    this.add.circle(W-160,110,46,0xfff5cc,0.08);
+    this.add.circle(W-160,110,36,0xfff5cc,0.15);
+    this.add.circle(W-160,110,28,0xfff5cc,0.95);
+    this.add.circle(W-172,100,8,0xddd5a8,0.4);
+    this.add.circle(W-155,118,5,0xddd5a8,0.35);
+
+    // --- Distant mountain silhouettes ---
+    const mountains=this.add.graphics();
+    mountains.fillStyle(0x151525,1);
+    mountains.beginPath();
+    mountains.moveTo(0,470);
+    let mx=0;
+    while(mx<W+50){
+      const peak=420+((Math.sin(mx*0.013)*0.5+0.5)*70);
+      mountains.lineTo(mx+40,peak);
+      mountains.lineTo(mx+80,470);
+      mx+=80;
+    }
+    mountains.lineTo(W,470);mountains.lineTo(W,H);mountains.lineTo(0,H);mountains.closePath();
+    mountains.fillPath();
+    // Second layer mountains (closer, darker)
+    const mtn2=this.add.graphics();
+    mtn2.fillStyle(0x0a0a18,1);
+    mtn2.beginPath();
+    mtn2.moveTo(0,530);
+    let mx2=0;
+    while(mx2<W+50){
+      const peak=480+((Math.cos(mx2*0.019)*0.5+0.5)*60);
+      mtn2.lineTo(mx2+50,peak);
+      mtn2.lineTo(mx2+100,530);
+      mx2+=100;
+    }
+    mtn2.lineTo(W,530);mtn2.lineTo(W,H);mtn2.lineTo(0,H);mtn2.closePath();
+    mtn2.fillPath();
+
+    // --- Left castle silhouette (P1) ---
+    const castleL=this.add.graphics();
+    castleL.fillStyle(0x1a1a2a,1);
+    // Main keep
+    castleL.fillRect(70,440,130,260);
+    // Side towers
+    castleL.fillRect(45,410,38,290);castleL.fillRect(190,410,38,290);
+    // Front tower
+    castleL.fillRect(115,400,45,300);
+    // Crenellations
+    for(let i=0;i<5;i++)castleL.fillRect(70+i*26,430,14,14);
+    for(let i=0;i<3;i++)castleL.fillRect(118+i*14,390,9,11);
+    castleL.fillRect(45,396,10,14);castleL.fillRect(67,396,10,14);
+    castleL.fillRect(192,396,10,14);castleL.fillRect(214,396,10,14);
+    // Lit windows
+    castleL.fillStyle(0xffdd55,0.7);
+    castleL.fillRect(85,485,6,8);castleL.fillRect(110,485,6,8);
+    castleL.fillRect(155,485,6,8);castleL.fillRect(180,485,6,8);
+    castleL.fillRect(130,450,6,6);castleL.fillRect(145,450,6,6);
+    castleL.fillRect(55,470,5,7);castleL.fillRect(200,470,5,7);
+
+    // --- Right castle silhouette (P2) - mirrored ---
+    const castleR=this.add.graphics();
+    castleR.fillStyle(0x1a1a2a,1);
+    castleR.fillRect(W-200,440,130,260);
+    castleR.fillRect(W-83,410,38,290);castleR.fillRect(W-228,410,38,290);
+    castleR.fillRect(W-160,400,45,300);
+    for(let i=0;i<5;i++)castleR.fillRect(W-200+i*26,430,14,14);
+    for(let i=0;i<3;i++)castleR.fillRect(W-155+i*14,390,9,11);
+    castleR.fillRect(W-55,396,10,14);castleR.fillRect(W-77,396,10,14);
+    castleR.fillRect(W-202,396,10,14);castleR.fillRect(W-224,396,10,14);
+    castleR.fillStyle(0xffaa55,0.7);
+    castleR.fillRect(W-91,485,6,8);castleR.fillRect(W-116,485,6,8);
+    castleR.fillRect(W-161,485,6,8);castleR.fillRect(W-186,485,6,8);
+    castleR.fillRect(W-136,450,6,6);castleR.fillRect(W-151,450,6,6);
+    castleR.fillRect(W-60,470,5,7);castleR.fillRect(W-205,470,5,7);
+
+    // --- Team flags on castle tops (animated) ---
+    this.p1FlagGfx=this.add.graphics();
+    this.p2FlagGfx=this.add.graphics();
+
+    // --- Ground fog / mist ---
+    for(let i=0;i<8;i++){
+      const fog=this.add.ellipse(Math.random()*W,640+Math.random()*60,200+Math.random()*150,30,0x556680,0.08);
+      this.tweens.add({targets:fog,x:fog.x+(Math.random()-0.5)*60,duration:8000+Math.random()*4000,yoyo:true,repeat:-1});
+    }
+
+    // --- Rising embers (ambient particles) ---
+    if(this.textures.exists('particle')){
+      this.add.particles(0,0,'particle',{
+        x:{min:0,max:W},y:H+10,
+        lifespan:{min:3000,max:5000},
+        speedY:{min:-30,max:-70},
+        speedX:{min:-15,max:15},
+        scale:{start:0.6,end:0},
+        alpha:{start:0.9,end:0},
+        tint:[0xff6622,0xffaa22,0xff3300,0xffdd44],
+        frequency:150,
+        blendMode:'ADD'
+      });
+    }
+
+    // --- Title with layered drop-shadow + outline effect ---
+    const titleStyle={fontSize:'64px',fontFamily:'monospace',fontStyle:'bold'};
+    // Drop shadow
+    this.add.text(W/2+4,144,'CASTLE SIEGE',{...titleStyle,color:'#000000'}).setOrigin(0.5).setAlpha(0.7);
+    // Dark outline (offset in 4 directions)
+    this.add.text(W/2-2,139,'CASTLE SIEGE',{...titleStyle,color:'#3a2208'}).setOrigin(0.5);
+    this.add.text(W/2+2,139,'CASTLE SIEGE',{...titleStyle,color:'#3a2208'}).setOrigin(0.5);
+    this.add.text(W/2-2,141,'CASTLE SIEGE',{...titleStyle,color:'#3a2208'}).setOrigin(0.5);
+    this.add.text(W/2+2,141,'CASTLE SIEGE',{...titleStyle,color:'#3a2208'}).setOrigin(0.5);
+    // Main gold
+    this.titleText=this.add.text(W/2,140,'CASTLE SIEGE',{...titleStyle,color:'#ffd700'}).setOrigin(0.5);
+    // Highlight sheen
+    this.add.text(W/2,137,'CASTLE SIEGE',{...titleStyle,color:'#fff5cc'}).setOrigin(0.5).setAlpha(0.25);
+    // Pulsing glow
+    this.tweens.add({targets:this.titleText,scale:1.03,duration:1400,yoyo:true,repeat:-1,ease:'Sine.easeInOut'});
+
+    // Subtitle with shadow
+    this.add.text(W/2+1,186,'2-Player Tower Defense',{fontSize:'20px',fontFamily:'monospace',color:'#000000'}).setOrigin(0.5).setAlpha(0.7);
+    this.add.text(W/2,185,'2-Player Tower Defense',{fontSize:'20px',fontFamily:'monospace',color:'#ccccdd'}).setOrigin(0.5);
+
+    // VS badges
+    this.add.rectangle(W/2-200,246,32,32,0x000000).setAlpha(0.6);
     this.add.rectangle(W/2-200,245,30,30,0x3366cc);
-    this.add.text(W/2,247,'VS',{fontSize:'14px',fontFamily:'monospace',color:'#ffd700',fontStyle:'bold'}).setOrigin(0.5);
+    this.add.rectangle(W/2-200,245,30,30).setStrokeStyle(2,0x88aaff);
+    this.add.text(W/2,248,'VS',{fontSize:'16px',fontFamily:'monospace',color:'#000000',fontStyle:'bold'}).setOrigin(0.5).setAlpha(0.7);
+    this.vsText=this.add.text(W/2,247,'VS',{fontSize:'16px',fontFamily:'monospace',color:'#ffd700',fontStyle:'bold'}).setOrigin(0.5);
+    this.tweens.add({targets:this.vsText,scale:1.15,duration:800,yoyo:true,repeat:-1,ease:'Sine.easeInOut'});
+    this.add.rectangle(W/2+200,246,32,32,0x000000).setAlpha(0.6);
     this.add.rectangle(W/2+200,245,30,30,0xcc3366);
+    this.add.rectangle(W/2+200,245,30,30).setStrokeStyle(2,0xff88aa);
 
     this.add.text(W/2-200,295,'PLAYER 1 - Controller/Keyboard (Blue)',{fontSize:'14px',fontFamily:'monospace',color:'#3366cc'}).setOrigin(0.5);
     this.add.text(W/2+200,295,'PLAYER 2 - Mouse (Red)',{fontSize:'14px',fontFamily:'monospace',color:'#cc3366'}).setOrigin(0.5);
@@ -1760,11 +1900,41 @@ class TitleScene extends Phaser.Scene {
       });
     }
   }
-  update(){
+  update(time){
     this.p1ReadyText.setText(players[1].ready?'P1 READY':'P1 waiting...');
     this.p1ReadyText.setColor(players[1].ready?'#00ff00':'#555555');
     this.p2ReadyText.setText(players[2].ready?'P2 READY':'P2 waiting...');
     this.p2ReadyText.setColor(players[2].ready?'#00ff00':'#555555');
+
+    // Draw animated waving team flags on castle silhouettes
+    if(this.p1FlagGfx){
+      const t=time*0.003;
+      const drawFlag=(g,baseX,baseY,dark,main,light)=>{
+        g.clear();
+        // Pole
+        g.fillStyle(0x1a1a22,1);g.fillRect(baseX-1,baseY-40,2,40);
+        g.fillStyle(0xaa8030,1);g.fillRect(baseX-2,baseY-44,4,3);
+        g.fillStyle(0xffdd55,1);g.fillRect(baseX-1,baseY-44,2,1);
+        // Waving flag - rectangle with sine-driven edge
+        for(let fy=0;fy<18;fy++){
+          const wave=Math.sin(t+fy*0.3)*3;
+          const fw=22+wave;
+          g.fillStyle(dark,1);g.fillRect(baseX+2,baseY-40+fy,fw,1);
+          if(fy<16){g.fillStyle(main,1);g.fillRect(baseX+2,baseY-40+fy,fw-1,1);}
+          if(fy<2||fy>14){g.fillStyle(dark,1);g.fillRect(baseX+2,baseY-40+fy,fw-1,1);}
+        }
+        // Highlight (top row brighter)
+        for(let fy=1;fy<4;fy++){
+          const wave=Math.sin(t+fy*0.3)*3;
+          g.fillStyle(light,1);g.fillRect(baseX+2,baseY-40+fy,18+wave,1);
+        }
+        // Emblem (star/diamond)
+        g.fillStyle(0xffeeaa,1);
+        g.fillRect(baseX+10,baseY-30,4,6);g.fillRect(baseX+8,baseY-28,8,2);
+      };
+      drawFlag(this.p1FlagGfx,137,400,0x1a4080,0x2864cc,0x5599ff);
+      drawFlag(this.p2FlagGfx,W-137,400,0x801a40,0xcc2864,0xff5599);
+    }
 
     if(players[1].ready && players[2].ready){
       initAudio();
@@ -2184,6 +2354,42 @@ class GameScene extends Phaser.Scene {
     this.tweens.add({targets:txt,y:y-35,alpha:0,duration:800,onComplete:()=>txt.destroy()});
   }
 
+  showWaveBanner(title,subtitle){
+    const cx=W/2,cy=H/2-60;
+    // Dark backdrop band
+    const band=this.add.rectangle(cx,cy,W,80,0x000000,0.75).setDepth(100);
+    band.scaleY=0;
+    this.tweens.add({targets:band,scaleY:1,duration:180,ease:'Back.easeOut'});
+    // Top/bottom gold borders
+    const borderTop=this.add.rectangle(cx,cy-40,W,2,0xffd700,0.9).setDepth(101);
+    const borderBot=this.add.rectangle(cx,cy+40,W,2,0xffd700,0.9).setDepth(101);
+    borderTop.scaleX=0;borderBot.scaleX=0;
+    this.tweens.add({targets:[borderTop,borderBot],scaleX:1,duration:240,ease:'Quad.easeOut'});
+    // Main title (shadowed layered gold)
+    const shadow=this.add.text(cx+3,cy-11,title,{fontSize:'42px',fontFamily:'monospace',fontStyle:'bold',color:'#000000'}).setOrigin(0.5).setDepth(102).setAlpha(0.7);
+    const outline=this.add.text(cx,cy-14,title,{fontSize:'42px',fontFamily:'monospace',fontStyle:'bold',color:'#3a2208'}).setOrigin(0.5).setDepth(102);
+    const main=this.add.text(cx,cy-14,title,{fontSize:'42px',fontFamily:'monospace',fontStyle:'bold',color:'#ffd700'}).setOrigin(0.5).setDepth(103);
+    const hi=this.add.text(cx,cy-16,title,{fontSize:'42px',fontFamily:'monospace',fontStyle:'bold',color:'#fff5cc'}).setOrigin(0.5).setDepth(104).setAlpha(0.3);
+    // Subtitle
+    const sub=this.add.text(cx,cy+18,subtitle,{fontSize:'16px',fontFamily:'monospace',color:'#ffaa44'}).setOrigin(0.5).setDepth(102);
+    // Animate scale in
+    [shadow,outline,main,hi,sub].forEach(t=>{
+      t.scaleX=0.2;t.scaleY=0.2;
+      this.tweens.add({targets:t,scaleX:1,scaleY:1,duration:260,ease:'Back.easeOut'});
+    });
+    // Pulse and fade out
+    const all=[band,borderTop,borderBot,shadow,outline,main,hi,sub];
+    this.tweens.add({targets:main,scale:1.05,duration:600,yoyo:true,repeat:1,ease:'Sine.easeInOut'});
+    this.time.delayedCall(1600,()=>{
+      this.tweens.add({
+        targets:all,alpha:0,duration:400,
+        onComplete:()=>all.forEach(o=>o.destroy())
+      });
+    });
+    // Subtle camera shake
+    this.cameras.main.shake(180,0.002);
+  }
+
   // --- BUILD PHASE ---
   updateBuild(dt){
     buildTimer-=dt;
@@ -2394,6 +2600,7 @@ class GameScene extends Phaser.Scene {
     waveNum++;
     gameState='combat';
     sndWaveStart();
+    this.showWaveBanner('WAVE '+waveNum,waveNum>=MAX_WAVES?'FINAL ASSAULT':'INCOMING');
     spawnQueue1=[];spawnQueue2=[];spawnTimer=0;
     const base=5+waveNum*5;
     const baseQ={goblin:base,orc:Math.max(0,waveNum-1)*3,darkKnight:Math.max(0,waveNum-2)*2,archer:Math.max(0,waveNum-2)*2};
@@ -2510,6 +2717,65 @@ class GameScene extends Phaser.Scene {
     // HP bars above castle sprites
     this.drawCastleHp(g, 0, GAME_Y+5*T, 1);
     this.drawCastleHp(g, 38*T, GAME_Y+5*T, 2);
+
+    // Animated waving flags on top of both castles (time-based sine wave)
+    const t=this.game.loop.time*0.003;
+    this.drawCastleFlag(g, T, GAME_Y+5*T-8, 1, t);
+    this.drawCastleFlag(g, 38*T+T, GAME_Y+5*T-8, 2, t);
+  }
+
+  drawCastleFlag(g,px,py,owner,time){
+    const dark=owner===1?0x1a4080:0x801a40;
+    const main=owner===1?0x2864cc:0xcc2864;
+    const light=owner===1?0x5599ff:0xff5599;
+    // Flag pole (tall, at castle top)
+    g.fillStyle(0x1a1a22,1);g.fillRect(px-1,py-36,2,36);
+    g.fillStyle(0x555,1);g.fillRect(px-1,py-36,1,36);
+    // Gold finial
+    g.fillStyle(0x5a4010,1);g.fillRect(px-2,py-40,5,4);
+    g.fillStyle(0xaa8030,1);g.fillRect(px-2,py-40,4,3);
+    g.fillStyle(0xddaa40,1);g.fillRect(px-2,py-40,3,2);
+    g.fillStyle(0xffee99,1);g.fillRect(px-1,py-40,1,1);
+    // Waving rectangular flag using sine on each row
+    const flagW=26,flagH=18;
+    const mirror=owner===2?-1:1;
+    for(let fy=0;fy<flagH;fy++){
+      const wave=Math.sin(time+fy*0.35)*3;
+      const fw=flagW+wave;
+      // Dark backing
+      g.fillStyle(dark,1);
+      g.fillRect(px+2*mirror,py-36+fy,fw*mirror,1);
+    }
+    for(let fy=0;fy<flagH-2;fy++){
+      const wave=Math.sin(time+fy*0.35)*3;
+      const fw=flagW+wave-2;
+      g.fillStyle(main,1);
+      g.fillRect(px+2*mirror,py-36+fy,fw*mirror,1);
+    }
+    // Top-row highlight (brightest)
+    for(let fy=0;fy<3;fy++){
+      const wave=Math.sin(time+fy*0.35)*3;
+      const fw=flagW+wave-4;
+      g.fillStyle(light,1);
+      g.fillRect(px+2*mirror,py-36+fy,fw*mirror,1);
+    }
+    // Left-edge highlight strip (brightest)
+    for(let fy=0;fy<flagH-2;fy++){
+      g.fillStyle(light,1);
+      g.fillRect(px+2*mirror,py-36+fy,1*mirror,1);
+    }
+    // Pennant tails at bottom
+    const waveEnd=Math.sin(time+flagH*0.35)*3;
+    g.fillStyle(dark,1);
+    g.fillRect(px+2*mirror,py-36+flagH,(flagW/2+waveEnd)*mirror,3);
+    g.fillRect(px+(2+flagW/2)*mirror,py-36+flagH,(flagW/3)*mirror,2);
+    // Emblem (diamond/cross)
+    g.fillStyle(0xffeeaa,1);
+    g.fillRect(px+(11)*mirror,py-28,4*mirror,8);
+    g.fillRect(px+(9)*mirror,py-26,8*mirror,4);
+    g.fillStyle(0xfff7dd,1);
+    g.fillRect(px+(12)*mirror,py-27,2*mirror,6);
+    g.fillRect(px+(10)*mirror,py-25,6*mirror,2);
   }
 
   drawCastleHp(g,x,y,owner){
