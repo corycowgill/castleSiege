@@ -7,6 +7,27 @@
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:#0a0a1a;overflow:hidden;display:flex;justify-content:center;align-items:center;height:100vh;font-family:monospace}
 canvas{image-rendering:pixelated;image-rendering:crisp-edges}
+/* iPhone auto-landscape: when an iPhone is in portrait orientation, rotate the canvas 90deg
+   so the game displays in landscape without requiring the user to physically rotate. */
+html.ios-portrait, html.ios-portrait body {
+  overflow: hidden;
+  width: 100vw;
+  height: 100vh;
+}
+html.ios-portrait body {
+  display: block;
+}
+html.ios-portrait canvas {
+  position: fixed !important;
+  top: 50% !important;
+  left: 50% !important;
+  width: 100vh !important;
+  height: 100vw !important;
+  max-width: 100vh !important;
+  max-height: 100vw !important;
+  transform: translate(-50%, -50%) rotate(90deg) !important;
+  transform-origin: center center !important;
+}
 </style>
 <script src="phaser.min.js"></script>
 </head>
@@ -1043,92 +1064,361 @@ class BootScene extends Phaser.Scene {
       for(let col=0;col<COLS;col++){
         const px=col*T,py=r*T;
         const sv=seed(col,r);
+        const sv2=seed(col+200,r+200);
 
-        // Castle zones -> dark stone floor
+        // CASTLE STONE FLOOR (cols 0-1, 38-39)
         if(col<=1||col>=38){
-          const g=30+sv%15;
-          c.fillStyle=`rgb(${g},${g},${g+10})`;
+          const base=22+sv%10;
+          // Base dark stone
+          c.fillStyle=`rgb(${base},${base},${base+6})`;
           c.fillRect(px,py,T,T);
-          // Stone pattern
-          c.fillStyle=`rgb(${g+8},${g+8},${g+15})`;
-          c.fillRect(px+1,py+1,14,14);c.fillRect(px+17,py+17,14,14);
-          c.fillRect(px+17,py+1,14,14);c.fillRect(px+1,py+17,14,14);
-          c.fillStyle=`rgb(${g-5},${g-5},${g})`;
+          // 4 stone slabs (2x2 layout per tile)
+          c.fillStyle=`rgb(${base+12},${base+12},${base+18})`;
+          c.fillRect(px+1,py+1,14,14);c.fillRect(px+17,py+1,14,14);
+          c.fillRect(px+1,py+17,14,14);c.fillRect(px+17,py+17,14,14);
+          // Slab top-left highlight edges
+          c.fillStyle=`rgb(${base+22},${base+22},${base+28})`;
+          c.fillRect(px+1,py+1,14,1);c.fillRect(px+1,py+1,1,14);
+          c.fillRect(px+17,py+1,14,1);c.fillRect(px+17,py+1,1,14);
+          c.fillRect(px+1,py+17,14,1);c.fillRect(px+1,py+17,1,14);
+          c.fillRect(px+17,py+17,14,1);c.fillRect(px+17,py+17,1,14);
+          // Slab bottom-right shadow edges
+          c.fillStyle=`rgb(${base-4},${base-4},${base+2})`;
+          c.fillRect(px+1,py+14,14,1);c.fillRect(px+14,py+1,1,14);
+          c.fillRect(px+17,py+14,14,1);c.fillRect(px+30,py+1,1,14);
+          c.fillRect(px+1,py+30,14,1);c.fillRect(px+14,py+17,1,14);
+          c.fillRect(px+17,py+30,14,1);c.fillRect(px+30,py+17,1,14);
+          // Mortar cross (between slabs)
+          c.fillStyle=`rgb(${Math.max(0,base-10)},${Math.max(0,base-10)},${Math.max(0,base-4)})`;
           c.fillRect(px,py+15,T,2);c.fillRect(px+15,py,2,T);
+          c.fillRect(px,py,T,1);c.fillRect(px,py,1,T);
+          // Cracks on some slabs
+          if(sv%4===0){
+            c.fillStyle='rgba(10,10,15,0.65)';
+            c.fillRect(px+3+sv%8,py+4,1,4);
+            c.fillRect(px+4+sv%8,py+7,1,2);
+          }
+          // Moss in corners
+          if(sv2%5===0){
+            c.fillStyle='#2d4a1a';c.fillRect(px+1,py+1,3,2);c.fillRect(px+1,py+1,2,3);
+            c.fillStyle='#4a6a28';c.fillRect(px+1,py+1,2,1);
+          }
+          if(sv2%7===0){
+            c.fillStyle='#2d4a1a';c.fillRect(px+28,py+28,3,2);
+            c.fillStyle='#4a6a28';c.fillRect(px+29,py+29,1,1);
+          }
+          // Loose pebbles
+          if(sv2%6===0){
+            c.fillStyle=`rgb(${base+28},${base+28},${base+32})`;
+            c.fillRect(px+5+sv%18,py+5+sv%18,2,2);
+            c.fillStyle=`rgb(${base+18},${base+18},${base+24})`;
+            c.fillRect(px+5+sv%18,py+6+sv%18,2,1);
+          }
           continue;
         }
 
-        // Road/battlefield center (rows 7-10) -> dirt/mud path
+        // DIRT ROAD (rows 7-10) - deeply textured mud path
         if(r>=7&&r<=10){
-          const g=100+sv%20;
-          c.fillStyle=`rgb(${g},${g-15},${g-35})`;
+          const g=92+sv%25;
+          // Base mud tone
+          c.fillStyle=`rgb(${g},${g-20},${g-42})`;
           c.fillRect(px,py,T,T);
-          // Dirt texture variation
-          if(sv%3===0){c.fillStyle=`rgb(${g+10},${g-5},${g-25})`;c.fillRect(px+sv%8,py+sv%12,12,8)}
-          if(sv%5===0){c.fillStyle=`rgb(${g-10},${g-25},${g-40})`;c.fillRect(px+sv%14,py+sv%10,8,6)}
-          // Occasional track marks
-          if(sv%7===0){c.fillStyle='rgba(60,40,20,0.3)';c.fillRect(px+2,py+14,28,4)}
+          // Lighter dirt patch
+          if(sv%3===0){
+            c.fillStyle=`rgb(${g+18},${g-4},${g-28})`;
+            c.fillRect(px+sv%10,py+sv%14,14,10);
+          }
+          // Darker wet patch
+          if(sv%4===0){
+            c.fillStyle=`rgb(${Math.max(0,g-28)},${Math.max(0,g-38)},${Math.max(0,g-52)})`;
+            c.fillRect(px+sv%14,py+sv%12,10,8);
+          }
+          // Mud puddle with reflective sheen
+          if(sv%9===0){
+            c.fillStyle='rgba(25,15,5,0.55)';
+            c.fillRect(px+3,py+9,26,16);
+            c.fillStyle='rgba(15,8,2,0.55)';
+            c.fillRect(px+5,py+11,22,12);
+            c.fillStyle='rgba(150,125,85,0.28)';
+            c.fillRect(px+9,py+13,14,2);
+          }
+          // Wheel ruts (horizontal)
+          if(sv%5<=1){
+            c.fillStyle='rgba(35,22,6,0.45)';
+            c.fillRect(px,py+9,T,3);
+            c.fillRect(px,py+20,T,3);
+            c.fillStyle='rgba(60,40,15,0.35)';
+            c.fillRect(px,py+9,T,1);c.fillRect(px,py+20,T,1);
+          }
+          // Hoofprints
+          if(sv%11===0){
+            c.fillStyle='rgba(20,12,4,0.6)';
+            const hx=px+2+sv%24,hy=py+2+sv%24;
+            c.fillRect(hx,hy,3,2);c.fillRect(hx+1,hy-1,1,1);c.fillRect(hx+1,hy+2,1,1);
+          }
+          // Small embedded stones
+          if(sv2%6===0){
+            const sc=115+sv2%25;
+            c.fillStyle=`rgb(${sc-15},${sc-15},${sc-8})`;
+            c.fillRect(px+sv2%26,py+sv2%26,3,2);
+            c.fillStyle=`rgb(${sc+5},${sc+5},${sc+12})`;
+            c.fillRect(px+sv2%26,py+sv2%26,2,1);
+          }
+          // Cracked dry earth scribbles
+          if(sv2%13===0){
+            c.fillStyle='rgba(25,15,5,0.4)';
+            c.fillRect(px+3,py+5,8,1);c.fillRect(px+10,py+5,1,3);
+            c.fillRect(px+14,py+15,6,1);c.fillRect(px+18,py+14,1,3);
+          }
           continue;
         }
 
-        // Transition rows near road
+        // TRANSITION ROWS (row 6 and 11) - grass bleeding into dirt
         if(r===6||r===11){
-          const gG=55+sv%20,gD=90+sv%15;
-          c.fillStyle=`rgb(${gG+15},${gG+30},${gG})`;c.fillRect(px,py,T,T);
-          c.fillStyle=`rgba(${gD},${gD-15},${gD-35},0.4)`;
+          const gv=55+sv%22;
+          // Grass base
+          c.fillStyle=`rgb(${gv},${gv+28+sv%12},${gv-10})`;
+          c.fillRect(px,py,T,T);
+          // Grass blade clusters
+          c.fillStyle=`rgb(${gv-5},${gv+32},${gv-15})`;
+          c.fillRect(px+sv%10,py+sv%10,8,5);
+          c.fillRect(px+16+sv%10,py+sv%10,6,5);
+          // Dirt encroachment from road side
+          const gD=88+sv%20;
+          c.fillStyle=`rgba(${gD},${gD-20},${gD-42},0.7)`;
           if(r===6)c.fillRect(px,py+T/2,T,T/2);
           else c.fillRect(px,py,T,T/2);
+          // Scattered dirt clumps
+          c.fillStyle=`rgba(${gD-15},${gD-35},${gD-55},0.75)`;
+          if(r===6){
+            c.fillRect(px+2+sv%12,py+T/2+2,6,4);
+            c.fillRect(px+18+sv%8,py+T/2+6,6,4);
+          }else{
+            c.fillRect(px+2+sv%12,py+2,6,4);
+            c.fillRect(px+18+sv%8,py+6,6,4);
+          }
+          // Grass tufts poking through
+          if(sv%3===0){
+            c.fillStyle=`rgb(${gv-10},${gv+22},${gv-20})`;
+            const ty=r===6?py+T-6:py+2;
+            c.fillRect(px+sv%26,ty,2,4);c.fillRect(px+sv%26+2,ty+1,1,3);
+          }
           continue;
         }
 
-        // Default: grass
+        // DEFAULT: GRASS
         const gv=55+sv%25;
+        // Base green
         c.fillStyle=`rgb(${gv},${gv+25+sv%15},${gv-10})`;
         c.fillRect(px,py,T,T);
-        // Grass texture details
+        // Layered grass patches
         const g2=seed(col+100,r+100);
-        if(g2%4===0){c.fillStyle=`rgb(${gv+10},${gv+35},${gv})`;c.fillRect(px+g2%12,py+g2%14,10,8)}
-        if(g2%6===0){c.fillStyle=`rgb(${gv-8},${gv+15},${gv-15})`;c.fillRect(px+g2%16,py+g2%10,6,6)}
+        if(g2%4===0){
+          c.fillStyle=`rgb(${gv+12},${gv+38},${gv-2})`;
+          c.fillRect(px+g2%12,py+g2%14,12,9);
+        }
+        if(g2%6===0){
+          c.fillStyle=`rgb(${Math.max(0,gv-8)},${gv+15},${Math.max(0,gv-15)})`;
+          c.fillRect(px+g2%16,py+g2%10,7,6);
+        }
+        // Individual blade highlights
+        if(g2%3===0){
+          c.fillStyle=`rgb(${gv+28},${gv+48},${gv+8})`;
+          const bx=px+g2%28,by=py+g2%26;
+          c.fillRect(bx,by,1,3);c.fillRect(bx+2,by+1,1,2);c.fillRect(bx+4,by,1,3);
+        }
+        // Dirt patch
+        if(g2%9===0){
+          c.fillStyle=`rgb(${75+g2%20},${60+g2%15},${40+g2%15})`;
+          c.fillRect(px+g2%18,py+g2%18,8,6);
+          c.fillStyle=`rgb(${85+g2%20},${70+g2%15},${50+g2%15})`;
+          c.fillRect(px+g2%18,py+g2%18,8,1);
+        }
+        // Dry grass patch
+        if(g2%11===0){
+          c.fillStyle=`rgb(${gv+32},${gv+32},${gv-18})`;
+          c.fillRect(px+g2%20,py+g2%20,6,5);
+        }
       }
     }
 
-    // Grass tufts and flowers (small details scattered across grass areas)
-    for(let i=0;i<120;i++){
-      const dx=rnd(2,38)*T+rnd(0,T);
+    // ============ SCATTER DECORATIONS (grass areas) ============
+    for(let i=0;i<280;i++){
+      const dxTile=Math.floor(rnd(2,38));
       const dr=Math.floor(rnd(0,ROWS));
       if(dr>=6&&dr<=11)continue;
-      const dy=dr*T+rnd(0,T);
-      const sv=seed(i*7,i*13);
-      if(sv%3===0){
-        // Small grass tuft
-        c.fillStyle=`rgb(${60+sv%20},${100+sv%30},${40+sv%15})`;
-        c.fillRect(dx,dy,2,4);c.fillRect(dx+3,dy+1,2,3);c.fillRect(dx-2,dy+1,2,3);
-      }else if(sv%5===0){
-        // Tiny flower
-        const fc=['#ff6','#f9f','#6cf','#fa0'][sv%4];
-        c.fillStyle=fc;c.fillRect(dx,dy,2,2);
-        c.fillStyle='#4a4';c.fillRect(dx,dy+2,1,3);
-      }else if(sv%8===0){
-        // Small rock
-        c.fillStyle=`rgb(${80+sv%20},${80+sv%20},${85+sv%20})`;
-        c.fillRect(dx,dy,4+sv%4,3+sv%2);
+      const dx=dxTile*T+Math.floor(rnd(1,T-5));
+      const dy=dr*T+Math.floor(rnd(1,T-5));
+      const sv=seed(i*7+13,i*13+7);
+      const kind=sv%12;
+      if(kind<3){
+        // Small grass tuft with shading
+        c.fillStyle=`rgb(${60+sv%18},${105+sv%28},${40+sv%14})`;
+        c.fillRect(dx,dy+1,1,3);c.fillRect(dx+1,dy,1,4);
+        c.fillRect(dx+2,dy+1,1,3);c.fillRect(dx-1,dy+2,1,2);c.fillRect(dx+3,dy+2,1,2);
+        c.fillStyle=`rgb(${82+sv%18},${135+sv%28},${52+sv%14})`;
+        c.fillRect(dx+1,dy,1,2);
+      }else if(kind<5){
+        // Flower with stem
+        const fc=['#ffee44','#ff99ee','#66ccff','#ffaa22','#ffffff','#ff6688'][sv%6];
+        c.fillStyle='#3a6a1a';c.fillRect(dx,dy+3,1,4);c.fillRect(dx+3,dy+3,1,4);
+        c.fillStyle='#5a8a28';c.fillRect(dx,dy+3,1,2);c.fillRect(dx+3,dy+3,1,2);
+        c.fillStyle=fc;c.fillRect(dx-1,dy+1,3,2);c.fillRect(dx+2,dy+1,3,2);
+        c.fillStyle='#ffffff';c.fillRect(dx,dy+1,1,1);c.fillRect(dx+3,dy+1,1,1);
+        c.fillStyle='#ffeb99';c.fillRect(dx,dy+2,1,1);c.fillRect(dx+3,dy+2,1,1);
+      }else if(kind<7){
+        // Small rock with shading
+        const rs=78+sv%28;
+        c.fillStyle='#2a2a2e';c.fillRect(dx,dy+1,6,4);c.fillRect(dx+1,dy,4,1);
+        c.fillStyle=`rgb(${rs-12},${rs-12},${rs-6})`;c.fillRect(dx,dy+1,5,3);
+        c.fillStyle=`rgb(${rs},${rs},${rs+6})`;c.fillRect(dx+1,dy+1,4,2);
+        c.fillStyle=`rgb(${rs+18},${rs+18},${rs+24})`;c.fillRect(dx+1,dy+1,2,1);
+      }else if(kind<8){
+        // Tree stump
+        c.fillStyle='#2a1a08';c.fillRect(dx-1,dy,7,4);c.fillRect(dx,dy-1,5,6);
+        c.fillStyle='#5a3a14';c.fillRect(dx,dy,6,3);c.fillRect(dx+1,dy-1,4,1);
+        c.fillStyle='#7a5a28';c.fillRect(dx+1,dy,5,2);
+        c.fillStyle='#8b6914';c.fillRect(dx+1,dy,4,1);
+        // Ring
+        c.fillStyle='#3a2208';c.fillRect(dx+2,dy+1,2,1);
+      }else if(kind<9){
+        // Bush
+        c.fillStyle='#1a3a08';c.fillRect(dx,dy+1,7,5);c.fillRect(dx+1,dy,5,1);
+        c.fillStyle='#2a4a12';c.fillRect(dx,dy+1,6,4);c.fillRect(dx+1,dy,4,1);
+        c.fillStyle='#3a6a1a';c.fillRect(dx+1,dy+1,4,2);c.fillRect(dx+2,dy,2,1);
+        c.fillStyle='#5a8a28';c.fillRect(dx+1,dy+1,2,1);
+      }else if(kind<10){
+        // Mushroom
+        c.fillStyle='#f5f0e0';c.fillRect(dx+1,dy+2,2,3);
+        c.fillStyle='#d8d0b8';c.fillRect(dx+2,dy+2,1,3);
+        c.fillStyle='#6a1010';c.fillRect(dx-1,dy,5,2);c.fillRect(dx,dy-1,3,1);
+        c.fillStyle='#c02020';c.fillRect(dx-1,dy,4,2);c.fillRect(dx,dy-1,3,1);
+        c.fillStyle='#ffffff';c.fillRect(dx,dy,1,1);c.fillRect(dx+2,dy+1,1,1);
+      }else{
+        // Twig
+        c.fillStyle='#3a2208';c.fillRect(dx,dy+1,5,1);
+        c.fillStyle='#5a3a14';c.fillRect(dx,dy,5,1);
+        c.fillRect(dx+2,dy-1,1,2);
       }
     }
 
-    // Road edge markers (subtle stone borders)
-    c.fillStyle='rgba(80,70,60,0.4)';
-    for(let col=2;col<38;col++){
-      c.fillRect(col*T,6*T+T-2,T,2);
-      c.fillRect(col*T,11*T,T,2);
+    // ============ ROAD DEBRIS (bones, arrows, shields, skulls) ============
+    for(let i=0;i<90;i++){
+      const dxTile=Math.floor(rnd(3,37));
+      const dr=7+Math.floor(rnd(0,4));
+      const dx=dxTile*T+Math.floor(rnd(2,T-10));
+      const dy=dr*T+Math.floor(rnd(2,T-10));
+      const sv=seed(i*17+3,i*23+5);
+      const kind=sv%12;
+      if(kind<3){
+        // Broken arrow
+        c.fillStyle='#2a1a08';c.fillRect(dx,dy+2,6,1);
+        c.fillStyle='#8b6914';c.fillRect(dx,dy+1,6,1);
+        c.fillStyle='#a07828';c.fillRect(dx+1,dy+1,4,1);
+        c.fillStyle='#888';c.fillRect(dx+6,dy,2,3);
+        c.fillStyle='#bbb';c.fillRect(dx+6,dy,1,1);
+        c.fillStyle='#c84040';c.fillRect(dx-2,dy,1,3);c.fillRect(dx-1,dy+1,1,1);
+      }else if(kind<5){
+        // Bone
+        c.fillStyle='#b8a878';c.fillRect(dx,dy,2,4);c.fillRect(dx+5,dy,2,4);c.fillRect(dx+1,dy+1,5,2);
+        c.fillStyle='#d8cfa8';c.fillRect(dx,dy,2,3);c.fillRect(dx+5,dy,2,3);c.fillRect(dx+1,dy+1,5,1);
+        c.fillStyle='#f0e8c0';c.fillRect(dx,dy,1,2);c.fillRect(dx+5,dy,1,2);
+        c.fillStyle='#786840';c.fillRect(dx,dy+3,2,1);c.fillRect(dx+5,dy+3,2,1);
+      }else if(kind<6){
+        // Skull
+        c.fillStyle='#786840';c.fillRect(dx,dy,7,6);
+        c.fillStyle='#b8a878';c.fillRect(dx,dy,6,5);
+        c.fillStyle='#d8cfa8';c.fillRect(dx,dy,5,4);
+        c.fillStyle='#f0e8c0';c.fillRect(dx,dy,3,2);
+        // Eye sockets
+        c.fillStyle='#0a0a0a';c.fillRect(dx+1,dy+1,1,2);c.fillRect(dx+4,dy+1,1,2);
+        // Jaw
+        c.fillStyle='#1a1a1a';c.fillRect(dx+2,dy+4,2,1);
+      }else if(kind<8){
+        // Battle crater
+        c.fillStyle='rgba(18,10,2,0.6)';
+        c.fillRect(dx-3,dy-1,11,7);c.fillRect(dx-2,dy-2,9,9);
+        c.fillStyle='rgba(8,4,1,0.7)';
+        c.fillRect(dx-1,dy,7,5);c.fillRect(dx,dy-1,5,7);
+        c.fillStyle='rgba(100,75,35,0.35)';
+        c.fillRect(dx-3,dy-1,11,1);c.fillRect(dx-2,dy-2,9,1);
+      }else if(kind<9){
+        // Shield fragment
+        c.fillStyle='#2a1a08';c.fillRect(dx,dy,6,7);
+        c.fillStyle='#5a3a14';c.fillRect(dx,dy,5,6);
+        c.fillStyle='#7a5a28';c.fillRect(dx,dy,4,5);
+        c.fillStyle='#884422';c.fillRect(dx+1,dy+1,3,4);
+        c.fillStyle='#aa5533';c.fillRect(dx+1,dy+1,2,3);
+        // Metal rim
+        c.fillStyle='#888';c.fillRect(dx,dy,1,6);c.fillRect(dx,dy,5,1);
+        c.fillStyle='#ccc';c.fillRect(dx,dy,3,1);
+        // Center boss
+        c.fillStyle='#444';c.fillRect(dx+2,dy+2,2,2);
+        c.fillStyle='#aaa';c.fillRect(dx+2,dy+2,1,1);
+      }else if(kind<10){
+        // Broken sword
+        c.fillStyle='#333';c.fillRect(dx,dy+1,8,2);
+        c.fillStyle='#888';c.fillRect(dx,dy+1,8,1);
+        c.fillStyle='#ccc';c.fillRect(dx+1,dy+1,6,1);
+        c.fillStyle='#5a3a14';c.fillRect(dx+7,dy,2,3);
+        c.fillStyle='#7a5a28';c.fillRect(dx+7,dy,1,3);
+        // Broken jagged end
+        c.fillStyle='#444';c.fillRect(dx-1,dy+2,1,1);
+      }else{
+        // Helmet
+        c.fillStyle='#1a1a1e';c.fillRect(dx,dy+1,7,4);c.fillRect(dx+1,dy,5,1);
+        c.fillStyle='#3a3a44';c.fillRect(dx,dy+1,6,3);c.fillRect(dx+1,dy,5,1);
+        c.fillStyle='#555';c.fillRect(dx+1,dy+1,5,2);
+        c.fillStyle='#777';c.fillRect(dx+1,dy+1,4,1);
+        // Visor slit
+        c.fillStyle='#0a0a0a';c.fillRect(dx+2,dy+2,3,1);
+      }
     }
 
-    // Subtle battle scars on the road
-    c.strokeStyle='rgba(40,30,15,0.2)';c.lineWidth=1;
-    for(let i=0;i<8;i++){
+    // ============ CURB STONES (road edges) ============
+    for(let col=2;col<38;col++){
+      const sv=seed(col,100);
+      // Top edge stone curb
+      c.fillStyle=`rgba(${80+sv%20},${70+sv%20},${55+sv%15},0.55)`;
+      c.fillRect(col*T,6*T+T-3,T,3);
+      c.fillStyle=`rgba(${115+sv%20},${105+sv%20},${85+sv%15},0.5)`;
+      c.fillRect(col*T,6*T+T-3,T,1);
+      // Bottom edge
+      c.fillStyle=`rgba(${80+sv%20},${70+sv%20},${55+sv%15},0.55)`;
+      c.fillRect(col*T,11*T,T,3);
+      c.fillStyle=`rgba(${115+sv%20},${105+sv%20},${85+sv%15},0.5)`;
+      c.fillRect(col*T,11*T,T,1);
+      // Distinct curb blocks
+      if(sv%3===0){
+        c.fillStyle=`rgb(${105+sv%20},${95+sv%20},${78+sv%15})`;
+        c.fillRect(col*T+sv%18,6*T+T-4,5,2);
+        c.fillRect(col*T+(sv+7)%18,11*T+2,5,2);
+        c.fillStyle=`rgb(${85+sv%20},${75+sv%20},${60+sv%15})`;
+        c.fillRect(col*T+sv%18,6*T+T-2,5,1);
+        c.fillRect(col*T+(sv+7)%18,11*T+3,5,1);
+      }
+    }
+
+    // ============ BATTLE SCARS (cart tracks, scratches on road) ============
+    c.strokeStyle='rgba(35,22,8,0.35)';c.lineWidth=1;
+    for(let i=0;i<18;i++){
       c.beginPath();
-      let cx2=rnd(4,36)*T,cy2=rnd(7,10)*T;
+      let cx2=rnd(4,36)*T,cy2=7*T+rnd(4,4*T-4);
       c.moveTo(cx2,cy2);
-      for(let s=0;s<rnd(2,4)|0;s++){cx2+=rnd(-20,20);cy2+=rnd(-8,8);c.lineTo(cx2,cy2)}
+      for(let s=0;s<(rnd(2,5)|0);s++){
+        cx2+=rnd(-25,25);cy2+=rnd(-10,10);c.lineTo(cx2,cy2);
+      }
+      c.stroke();
+    }
+    // Long cart tracks running along road
+    c.strokeStyle='rgba(30,18,5,0.3)';c.lineWidth=2;
+    for(let lane=0;lane<3;lane++){
+      c.beginPath();
+      const ly=7*T+8+lane*12;
+      c.moveTo(2*T,ly);
+      for(let x=2*T;x<38*T;x+=60){
+        c.lineTo(x,ly+rnd(-2,2));
+      }
       c.stroke();
     }
 
@@ -1145,10 +1435,76 @@ class BootScene extends Phaser.Scene {
 
   generateProjectileTextures(){
     const defs = {
-      proj_arrow: (c)=>{c.fillStyle='#ddd';c.fillRect(1,3,6,2);c.fillStyle='#aaa';c.fillRect(6,2,2,4);c.fillStyle='#8b6914';c.fillRect(0,3,2,2)},
-      proj_magic: (c)=>{c.fillStyle='#cf6fff';c.fillRect(2,2,4,4);c.fillStyle='#e8aaff';c.fillRect(3,3,2,2);c.fillStyle='#fff';c.fillRect(3,3,1,1)},
-      proj_boulder: (c)=>{c.fillStyle='#777';c.fillRect(1,1,6,6);c.fillStyle='#999';c.fillRect(2,2,4,4);c.fillStyle='#666';c.fillRect(1,1,2,2)},
-      proj_cannonball: (c)=>{c.fillStyle='#333';c.fillRect(2,2,4,4);c.fillStyle='#555';c.fillRect(3,2,2,1);c.fillStyle='#f80';c.fillRect(5,3,2,2)},
+      // ARROW - wooden shaft with iron head and red fletching
+      proj_arrow: (c)=>{
+        // Shaft (horizontal, shaded)
+        c.fillStyle='#3a2208';c.fillRect(1,4,5,1);
+        c.fillStyle='#6b4e1e';c.fillRect(1,3,5,1);
+        c.fillStyle='#8b6914';c.fillRect(2,3,3,1);
+        // Iron arrowhead (pointing right)
+        c.fillStyle='#222';c.fillRect(5,2,1,4);
+        c.fillStyle='#555';c.fillRect(5,2,2,4);
+        c.fillStyle='#888';c.fillRect(5,2,2,2);
+        c.fillStyle='#bbb';c.fillRect(5,2,1,1);
+        c.fillStyle='#222';c.fillRect(7,3,1,2);
+        // Fletching (left side)
+        c.fillStyle='#882020';c.fillRect(0,2,2,1);c.fillRect(0,5,2,1);
+        c.fillStyle='#c84040';c.fillRect(0,2,1,1);c.fillRect(0,5,1,1);
+        c.fillStyle='#e86060';c.fillRect(0,3,1,2);
+      },
+      // MAGIC - glowing arcane orb with aura and hotspot
+      proj_magic: (c)=>{
+        // Outer aura
+        c.fillStyle='rgba(207,111,255,0.35)';c.fillRect(1,1,6,6);
+        c.fillStyle='rgba(207,111,255,0.5)';c.fillRect(1,2,6,4);c.fillRect(2,1,4,6);
+        // Dark core ring
+        c.fillStyle='#4a0f6f';c.fillRect(2,1,4,6);c.fillRect(1,2,6,4);
+        // Main body
+        c.fillStyle='#9b4fcf';c.fillRect(2,2,4,4);c.fillRect(1,3,6,2);
+        // Bright inner
+        c.fillStyle='#cf6fff';c.fillRect(2,3,4,2);c.fillRect(3,2,2,4);
+        // Hotspot highlight
+        c.fillStyle='#f0c8ff';c.fillRect(3,3,2,1);
+        c.fillStyle='#ffffff';c.fillRect(3,3,1,1);
+      },
+      // BOULDER - rough stone with cracks and shading
+      proj_boulder: (c)=>{
+        // Dark outline
+        c.fillStyle='#1a1a1a';c.fillRect(0,1,8,6);c.fillRect(1,0,6,8);
+        // Base stone
+        c.fillStyle='#3a3a3a';c.fillRect(1,1,6,6);c.fillRect(0,2,8,4);
+        c.fillStyle='#555';c.fillRect(1,1,6,5);
+        c.fillStyle='#777';c.fillRect(1,1,5,4);
+        // Highlight (upper-left)
+        c.fillStyle='#999';c.fillRect(1,1,4,2);
+        c.fillStyle='#bbb';c.fillRect(2,1,2,1);
+        c.fillStyle='#dadada';c.fillRect(2,1,1,1);
+        // Cracks
+        c.fillStyle='#222';c.fillRect(4,2,1,2);c.fillRect(3,4,2,1);
+        c.fillStyle='#2a2a2a';c.fillRect(5,5,1,1);
+        // Shadow (lower-right)
+        c.fillStyle='#1a1a1a';c.fillRect(5,5,2,1);c.fillRect(6,4,1,2);
+      },
+      // CANNONBALL - iron sphere with fire trail
+      proj_cannonball: (c)=>{
+        // Fire trail (left)
+        c.fillStyle='#4a0800';c.fillRect(0,2,2,4);
+        c.fillStyle='#ff4400';c.fillRect(0,3,2,2);
+        c.fillStyle='#ff8800';c.fillRect(0,3,1,2);
+        c.fillStyle='#ffdd00';c.fillRect(0,3,1,1);
+        // Dark outline
+        c.fillStyle='#050505';c.fillRect(1,1,7,6);c.fillRect(2,0,5,8);
+        // Iron sphere body
+        c.fillStyle='#222';c.fillRect(2,1,5,6);c.fillRect(1,2,7,4);
+        c.fillStyle='#444';c.fillRect(2,2,5,4);
+        c.fillStyle='#666';c.fillRect(2,2,4,3);
+        // Specular highlight (upper-left)
+        c.fillStyle='#888';c.fillRect(2,2,3,1);
+        c.fillStyle='#aaa';c.fillRect(2,2,2,1);
+        c.fillStyle='#ccc';c.fillRect(2,2,1,1);
+        // Shadow (lower-right)
+        c.fillStyle='#111';c.fillRect(5,5,2,1);c.fillRect(6,4,1,2);
+      },
     };
     for(const[id,fn] of Object.entries(defs)){
       const canvas=document.createElement('canvas');canvas.width=8;canvas.height=8;
@@ -2358,7 +2714,27 @@ const config = {
   scene: [BootScene, TitleScene, HelpScene, GameScene, HUDScene, GameOverScene]
 };
 
-new Phaser.Game(config);
+// --- iPhone auto-landscape detection ---
+// When an iPhone is detected and the device is held in portrait, rotate the
+// canvas 90deg via CSS so the game appears in landscape automatically.
+(function iPhoneLandscape(){
+  const ua = navigator.userAgent || '';
+  const isIPhone = /iPhone|iPod/i.test(ua);
+  if(!isIPhone) return;
+  function apply(){
+    const portrait = window.innerHeight > window.innerWidth;
+    document.documentElement.classList.toggle('ios-portrait', portrait);
+    // Give Phaser's ScaleManager a chance to re-measure after CSS changes
+    if(window.game && window.game.scale && typeof window.game.scale.refresh==='function'){
+      setTimeout(()=>window.game.scale.refresh(),50);
+    }
+  }
+  window.addEventListener('resize', apply);
+  window.addEventListener('orientationchange', ()=>setTimeout(apply,100));
+  apply();
+})();
+
+window.game = new Phaser.Game(config);
 </script>
 </body>
 </html>
