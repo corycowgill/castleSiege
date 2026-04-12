@@ -40,6 +40,8 @@ html.ios-portrait canvas {
 // ============================================================
 
 // --- CONFIGURATION ---
+const GAME_VERSION = 'v1.7';
+const BUILD_DATE = '2026-04-12';
 const W = 1280, H = 720, T = 32, COLS = 40, ROWS = 18;
 const HUD_TOP = 48, HUD_BOT = 96, GAME_Y = HUD_TOP;
 const BUILD_TIME = 45, MAX_WAVES = 5, CASTLE_HP = 2500, START_CREDITS = 1000;
@@ -1885,6 +1887,12 @@ class TitleScene extends Phaser.Scene {
     helpBtn.on('pointerdown',()=>this.scene.start('Help'));
     this.input.keyboard.on('keydown-H',()=>this.scene.start('Help'));
 
+    // Version footer (bottom-right of main menu)
+    this.add.text(W-12,H-26,GAME_VERSION,{fontSize:'14px',fontFamily:'monospace',fontStyle:'bold',color:'#ffd700'}).setOrigin(1,0.5);
+    this.add.text(W-12,H-10,'Build '+BUILD_DATE,{fontSize:'10px',fontFamily:'monospace',color:'#aaaaaa'}).setOrigin(1,0.5);
+    // Centered credit line above version
+    this.add.text(W/2,H-14,'Phaser 3 \u2022 Procedural Pixel Art',{fontSize:'10px',fontFamily:'monospace',color:'#555566'}).setOrigin(0.5);
+
     this.input.on('pointerdown',()=>{
       if(!audioCtx)initAudio();
       players[2].ready=true;
@@ -2354,6 +2362,32 @@ class GameScene extends Phaser.Scene {
     this.tweens.add({targets:txt,y:y-35,alpha:0,duration:800,onComplete:()=>txt.destroy()});
   }
 
+  flashCastle(owner){
+    const sprite=owner===1?this.castleSprite1:this.castleSprite2;
+    if(!sprite)return;
+    // Red damage tint
+    sprite.setTint(0xff4444);
+    this.time.delayedCall(140,()=>sprite.clearTint());
+    // Sprite shake (position wobble)
+    const origX=sprite.x;
+    const origY=sprite.y;
+    this.tweens.killTweensOf(sprite);
+    this.tweens.add({
+      targets:sprite,
+      x:origX+4,
+      y:origY+2,
+      duration:40,
+      yoyo:true,
+      repeat:3,
+      onComplete:()=>{sprite.x=origX;sprite.y=origY;}
+    });
+    // Impact sparks across the castle's vertical range
+    const cx=sprite.x,cy=sprite.y;
+    for(let i=0;i<3;i++){
+      this.spawnParticles(cx+rnd(-20,20),cy+rnd(-100,100),0xff6622,6,60);
+    }
+  }
+
   showWaveBanner(title,subtitle){
     const cx=W/2,cy=H/2-60;
     // Dark backdrop band
@@ -2498,8 +2532,11 @@ class GameScene extends Phaser.Scene {
         const target=e.owner===1?players[2]:players[1];
         target.castleHP-=e.dmg;
         this.spawnDmgNumber(e.x,e.y,'-'+e.dmg,'#ff8800');
-        this.spawnParticles(e.x,e.y,0xff4400,5,60);
-        this.cameras.main.shake(100,0.003);
+        this.spawnParticles(e.x,e.y,0xff4400,8,80);
+        this.spawnParticles(e.x,e.y,0xffaa00,5,60);
+        this.cameras.main.shake(140,0.005);
+        // Flash and shake the victim castle
+        this.flashCastle(e.owner===1?2:1);
         e.alive=false;continue;
       }
       const tgt=e.path[e.pathIdx];
@@ -2660,6 +2697,9 @@ class GameScene extends Phaser.Scene {
     }
 
     enemies.push(enemy);
+    // Spawn dust puff effect
+    this.spawnParticles(enemy.x,enemy.y+6,0xa08850,8,40);
+    this.spawnParticles(enemy.x,enemy.y+8,0x6a5030,5,30);
   }
 
   restartGame(){
