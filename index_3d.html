@@ -409,7 +409,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0604}
     </div>
     <div style="margin-top:16px;display:flex;justify-content:space-between;align-items:center;font-family:'Cinzel',monospace;font-size:11px;opacity:0.85">
       <span style="color:#555">Three.js &bull; Procedural</span>
-      <span style="color:#ffd700;font-weight:bold;letter-spacing:1px">v2.3 &bull; Build 2026-04-12</span>
+      <span style="color:#ffd700;font-weight:bold;letter-spacing:1px">v2.4 &bull; Build 2026-04-12</span>
     </div>
   </div>
 </div>
@@ -755,7 +755,8 @@ function initScene(container){
   sun.position.set(15,25,-10);sun.castShadow=true;
   sun.shadow.camera.left=-25;sun.shadow.camera.right=25;
   sun.shadow.camera.top=15;sun.shadow.camera.bottom=-15;
-  sun.shadow.mapSize.width=2048;sun.shadow.mapSize.height=2048;
+  // PERF: shadow map reduced from 2048 to 1024 (4x less GPU cost per frame)
+  sun.shadow.mapSize.width=1024;sun.shadow.mapSize.height=1024;
   sun.shadow.bias=-0.0005;
   scene.add(sun);
   const fill=new THREE.DirectionalLight(0xB0C4DE,0.3);
@@ -847,6 +848,7 @@ function createTerrain(){
 
 // ==================== SCENERY (outside the play field) ====================
 function createScenery(){
+  const __before=scene.children.length;
   const FIELD_HX=COLS/2, FIELD_HZ=ROWS/2; // play field half-extents (20, 9)
   const OUTER=55; // outer scenery extends from -OUTER to +OUTER on both axes
 
@@ -907,7 +909,8 @@ function createScenery(){
     tg.position.set(x,0,z);
     scene.add(tg);
   }
-  for(let i=0;i<90;i++){
+  // PERF: reduced tree count from 90 to 55
+  for(let i=0;i<55;i++){
     let x,z,tries=0;
     do{x=rrange(-OUTER*0.92,OUTER*0.92);z=rrange(-OUTER*0.92,OUTER*0.92);tries++}
     while(tries<12&&!outsideField(x,z,2.5));
@@ -998,69 +1001,93 @@ function createScenery(){
     const b2=mkMesh(new THREE.SphereGeometry(s*0.8,8,6),bm);
     b2.position.set(bx+s*0.6,s*0.5,bz+s*0.3);scene.add(b2);
   }
+
+  __disableDecoShadows(__before);
+}
+
+// Disable shadow casting/receiving on decorative meshes added since `beforeLen`.
+// Shadow map rendering is one of the biggest GPU costs in a Three.js scene,
+// so decorative scenery (trees, clouds, torches, tents, grass tufts, etc.)
+// is excluded from shadow maps while castles/towers/enemies still cast/receive.
+function __disableDecoShadows(beforeLen){
+  for(let i=beforeLen;i<scene.children.length;i++){
+    scene.children[i].traverse(c=>{
+      if(c.isMesh){c.castShadow=false;c.receiveShadow=false}
+    });
+  }
 }
 
 // ==================== ATMOSPHERE (clouds, mountains, torches, birds) ====================
 function createAtmosphere(){
+  const __before=scene.children.length;
   const FIELD_HX=COLS/2, FIELD_HZ=ROWS/2;
 
   // ---- DRIFTING CLOUDS ----
-  // White sphere clusters high in the sky that slowly drift across the map.
+  // PERF: shared cloud geometry and shared materials. Reduced from 14
+  // clusters of up to 7 spheres each down to 8 clusters of 3. One single
+  // addVfx callback drifts them all at once instead of one per cloud.
   const cloudMat=new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:0.85,fog:false,depthWrite:false});
   const cloudMat2=new THREE.MeshBasicMaterial({color:0xeae8f0,transparent:true,opacity:0.6,fog:false,depthWrite:false});
-  for(let i=0;i<14;i++){
+  const cloudGeo=new THREE.SphereGeometry(2.0,8,6);
+  const allClouds=[];
+  for(let i=0;i<8;i++){
     const c=new THREE.Group();
-    const nn=4+Math.floor(Math.random()*3);
-    for(let j=0;j<nn;j++){
-      const sp=new THREE.Mesh(new THREE.SphereGeometry(1.6+Math.random()*1.4,10,7),j%2?cloudMat2:cloudMat);
-      sp.position.set((Math.random()-0.5)*4.5,(Math.random()-0.5)*0.8,(Math.random()-0.5)*4);
+    for(let j=0;j<3;j++){
+      const sp=new THREE.Mesh(cloudGeo,j%2?cloudMat2:cloudMat);
+      sp.position.set((j-1)*2.2,(Math.random()-0.5)*0.5,(Math.random()-0.5)*2);
       sp.scale.set(1.1+Math.random()*0.3,0.7,1+Math.random()*0.2);
       c.add(sp);
     }
     c.position.set((Math.random()-0.5)*120,18+Math.random()*12,(Math.random()-0.5)*120);
-    c.userData.drift=0.4+Math.random()*0.5;
-    c.userData.driftDir=(Math.random()<0.5?-1:1);
+    c.userData.drift=(0.4+Math.random()*0.5)*(Math.random()<0.5?-1:1);
     scene.add(c);
-    addVfx({update(dt){
-      c.position.x+=c.userData.drift*c.userData.driftDir*dt;
-      if(c.position.x>70)c.position.x=-70;
-      if(c.position.x<-70)c.position.x=70;
-      return true;
-    }});
+    allClouds.push(c);
   }
+  // Single batched drift update for all clouds
+  addVfx({update(dt){
+    for(const c of allClouds){
+      c.position.x+=c.userData.drift*dt;
+      if(c.position.x>70)c.position.x=-70;
+      else if(c.position.x<-70)c.position.x=70;
+    }
+    return true;
+  }});
 
   // ---- DISTANT MOUNTAIN RING ----
-  // Low-poly cones placed in a ring far beyond the playfield for depth.
+  // PERF: reduced from 48 cones + 16 caps to 28 cones + 8 caps.
+  // Shared geometries instead of per-cone geometry.
+  const mountGeo=new THREE.ConeGeometry(4,8,5);
+  const snowGeo=new THREE.ConeGeometry(1.1,2.5,5);
   const mountMats=[
     new THREE.MeshBasicMaterial({color:0x3a4a5a,transparent:true,opacity:0.7,fog:true}),
     new THREE.MeshBasicMaterial({color:0x2a3a4a,transparent:true,opacity:0.85,fog:true}),
     new THREE.MeshBasicMaterial({color:0x2a384a,transparent:true,opacity:0.75,fog:true})
   ];
-  for(let i=0;i<48;i++){
-    const ang=(i/48)*Math.PI*2+((i%2)*0.06);
+  for(let i=0;i<28;i++){
+    const ang=(i/28)*Math.PI*2+((i%2)*0.1);
     const dist=82+Math.random()*10;
-    const h=4.5+Math.random()*9;
-    const w=3.5+Math.random()*3;
-    const cone=new THREE.Mesh(new THREE.ConeGeometry(w,h,5),mountMats[i%mountMats.length]);
-    cone.position.set(Math.cos(ang)*dist,h/2-1,Math.sin(ang)*dist);
+    const cone=new THREE.Mesh(mountGeo,mountMats[i%mountMats.length]);
+    const sc=0.7+Math.random()*0.9;
+    cone.scale.set(sc,sc,sc);
+    cone.position.set(Math.cos(ang)*dist,4*sc-1,Math.sin(ang)*dist);
     cone.rotation.y=Math.random()*Math.PI*2;
     scene.add(cone);
   }
-  // Snow caps on the tallest mountains
   const snowMat=new THREE.MeshBasicMaterial({color:0xeef2ff,transparent:true,opacity:0.9,fog:true});
-  for(let i=0;i<16;i++){
+  for(let i=0;i<8;i++){
     const ang=Math.random()*Math.PI*2;
     const dist=83+Math.random()*8;
-    const h=2+Math.random()*2;
-    const snow=new THREE.Mesh(new THREE.ConeGeometry(1.1,h,5),snowMat);
+    const snow=new THREE.Mesh(snowGeo,snowMat);
     snow.position.set(Math.cos(ang)*dist,9+Math.random()*3,Math.sin(ang)*dist);
     scene.add(snow);
   }
 
   // ---- PERIMETER TORCHES ----
   // Flickering torches along the north/south edges of the playfield.
+  // PERF: no PointLight per torch — many lights would kill the forward renderer.
+  // Torches rely on emissive materials only. Spacing widened from 6 to 12.
   const torchPositions=[];
-  for(let c=-1;c<=COLS;c+=6){
+  for(let c=-1;c<=COLS;c+=12){
     const wx=(c-COLS/2+0.5);
     torchPositions.push([wx,-FIELD_HZ-0.7]);
     torchPositions.push([wx,FIELD_HZ+0.7]);
@@ -1075,40 +1102,34 @@ function createAtmosphere(){
     grp.add(mkMesh(new THREE.CylinderGeometry(0.13,0.08,0.12,8),mkMat(0x222,{metalness:0.55,roughness:0.4})).translateY(1.57));
     grp.add(mkMesh(new THREE.TorusGeometry(0.13,0.012,4,10),mkMat(0x444,{metalness:0.6})).translateY(1.62).rotateX(Math.PI/2));
     // Fire core sphere
-    const fire=mkMesh(new THREE.SphereGeometry(0.09,10,8),
+    const fire=mkMesh(new THREE.SphereGeometry(0.09,8,6),
       new THREE.MeshStandardMaterial({color:0xff5500,emissive:0xff5500,emissiveIntensity:2.8,transparent:true,opacity:0.9}));
     fire.position.y=1.72;grp.add(fire);
     // Flame cone
-    const flame=mkMesh(new THREE.ConeGeometry(0.085,0.22,7),
+    const flame=mkMesh(new THREE.ConeGeometry(0.085,0.22,6),
       new THREE.MeshStandardMaterial({color:0xffcc33,emissive:0xff8811,emissiveIntensity:2.2,transparent:true,opacity:0.85}));
     flame.position.y=1.86;grp.add(flame);
     // Inner bright spark
     const spark=mkMesh(new THREE.SphereGeometry(0.04,6,5),
       new THREE.MeshBasicMaterial({color:0xffffcc,transparent:true,opacity:0.95}));
     spark.position.y=1.78;grp.add(spark);
-    // Point light
-    const light=new THREE.PointLight(0xff7722,1.4,4.5,1.6);
-    light.position.y=1.78;grp.add(light);
     grp.position.set(tx,0,tz);
     scene.add(grp);
-    // Flicker animation
+    // Flicker animation (cheap — no PointLight, no Math.random per frame)
     const phase=Math.random()*Math.PI*2;
     addVfx({update(dt){
-      const f=Math.sin(performance.now()*0.009+phase)*0.35+Math.random()*0.25;
-      light.intensity=1.4+f;
+      const f=Math.sin(performance.now()*0.009+phase)*0.35;
       fire.scale.setScalar(1+f*0.18);
       flame.scale.y=1+f*0.3;
-      flame.scale.x=1+f*0.1;
       return true;
     }});
   }
 
   // ---- CAMPFIRES NEAR EACH CASTLE ----
+  // PERF: reduced from 4 to 2 so we only have 2 PointLights here (vs 4)
   const campPositions=[
     [-FIELD_HX-3.5,FIELD_HZ+2.5],
-    [-FIELD_HX-4, -FIELD_HZ-3],
-    [FIELD_HX+3.5, -FIELD_HZ-2.5],
-    [FIELD_HX+4, FIELD_HZ+3]
+    [FIELD_HX+3.5, -FIELD_HZ-2.5]
   ];
   for(const[cx,cz] of campPositions){
     const grp=new THREE.Group();
@@ -1157,9 +1178,10 @@ function createAtmosphere(){
   }
 
   // ---- HAY BALES ----
+  // PERF: reduced from 20 to 10 and using shared geometries
   const hayMat=new THREE.MeshStandardMaterial({color:0xd4b060,roughness:0.95,flatShading:true});
   const hayDark=mkMat(0xa88040);
-  for(let i=0;i<20;i++){
+  for(let i=0;i<10;i++){
     let bx,bz,tries=0;
     do{
       bx=(Math.random()-0.5)*100;
@@ -1188,9 +1210,10 @@ function createAtmosphere(){
   }
 
   // ---- WOODEN FENCE POSTS scattered as ruins ----
+  // PERF: reduced from 24 to 12
   const postMat=mkMat(0x4a2a10,{roughness:0.85});
   const rr=()=>Math.random();
-  for(let i=0;i<24;i++){
+  for(let i=0;i<12;i++){
     let fx,fz,tries=0;
     do{
       fx=(rr()-0.5)*95;
@@ -1216,18 +1239,21 @@ function createAtmosphere(){
   }
 
   // ---- BIRDS circling in the sky ----
+  // PERF: reduced from 10 to 6, shared geometry and materials, single batched
+  // animation callback instead of one per bird.
   const birdMat=new THREE.MeshBasicMaterial({color:0x1a1a1a,fog:false});
-  for(let i=0;i<10;i++){
+  const birdBodyGeo=new THREE.BoxGeometry(0.35,0.06,0.12);
+  const birdWingGeo=new THREE.BoxGeometry(0.04,0.04,0.3);
+  const birdHeadGeo=new THREE.BoxGeometry(0.1,0.08,0.08);
+  const allBirds=[];
+  for(let i=0;i<6;i++){
     const bird=new THREE.Group();
-    // Body
-    bird.add(new THREE.Mesh(new THREE.BoxGeometry(0.35,0.06,0.12),birdMat));
-    // Two wings (as children we'll flap)
-    const wingL=new THREE.Mesh(new THREE.BoxGeometry(0.04,0.04,0.3),birdMat);
+    bird.add(new THREE.Mesh(birdBodyGeo,birdMat));
+    const wingL=new THREE.Mesh(birdWingGeo,birdMat);
     wingL.position.z=0.18;bird.add(wingL);
-    const wingR=new THREE.Mesh(new THREE.BoxGeometry(0.04,0.04,0.3),birdMat);
+    const wingR=new THREE.Mesh(birdWingGeo,birdMat);
     wingR.position.z=-0.18;bird.add(wingR);
-    // Head bump
-    bird.add(new THREE.Mesh(new THREE.BoxGeometry(0.1,0.08,0.08),birdMat).translateX(0.2));
+    bird.add(new THREE.Mesh(birdHeadGeo,birdMat).translateX(0.2));
     bird.userData.speed=0.25+Math.random()*0.35;
     bird.userData.radius=18+Math.random()*22;
     bird.userData.height=12+Math.random()*8;
@@ -1235,19 +1261,22 @@ function createAtmosphere(){
     bird.userData.wingL=wingL;
     bird.userData.wingR=wingR;
     scene.add(bird);
-    addVfx({update(dt){
+    allBirds.push(bird);
+  }
+  addVfx({update(dt){
+    const flap=Math.sin(performance.now()*0.018)*0.5;
+    for(const bird of allBirds){
       bird.userData.angle+=bird.userData.speed*dt;
       const a=bird.userData.angle;
       bird.position.x=Math.cos(a)*bird.userData.radius;
       bird.position.z=Math.sin(a)*bird.userData.radius;
       bird.position.y=bird.userData.height+Math.sin(a*2)*0.6;
       bird.rotation.y=-a-Math.PI/2;
-      const flap=Math.sin(performance.now()*0.018)*0.5;
       bird.userData.wingL.rotation.x=flap;
       bird.userData.wingR.rotation.x=-flap;
-      return true;
-    }});
-  }
+    }
+    return true;
+  }});
 
   // ---- POND RIPPLE: pulsing ring at the pond center ----
   // Find existing pond by scanning scene children named by position - simpler: just hardcode pond coords
@@ -1268,9 +1297,12 @@ function createAtmosphere(){
   }
 
   // ---- GRASS TUFTS scattered in the outer field ----
+  // PERF: one shared BoxGeometry and one shared material per tone.
+  // Reduced from 120 to 60 clusters, each with 2 blades instead of 3.
+  const grassGeo=new THREE.BoxGeometry(0.04,0.3,0.01);
   const grassMat=new THREE.MeshStandardMaterial({color:0x4a7a2a,flatShading:true,roughness:0.9});
   const grassMat2=new THREE.MeshStandardMaterial({color:0x5a8a3a,flatShading:true,roughness:0.9});
-  for(let i=0;i<120;i++){
+  for(let i=0;i<60;i++){
     let gx,gz,tries=0;
     do{
       gx=(Math.random()-0.5)*100;
@@ -1280,21 +1312,23 @@ function createAtmosphere(){
     if(Math.abs(gx)<FIELD_HX+2.5&&Math.abs(gz)<FIELD_HZ+2.5)continue;
     const grp=new THREE.Group();
     const mat=Math.random()>0.5?grassMat:grassMat2;
-    // 3-4 crossed quad blades
-    for(let b=0;b<3;b++){
-      const blade=new THREE.Mesh(new THREE.BoxGeometry(0.04,0.25+Math.random()*0.15,0.01),mat);
+    for(let b=0;b<2;b++){
+      const blade=new THREE.Mesh(grassGeo,mat);
       blade.position.y=0.15;
-      blade.rotation.y=b*Math.PI/3;
+      blade.rotation.y=b*Math.PI/2;
       blade.rotation.z=(Math.random()-0.5)*0.4;
       grp.add(blade);
     }
     grp.position.set(gx,0,gz);
     scene.add(grp);
   }
+
+  __disableDecoShadows(__before);
 }
 
 // ==================== EXTRA SCENERY (landmarks, encampments, ruins) ====================
 function createExtraScenery(){
+  const __before=scene.children.length;
   const FIELD_HX=COLS/2, FIELD_HZ=ROWS/2;
   const stone=mkMat(0x7a7a6a,{roughness:0.9});
   const stoneD=mkMat(0x5a5a4a);
@@ -1503,14 +1537,11 @@ function createExtraScenery(){
       bgrp.position.set((Math.random()-0.5)*5,0,(Math.random()-0.5)*5);
       cluster.add(bgrp);
     }
-    // Small cooking fire with tripod
+    // Small cooking fire with tripod (PERF: no PointLight, emissive only)
     const fire=mkMesh(new THREE.SphereGeometry(0.1,8,6),
       new THREE.MeshStandardMaterial({color:0xff5500,emissive:0xff5500,emissiveIntensity:2.2,transparent:true,opacity:0.9}));
     fire.position.set(0,0.1,0);cluster.add(fire);
-    const tripodLight=new THREE.PointLight(0xff7722,1.5,4,1.5);
-    tripodLight.position.set(0,0.3,0);cluster.add(tripodLight);
     addVfx({update(dt){
-      tripodLight.intensity=1.5+Math.sin(performance.now()*0.013)*0.3+Math.random()*0.2;
       fire.scale.setScalar(1+Math.sin(performance.now()*0.013)*0.1);
       return true;
     }});
@@ -1690,11 +1721,10 @@ function createExtraScenery(){
       fruit.position.set(-0.4+g*0.4,0.96,0);st.add(fruit);
     }
     // Hanging lantern
+    // PERF: emissive-only lantern, no PointLight
     const lan=mkMesh(new THREE.SphereGeometry(0.08,8,6),
       mkMat(0xffcc55,{emissive:0xff8822,emissiveIntensity:1.5,transparent:true,opacity:0.9}));
     lan.position.set(0.5,1.2,0.3);st.add(lan);
-    const lanLight=new THREE.PointLight(0xffaa55,0.6,3,1.5);
-    lanLight.position.set(0.5,1.2,0.3);st.add(lanLight);
     st.position.set(sx,0,sz);
     st.rotation.y=-0.3;
     scene.add(st);
@@ -1720,6 +1750,8 @@ function createExtraScenery(){
     sp.rotation.y=0.4;
     scene.add(sp);
   }
+
+  __disableDecoShadows(__before);
 }
 
 // ==================== 3D MODEL HELPERS ====================
@@ -2923,9 +2955,8 @@ function createProjectileModel(type){
     r2.rotation.z=Math.PI/3;g.add(r2);
     r2.userData.spin='ring2';
     // Dynamic point light for scene illumination
-    const light=new THREE.PointLight(0xcc66ff,3.0,3.5,1.5);
-    g.add(light);
-    g.userData.light=light;
+    // PERF: no PointLight on projectile (was expensive per-active-projectile).
+    // Glow comes from emissive materials only.
   }else if(type==='proj_boulder'){
     // Rough rock core with flat shading
     g.add(mkMesh(new THREE.DodecahedronGeometry(0.15,0),
@@ -2970,10 +3001,7 @@ function createProjectileModel(type){
         new THREE.MeshBasicMaterial({color:0x2a2a2a,transparent:true,opacity:0.35-i*0.09,depthWrite:false}))
         .translateX(-0.32-i*0.09).translateY(0.015*(i+1)));
     }
-    // Dramatic point light (orange fire)
-    const light=new THREE.PointLight(0xff7722,2.5,2.8,1.6);
-    g.add(light);
-    g.userData.light=light;
+    // PERF: no PointLight on projectile — glow is emissive-only.
   }
   return g;
 }
