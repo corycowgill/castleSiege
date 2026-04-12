@@ -409,7 +409,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0604}
     </div>
     <div style="margin-top:16px;display:flex;justify-content:space-between;align-items:center;font-family:'Cinzel',monospace;font-size:11px;opacity:0.85">
       <span style="color:#555">Three.js &bull; Procedural</span>
-      <span style="color:#ffd700;font-weight:bold;letter-spacing:1px">v2.0 &bull; Build 2026-04-12</span>
+      <span style="color:#ffd700;font-weight:bold;letter-spacing:1px">v2.1 &bull; Build 2026-04-12</span>
     </div>
   </div>
 </div>
@@ -1614,6 +1614,36 @@ function createEnemyModel(type,owner){
     // Team accent - hood/bandana
     const hood=mkMesh(new THREE.SphereGeometry(0.083,8,4,0,Math.PI*2,0,Math.PI*0.5),acMat);
     hood.position.y=0.39;g.add(hood);
+    // Hood trim / stitching
+    g.add(mkMesh(new THREE.TorusGeometry(0.083,0.005,4,10),mkMat(0x3a1a10)).translateY(0.39).rotateX(Math.PI/2));
+    // Tattered cloak/cape draped from shoulders (team accent, darker)
+    const cloakMat=mkMat(owner===1?0x1a3060:0x601a30,{roughness:0.85});
+    const cloak=mkMesh(new THREE.BoxGeometry(0.18,0.2,0.02),cloakMat);
+    cloak.position.set(0,0.22,-0.075);g.add(cloak);
+    // Tattered bottom edge of cloak (3 small drops)
+    [-0.06,0,0.06].forEach(cx=>{
+      g.add(mkMesh(new THREE.BoxGeometry(0.05,0.04,0.02),cloakMat).translateX(cx).translateY(0.1).translateZ(-0.075));
+    });
+    // Belt pouch
+    g.add(mkMesh(new THREE.BoxGeometry(0.04,0.045,0.025),leather).translateX(-0.05).translateY(0.15).translateZ(0.075));
+    g.add(mkMesh(new THREE.BoxGeometry(0.04,0.01,0.028),mkMat(0x3a2208)).translateX(-0.05).translateY(0.17).translateZ(0.076));
+    // Claws on both hands (small cone points)
+    [-1,1].forEach(s=>{
+      for(let f=0;f<3;f++){
+        const claw=mkMesh(new THREE.ConeGeometry(0.003,0.012,3),mkMat(0x1a0a0a));
+        claw.position.set(s*0.13,0.16+(f-1)*0.005,0.005+f*0.003);
+        claw.rotation.z=-s*Math.PI/2;
+        g.add(claw);
+      }
+    });
+    // War-paint stripes on cheeks (2 per side)
+    const warPaint=mkMat(0xaa1010,{emissive:0x661010,emissiveIntensity:0.4});
+    [-1,1].forEach(s=>{
+      g.add(mkMesh(new THREE.BoxGeometry(0.02,0.005,0.003),warPaint).translateX(s*0.05).translateY(0.38).translateZ(0.07));
+      g.add(mkMesh(new THREE.BoxGeometry(0.018,0.005,0.003),warPaint).translateX(s*0.048).translateY(0.372).translateZ(0.068));
+    });
+    // Small belt fur tuft
+    g.add(mkMesh(new THREE.BoxGeometry(0.03,0.025,0.015),mkMat(0x3a2208)).translateX(0.04).translateY(0.155).translateZ(0.075));
 
   }else if(type==='orc'){
     // --- ORC: large, muscular, dark green, imposing ---
@@ -1721,6 +1751,48 @@ function createEnemyModel(type,owner){
       const a=i*Math.PI/2;
       sp.position.set(0.26+Math.cos(a)*0.04,0.34,Math.sin(a)*0.04);
       sp.rotation.z=Math.cos(a)*0.5;sp.rotation.x=Math.sin(a)*0.5;g.add(sp);
+    });
+
+    // War paint stripes across face (horizontal band)
+    const orcPaint=mkMat(0xcc2222,{emissive:0x881111,emissiveIntensity:0.5});
+    g.add(mkMesh(new THREE.BoxGeometry(0.16,0.01,0.003),orcPaint).translateY(0.575).translateZ(0.09));
+    // Vertical war paint stripes under eyes
+    [-0.04,0.04].forEach(x=>{
+      g.add(mkMesh(new THREE.BoxGeometry(0.008,0.025,0.003),orcPaint).translateX(x).translateY(0.54).translateZ(0.085));
+    });
+    // Second set of smaller tusks (lower)
+    [-0.025,0.025].forEach(x=>{
+      const tk=mkMesh(new THREE.ConeGeometry(0.01,0.035,5),mkMat(0xeeeecc,{roughness:0.5}));
+      tk.rotation.x=-0.25;tk.position.set(x,0.5,0.11);g.add(tk);
+    });
+    // Bone necklace (three bone shapes around neck)
+    const boneMat=mkMat(0xddd0a8,{roughness:0.6});
+    [-0.06,-0.02,0.02,0.06].forEach(x=>{
+      g.add(mkMesh(new THREE.CylinderGeometry(0.008,0.008,0.025,4),boneMat).translateX(x).translateY(0.46).translateZ(0.11).rotateX(Math.PI/2));
+    });
+    // Necklace cord
+    g.add(mkMesh(new THREE.TorusGeometry(0.08,0.003,3,12),mkMat(0x3a2208)).translateY(0.47).translateZ(0.08).rotateX(0.2));
+    // X leather strap across chest
+    const strap1=mkMesh(new THREE.BoxGeometry(0.025,0.3,0.008),mkMat(0x4a2a0a,{roughness:0.85}));
+    strap1.rotation.z=0.35;strap1.position.set(0,0.34,0.1);g.add(strap1);
+    const strap2=mkMesh(new THREE.BoxGeometry(0.025,0.3,0.008),mkMat(0x4a2a0a,{roughness:0.85}));
+    strap2.rotation.z=-0.35;strap2.position.set(0,0.34,0.1);g.add(strap2);
+    // Central strap buckle
+    g.add(mkMesh(new THREE.BoxGeometry(0.025,0.025,0.01),mkMat(0x886622,{metalness:0.6})).translateY(0.34).translateZ(0.11));
+    // Tribal arm band (left arm)
+    g.add(mkMesh(new THREE.TorusGeometry(0.038,0.006,4,10),mkMat(0x886622,{metalness:0.5})).translateX(-0.18).translateY(0.36).rotateY(Math.PI/2));
+    // Tattoo stripes on upper arms (3 bands per arm)
+    [-1,1].forEach(s=>{
+      for(let b=0;b<3;b++){
+        g.add(mkMesh(new THREE.TorusGeometry(0.04,0.002,3,8),mkMat(0x1a3a0a))
+          .translateX(s*0.18).translateY(0.4-b*0.03).rotateY(Math.PI/2));
+      }
+    });
+    // Scar across chest (diagonal dark line)
+    g.add(mkMesh(new THREE.BoxGeometry(0.12,0.004,0.003),darkSkin).translateY(0.32).translateZ(0.115).rotateZ(-0.4));
+    // Tattered loincloth hanging strips
+    [-0.05,0,0.05].forEach(x=>{
+      g.add(mkMesh(new THREE.BoxGeometry(0.035,0.1,0.008),loincloth).translateX(x).translateY(0.13).translateZ(0.07));
     });
 
   }else if(type==='darkKnight'){
@@ -1842,6 +1914,55 @@ function createEnemyModel(type,owner){
     // Pommel
     swordGroup.add(mkMesh(new THREE.SphereGeometry(0.015,5,4),mkMat(0x886622,{metalness:0.5})).translateY(-0.065));
     swordGroup.position.set(0.2,0.18,0.03);g.add(swordGroup);
+
+    // Flowing cape behind the knight (team accent color)
+    const capeMat=mkMat(owner===1?0x1a3d7a:0x7a1a3d,{roughness:0.7});
+    const cape=mkMesh(new THREE.BoxGeometry(0.24,0.4,0.015),capeMat);
+    cape.position.set(0,0.28,-0.11);g.add(cape);
+    // Cape shoulder clasps (gold discs)
+    [-1,1].forEach(s=>{
+      g.add(mkMesh(new THREE.CylinderGeometry(0.012,0.012,0.008,8),mkMat(0xccaa44,{metalness:0.7}))
+        .translateX(s*0.1).translateY(0.46).translateZ(-0.015).rotateX(Math.PI/2));
+    });
+    // Cape trim (bottom fringe)
+    g.add(mkMesh(new THREE.BoxGeometry(0.24,0.02,0.017),darkArmor).translateY(0.09).translateZ(-0.11));
+    // Cape tattered tails
+    [-0.08,0,0.08].forEach(cx=>{
+      g.add(mkMesh(new THREE.BoxGeometry(0.06,0.06,0.015),capeMat).translateX(cx).translateY(0.05).translateZ(-0.11));
+    });
+    // Chainmail skirt under cuirass
+    const mailMat=mkMat(0x555566,{metalness:0.55,roughness:0.5});
+    g.add(mkMesh(new THREE.CylinderGeometry(0.11,0.1,0.08,12),mailMat).translateY(0.15));
+    // Chainmail detail bands
+    [0.12,0.16,0.19].forEach(y=>{
+      g.add(mkMesh(new THREE.TorusGeometry(0.11,0.003,3,14),mkMat(0x666680)).translateY(y).rotateX(Math.PI/2));
+    });
+    // Helmet horns (bull-style)
+    [-1,1].forEach(s=>{
+      const horn=mkMesh(new THREE.ConeGeometry(0.018,0.08,6),darkArmor);
+      horn.position.set(s*0.075,0.62,0);
+      horn.rotation.z=s*1.1;
+      g.add(horn);
+      // Horn tip
+      g.add(mkMesh(new THREE.SphereGeometry(0.008,5,4),mkMat(0x222233)).translateX(s*0.11).translateY(0.645));
+    });
+    // Helmet rivets around the base
+    for(let a=0;a<8;a++){
+      const ang=a*Math.PI/4;
+      g.add(mkMesh(new THREE.SphereGeometry(0.005,4,3),mkMat(0x888899,{metalness:0.7}))
+        .translateX(Math.cos(ang)*0.075).translateY(0.48).translateZ(Math.sin(ang)*0.075));
+    }
+    // Pommel gem (team colored, emissive)
+    g.add(mkMesh(new THREE.SphereGeometry(0.008,6,5),
+      mkMat(owner===1?0x3388ff:0xff3388,{emissive:owner===1?0x1144aa:0xaa1144,emissiveIntensity:1.2}))
+      .translateX(0.2).translateY(0.12).translateZ(0.03));
+    // Shield boss detail - team cross
+    g.add(mkMesh(new THREE.BoxGeometry(0.06,0.012,0.004),acMat).translateX(-0.2).translateY(0.32).translateZ(0.09));
+    g.add(mkMesh(new THREE.BoxGeometry(0.012,0.06,0.004),acMat).translateX(-0.2).translateY(0.32).translateZ(0.09));
+    // Belt / sword-belt across waist
+    g.add(mkMesh(new THREE.TorusGeometry(0.12,0.01,4,12),mkMat(0x2a1808,{roughness:0.85})).translateY(0.24));
+    // Belt buckle (large)
+    g.add(mkMesh(new THREE.BoxGeometry(0.025,0.02,0.01),mkMat(0xccaa44,{metalness:0.7})).translateY(0.24).translateZ(0.12));
 
   }else{
     // --- ARCHER: agile, elven, ranged with bow ---
@@ -1979,6 +2100,49 @@ function createEnemyModel(type,owner){
     // Team accent - shoulder cape/mantle
     const cape=mkMesh(new THREE.BoxGeometry(0.16,0.08,0.04),acMat);
     cape.position.set(0,0.38,-0.05);g.add(cape);
+    // Ranger cloak flowing down back (team tinted)
+    const ranger=mkMat(owner===1?0x1a3050:0x501a30,{roughness:0.8});
+    g.add(mkMesh(new THREE.BoxGeometry(0.2,0.32,0.015),ranger).translateY(0.3).translateZ(-0.085));
+    // Cloak tattered bottom
+    [-0.06,0,0.06].forEach(cx=>{
+      g.add(mkMesh(new THREE.BoxGeometry(0.055,0.05,0.015),ranger).translateX(cx).translateY(0.14).translateZ(-0.085));
+    });
+    // Hood (pulled-back variation with peak)
+    const hoodA=mkMesh(new THREE.SphereGeometry(0.085,8,5,0,Math.PI*2,0,Math.PI*0.55),ranger);
+    hoodA.position.set(0,0.5,-0.03);g.add(hoodA);
+    // Hood peak (pointed elven style)
+    g.add(mkMesh(new THREE.ConeGeometry(0.04,0.08,5),ranger).translateY(0.56).translateZ(-0.04).rotateX(0.3));
+    // Leather bandolier diagonal across chest (to quiver)
+    const band=mkMesh(new THREE.BoxGeometry(0.02,0.3,0.006),leather);
+    band.rotation.z=0.3;band.position.set(0,0.32,0.07);g.add(band);
+    // Bandolier buckle
+    g.add(mkMesh(new THREE.BoxGeometry(0.018,0.014,0.008),mkMat(0xaaaa44,{metalness:0.5})).translateY(0.35).translateZ(0.08));
+    // Bracer with leaf etching (accent) on left arm
+    g.add(mkMesh(new THREE.TorusGeometry(0.023,0.005,4,10),acMat).translateX(-0.14).translateY(0.28).rotateZ(0.3).rotateY(Math.PI/2));
+    // More arrows in quiver (5 total instead of 3)
+    [-0.024,-0.012,0,0.012,0.024].forEach((x,i)=>{
+      // Arrow shafts extended
+      g.add(mkMesh(new THREE.CylinderGeometry(0.003,0.003,0.08,3),mkMat(0x8b6914))
+        .translateX(0.025+x).translateY(0.45).translateZ(-0.08));
+      // Tips
+      if(i%2===0){
+        const tip=mkMesh(new THREE.ConeGeometry(0.007,0.025,4),mkMat(0xccccbb,{metalness:0.6}));
+        tip.position.set(0.025+x,0.5,-0.08);g.add(tip);
+      }
+      // Fletching on some
+      if(i===2){
+        g.add(mkMesh(new THREE.BoxGeometry(0.008,0.025,0.002),mkMat(0xcc2222)).translateX(0.025+x).translateY(0.425).translateZ(-0.08));
+      }
+    });
+    // Hair braid draped over shoulder
+    g.add(mkMesh(new THREE.CylinderGeometry(0.012,0.01,0.12,5),hair).translateX(0.07).translateY(0.4).translateZ(-0.02).rotateZ(-0.3));
+    g.add(mkMesh(new THREE.SphereGeometry(0.011,5,4),leather).translateX(0.1).translateY(0.34).translateZ(-0.03));
+    // Small ranger pouch on belt
+    g.add(mkMesh(new THREE.BoxGeometry(0.035,0.04,0.022),leather).translateX(0.06).translateY(0.2).translateZ(0.06));
+    g.add(mkMesh(new THREE.BoxGeometry(0.035,0.008,0.025),mkMat(0x3a2208)).translateX(0.06).translateY(0.215).translateZ(0.061));
+    // Forehead band with team accent gem
+    g.add(mkMesh(new THREE.TorusGeometry(0.07,0.005,4,10),leather).translateY(0.53).rotateX(0.1));
+    g.add(mkMesh(new THREE.SphereGeometry(0.008,5,4),mkMat(owner===1?0x66ccff:0xff66cc,{emissive:owner===1?0x2288cc:0xcc2288,emissiveIntensity:1.0})).translateY(0.535).translateZ(0.068));
   }
 
   // Direction set dynamically in syncEnemies based on movement
