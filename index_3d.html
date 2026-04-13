@@ -411,7 +411,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0604}
     </div>
     <div style="margin-top:16px;display:flex;justify-content:space-between;align-items:center;font-family:'Cinzel',monospace;font-size:11px;opacity:0.85">
       <span style="color:#555">Three.js &bull; Procedural</span>
-      <span style="color:#ffd700;font-weight:bold;letter-spacing:1px">v3.2 &bull; Build 2026-04-13</span>
+      <span style="color:#ffd700;font-weight:bold;letter-spacing:1px">v3.3 &bull; Build 2026-04-13</span>
     </div>
   </div>
 </div>
@@ -2513,6 +2513,14 @@ function syncTowers(){
   for(const t of towers){
     if(!towerMeshes.has(t)){
       const mesh=createTower(t.type,t.owner);
+      // v3.3: canonicalize + merge towers too. createTower now produces
+      // ~60 sub-meshes per tower (doubled for v3.3 detail); the merge
+      // pipeline collapses them to ~1 draw call per canonical material
+      // just like enemies. Limb detection in __mergeEnemyModel is a
+      // no-op for towers (no userData.limb anywhere), so everything
+      // buckets under the root.
+      __canonicalizeEnemyMaterials(mesh);
+      __mergeEnemyModel(mesh);
       const wp=tileToWorld(t.col,t.row);mesh.position.set(wp.x,0,wp.z);
       scene.add(mesh);towerMeshes.set(t,mesh);
     }

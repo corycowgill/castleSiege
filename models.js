@@ -214,6 +214,109 @@ function createTower(type,owner){
     flag.position.set(0.14,tH+1.1,0);g.add(flag);
     g.add(mkMesh(new THREE.BoxGeometry(0.26,0.025,0.025),accentDark).translateX(0.14).translateY(tH+1.2));
     g.add(mkMesh(new THREE.BoxGeometry(0.26,0.025,0.025),accentDark).translateX(0.14).translateY(tH+1.0));
+
+    // ============ v3.3 DETAIL PASS ============
+    const ivy=mkMat(0x2d5a2a,{roughness:0.9});
+    const scorch=mkMat(0x1a1510);
+    const woodHoard=mkMat(0x5a3a1a,{roughness:0.85});
+    const shieldMetal=mkMat(0x666677,{metalness:0.55,roughness:0.4});
+    const torchWood=mkMat(0x3a2208);
+    const torchFire=mkMat(0xff6622,{emissive:0xff3300,emissiveIntensity:2.2,transparent:true,opacity:0.9});
+    const torchGlow=mkMat(0xffcc44,{emissive:0xff8822,emissiveIntensity:1.8,transparent:true,opacity:0.85});
+
+    // Archer silhouettes behind merlons (shoulders + helmet peeking over)
+    [[-.12,.24],[.12,.24],[0,-.24]].forEach(([ax,az])=>{
+      // Torso block
+      g.add(mkMesh(new THREE.BoxGeometry(0.1,0.14,0.08),dark).translateX(ax).translateY(tH+0.62).translateZ(az*0.9));
+      // Helmet
+      g.add(mkMesh(new THREE.SphereGeometry(0.045,6,5),vdark).translateX(ax).translateY(tH+0.72).translateZ(az*0.9));
+      // Helmet spike
+      g.add(mkMesh(new THREE.ConeGeometry(0.012,0.04,4),shieldMetal).translateX(ax).translateY(tH+0.78).translateZ(az*0.9));
+    });
+    // One archer with a bow raised (right side)
+    g.add(mkMesh(new THREE.TorusGeometry(0.04,0.005,4,10),woodHoard).translateX(0.26).translateY(tH+0.68).translateZ(0.05).rotateY(Math.PI/2));
+
+    // Wooden hoardings (covered parapet) around top — 4 side panels
+    [[0,0.38,0.02,0.03],[0,-0.38,0.02,0.03],[0.38,0,0.03,0.02],[-0.38,0,0.03,0.02]].forEach(([hx,hz,sx,sz])=>{
+      g.add(mkMesh(new THREE.BoxGeometry(0.6-sz*8,0.06,0.6-sx*8),woodHoard).translateX(hx).translateY(tH+0.3).translateZ(hz));
+    });
+
+    // Climbing ivy — clusters of small green bumps on tower sides
+    for(let vy=0.5;vy<tH+0.2;vy+=0.18){
+      for(let vi=0;vi<3;vi++){
+        const ox=(Math.random()-0.5)*0.08;
+        const oz=(Math.random()-0.5)*0.08;
+        g.add(mkMesh(new THREE.SphereGeometry(0.025,4,3),ivy).translateX(0.29+ox*0.3).translateY(vy).translateZ(0.22+oz));
+      }
+      if(vy<tH-0.2){
+        g.add(mkMesh(new THREE.SphereGeometry(0.02,4,3),ivy).translateX(-0.27).translateY(vy+0.05).translateZ(0.15));
+      }
+    }
+    // Ivy vine trunks (thin vertical cylinders)
+    g.add(mkMesh(new THREE.CylinderGeometry(0.008,0.008,tH*0.8,4),ivy).translateX(0.29).translateY(0.3+tH*0.4).translateZ(0.22));
+    g.add(mkMesh(new THREE.CylinderGeometry(0.008,0.008,tH*0.7,4),ivy).translateX(-0.27).translateY(0.3+tH*0.35).translateZ(0.15));
+
+    // Battle scorch marks (dark patches on walls)
+    [[0.29,0.9,0],[0.29,1.4,-0.15],[-0.27,1.1,0.1],[0,1.6,0.29]].forEach(p=>{
+      g.add(mkMesh(new THREE.BoxGeometry(0.04,0.04,0.006),scorch).translateX(p[0]).translateY(p[1]).translateZ(p[2]));
+    });
+
+    // Chipped corner stones (small dark notches)
+    [[0.28,1.2,0.28],[-0.28,1.5,-0.28],[0.28,1.8,-0.28]].forEach(p=>{
+      g.add(mkMesh(new THREE.BoxGeometry(0.03,0.03,0.03),vdark).translateX(p[0]).translateY(p[1]).translateZ(p[2]));
+    });
+
+    // Shield hanging from wall (two, one per side)
+    [[0.305,0.85,0.08],[-0.285,0.95,-0.1]].forEach(p=>{
+      g.add(mkMesh(new THREE.SphereGeometry(0.07,6,4,0,Math.PI*2,0,Math.PI*0.5),shieldMetal).translateX(p[0]).translateY(p[1]).translateZ(p[2]).rotateZ(Math.PI/2));
+      // Shield boss
+      g.add(mkMesh(new THREE.SphereGeometry(0.012,5,4),accentDark).translateX(p[0]+Math.sign(p[0])*0.01).translateY(p[1]).translateZ(p[2]));
+      // Shield cross
+      g.add(mkMesh(new THREE.BoxGeometry(0.003,0.08,0.008),accent).translateX(p[0]+Math.sign(p[0])*0.005).translateY(p[1]).translateZ(p[2]));
+      g.add(mkMesh(new THREE.BoxGeometry(0.003,0.008,0.08),accent).translateX(p[0]+Math.sign(p[0])*0.005).translateY(p[1]).translateZ(p[2]));
+    });
+
+    // Wall-mounted torches (2, flanking door)
+    [[-0.15,0.55,0.3],[0.15,0.55,0.3]].forEach(p=>{
+      // Bracket
+      g.add(mkMesh(new THREE.BoxGeometry(0.02,0.04,0.03),shieldMetal).translateX(p[0]).translateY(p[1]).translateZ(p[2]-0.01));
+      // Torch handle
+      g.add(mkMesh(new THREE.CylinderGeometry(0.012,0.014,0.12,5),torchWood).translateX(p[0]).translateY(p[1]+0.06).translateZ(p[2]+0.005));
+      // Fire core
+      g.add(mkMesh(new THREE.SphereGeometry(0.028,6,5),torchFire).translateX(p[0]).translateY(p[1]+0.15).translateZ(p[2]+0.008));
+      // Flame cone
+      g.add(mkMesh(new THREE.ConeGeometry(0.024,0.07,5),torchGlow).translateX(p[0]).translateY(p[1]+0.2).translateZ(p[2]+0.008));
+    });
+
+    // Rope and bucket hanging from pulley arm (crane)
+    g.add(mkMesh(new THREE.BoxGeometry(0.08,0.02,0.02),woodHoard).translateY(tH+0.28).translateZ(0.38));
+    g.add(mkMesh(new THREE.CylinderGeometry(0.002,0.002,0.35,4),torchWood).translateY(tH+0.1).translateZ(0.42));
+    g.add(mkMesh(new THREE.CylinderGeometry(0.04,0.045,0.06,8),woodHoard).translateY(tH-0.08).translateZ(0.42));
+    g.add(mkMesh(new THREE.TorusGeometry(0.04,0.004,4,10),shieldMetal).translateY(tH-0.06).translateZ(0.42).rotateX(Math.PI/2));
+    g.add(mkMesh(new THREE.TorusGeometry(0.04,0.004,4,10),shieldMetal).translateY(tH-0.11).translateZ(0.42).rotateX(Math.PI/2));
+
+    // Stuck arrows in walls (3 arrows at angles)
+    [[0.29,1.2,0.1,0.3],[-0.27,1.4,-0.05,-0.3],[0.1,0.9,0.3,0.1]].forEach(p=>{
+      const arr=mkMesh(new THREE.CylinderGeometry(0.004,0.004,0.08,4),torchWood);
+      arr.position.set(p[0],p[1],p[2]);
+      arr.rotation.z=p[3];arr.rotation.y=p[3]*0.5;
+      g.add(arr);
+      // Fletching
+      g.add(mkMesh(new THREE.BoxGeometry(0.02,0.005,0.005),accent).translateX(p[0]-0.035*Math.sin(p[3])).translateY(p[1]-0.035*Math.cos(p[3])).translateZ(p[2]));
+    });
+
+    // Stone stair steps at base (4 steps)
+    [0.04,0.08,0.12,0.16].forEach((sy,i)=>{
+      g.add(mkMesh(new THREE.BoxGeometry(0.2-i*0.02,0.03,0.06),stone).translateY(sy).translateZ(0.35+i*0.04));
+    });
+
+    // Gargoyle drainspouts on corners (small angry heads)
+    [[0.35,tH+0.25,0.35],[-0.35,tH+0.25,0.35],[0.35,tH+0.25,-0.35],[-0.35,tH+0.25,-0.35]].forEach(p=>{
+      g.add(mkMesh(new THREE.SphereGeometry(0.04,6,5),vdark).translateX(p[0]).translateY(p[1]).translateZ(p[2]));
+      // Mouth spout
+      g.add(mkMesh(new THREE.CylinderGeometry(0.008,0.015,0.04,5),vdark).translateX(p[0]*1.15).translateY(p[1]-0.02).translateZ(p[2]*1.15).rotateZ(Math.sign(p[0])*Math.PI/3));
+    });
+
   }else if(type==='magic'){
     const purple=mkMat(0x7B2D8E),darkP=mkMat(0x5A1D6E),lightP=mkMat(0x9B3DAE);
     const mH=2.0; // Much taller
@@ -260,6 +363,97 @@ function createTower(type,owner){
     // Team accent bands
     g.add(mkMesh(new THREE.CylinderGeometry(0.33,0.33,0.06,10),accent).translateY(0.42));
     g.add(mkMesh(new THREE.CylinderGeometry(0.31,0.31,0.06,10),accent).translateY(mH+0.3));
+
+    // ============ v3.3 DETAIL PASS ============
+    const arcane=mkMat(0xbb66ff,{emissive:0x9944cc,emissiveIntensity:1.1,transparent:true,opacity:0.85});
+    const arcaneBright=mkMat(0xee99ff,{emissive:0xcc66ff,emissiveIntensity:2.0});
+    const crystal=mkMat(0xaaffff,{emissive:0x66ccff,emissiveIntensity:1.4,transparent:true,opacity:0.9});
+    const tomeBrown=mkMat(0x5a2a10,{roughness:0.85});
+    const tomeGold=mkMat(0xd4b04a,{metalness:0.7});
+    const staffWood=mkMat(0x3a1a08,{roughness:0.8});
+
+    // Glowing magic circle on ground around base
+    g.add(mkMesh(new THREE.TorusGeometry(0.52,0.015,4,32),arcane).translateY(0.01).rotateX(Math.PI/2));
+    g.add(mkMesh(new THREE.TorusGeometry(0.46,0.01,4,32),arcane).translateY(0.015).rotateX(Math.PI/2));
+    // Rune marks around the circle (8 evenly spaced)
+    for(let i=0;i<8;i++){
+      const a=i*Math.PI/4;
+      g.add(mkMesh(new THREE.BoxGeometry(0.04,0.02,0.015),arcaneBright).translateX(Math.cos(a)*0.5).translateY(0.018).translateZ(Math.sin(a)*0.5).rotateY(-a));
+    }
+
+    // Floating crystal shards (4 around the tower at mid-height)
+    [0,Math.PI/2,Math.PI,Math.PI*1.5].forEach((a,i)=>{
+      const cx=Math.cos(a)*0.6,cz=Math.sin(a)*0.6;
+      const h=1.1+Math.sin(i*1.7)*0.3;
+      // Crystal body (octahedron-like, use cone+cone inverse)
+      g.add(mkMesh(new THREE.ConeGeometry(0.05,0.12,6),crystal).translateX(cx).translateY(h).translateZ(cz));
+      g.add(mkMesh(new THREE.ConeGeometry(0.05,0.08,6),crystal).translateX(cx).translateY(h-0.1).translateZ(cz).rotateX(Math.PI));
+      // Inner bright core
+      g.add(mkMesh(new THREE.SphereGeometry(0.02,6,5),arcaneBright).translateX(cx).translateY(h).translateZ(cz));
+    });
+
+    // Enchanted tome on a pedestal at base front
+    g.add(mkMesh(new THREE.CylinderGeometry(0.06,0.07,0.12,8),darkP).translateY(0.12).translateZ(0.52));
+    g.add(mkMesh(new THREE.BoxGeometry(0.1,0.025,0.08),tomeBrown).translateY(0.2).translateZ(0.52));
+    g.add(mkMesh(new THREE.BoxGeometry(0.095,0.005,0.075),mkMat(0xfff4cc)).translateY(0.215).translateZ(0.52));
+    // Tome gold clasp
+    g.add(mkMesh(new THREE.BoxGeometry(0.015,0.008,0.08),tomeGold).translateY(0.215).translateZ(0.52));
+    // Glowing tome gem
+    g.add(mkMesh(new THREE.SphereGeometry(0.008,5,4),arcaneBright).translateY(0.225).translateZ(0.48));
+
+    // Staff leaning against tower side
+    const staff=mkMesh(new THREE.CylinderGeometry(0.012,0.015,0.9,6),staffWood);
+    staff.position.set(0.44,0.45,0.1);staff.rotation.z=0.3;g.add(staff);
+    // Staff wrapped grip (darker)
+    g.add(mkMesh(new THREE.CylinderGeometry(0.018,0.018,0.1,6),tomeBrown).translateX(0.48).translateY(0.52).translateZ(0.1).rotateZ(0.3));
+    // Staff orb top
+    g.add(mkMesh(new THREE.SphereGeometry(0.04,8,6),crystal).translateX(0.57).translateY(0.85).translateZ(0.1));
+    g.add(mkMesh(new THREE.SphereGeometry(0.02,6,5),arcaneBright).translateX(0.57).translateY(0.85).translateZ(0.1));
+    // Staff claw/bracket around orb (3 prongs)
+    for(let i=0;i<3;i++){
+      const a=i*Math.PI*2/3;
+      g.add(mkMesh(new THREE.BoxGeometry(0.008,0.04,0.008),tomeGold).translateX(0.57+Math.cos(a)*0.035).translateY(0.84).translateZ(0.1+Math.sin(a)*0.035).rotateX(Math.cos(a)*0.3).rotateZ(Math.sin(a)*0.3));
+    }
+
+    // Potion bottles on a tiny shelf
+    g.add(mkMesh(new THREE.BoxGeometry(0.14,0.008,0.04),tomeBrown).translateX(-0.42).translateY(0.55).translateZ(0));
+    [[-0.47,0x00ff66],[-0.42,0xff6644],[-0.37,0x66ccff]].forEach((p)=>{
+      g.add(mkMesh(new THREE.CylinderGeometry(0.014,0.014,0.04,6),
+        mkMat(p[1],{emissive:p[1],emissiveIntensity:0.9,transparent:true,opacity:0.85}))
+        .translateX(p[0]).translateY(0.58).translateZ(0));
+      // Cork
+      g.add(mkMesh(new THREE.CylinderGeometry(0.008,0.008,0.008,5),tomeBrown).translateX(p[0]).translateY(0.606).translateZ(0));
+    });
+
+    // Helical energy spiral around shaft (descending spiral of small cubes)
+    for(let i=0;i<18;i++){
+      const a=(i/18)*Math.PI*4;
+      const y=0.5+(i/18)*1.5;
+      const r=0.34;
+      g.add(mkMesh(new THREE.BoxGeometry(0.02,0.02,0.02),arcaneBright).translateX(Math.cos(a)*r).translateY(y).translateZ(Math.sin(a)*r));
+    }
+
+    // Additional larger rune carvings on shaft (4 sides, more elaborate)
+    const bigRune=mkMat(0xff99ff,{emissive:0xcc66cc,emissiveIntensity:1.3});
+    [0,Math.PI/2,Math.PI,Math.PI*1.5].forEach(a=>{
+      // Vertical stroke
+      g.add(mkMesh(new THREE.BoxGeometry(0.008,0.08,0.012),bigRune).translateX(Math.cos(a)*0.33).translateY(1.0).translateZ(Math.sin(a)*0.33).rotateY(-a));
+      // Horizontal strokes
+      g.add(mkMesh(new THREE.BoxGeometry(0.04,0.008,0.012),bigRune).translateX(Math.cos(a)*0.33).translateY(1.02).translateZ(Math.sin(a)*0.33).rotateY(-a));
+      g.add(mkMesh(new THREE.BoxGeometry(0.03,0.008,0.012),bigRune).translateX(Math.cos(a)*0.33).translateY(0.98).translateZ(Math.sin(a)*0.33).rotateY(-a));
+    });
+
+    // Second floating orb at mid-height (smaller)
+    g.add(mkMesh(new THREE.SphereGeometry(0.06,10,8),crystal).translateY(1.2).translateZ(0.48));
+    g.add(mkMesh(new THREE.SphereGeometry(0.025,6,5),arcaneBright).translateY(1.2).translateZ(0.48));
+
+    // Stone runestones at base of circle (4 tall thin stones)
+    [[0.42,0.42],[-0.42,0.42],[-0.42,-0.42],[0.42,-0.42]].forEach(p=>{
+      g.add(mkMesh(new THREE.BoxGeometry(0.04,0.22,0.04),mkMat(0x4a4a5a)).translateX(p[0]).translateY(0.13).translateZ(p[1]));
+      // Rune carving on the stone
+      g.add(mkMesh(new THREE.BoxGeometry(0.015,0.015,0.045),bigRune).translateX(p[0]).translateY(0.17).translateZ(p[1]));
+    });
+
   }else if(type==='catapult'){
     const wood=mkMat(0x8B5A2B),woodD=mkMat(0x6B3A1B),woodL=mkMat(0xa07028),metal=mkMat(0x555555,{metalness:0.4}),iron=mkMat(0x2a2a2a,{metalness:0.55,roughness:0.4});
     // Platform - thicker, stepped
@@ -348,6 +542,103 @@ function createTower(type,owner){
     // Team accent pennant hanging off cross beam
     g.add(mkMesh(new THREE.BoxGeometry(0.18,0.14,0.018),accent).translateZ(0.045).translateY(0.22+frameH-0.08));
     g.add(mkMesh(new THREE.BoxGeometry(0.18,0.02,0.018),accentDark).translateZ(0.045).translateY(0.22+frameH-0.15));
+
+    // ============ v3.3 DETAIL PASS ============
+    const pitch=mkMat(0x1a1208,{roughness:0.95});
+    const rope=mkMat(0xaa8855,{roughness:0.85});
+    const lanternGlow=mkMat(0xffcc44,{emissive:0xff9922,emissiveIntensity:2.0,transparent:true,opacity:0.85});
+    const crewCloth=mkMat(0x4a3a1a);
+    const crewSkin=mkMat(0xc4956a);
+
+    // Pitch barrel (black tar for flaming shots)
+    g.add(mkMesh(new THREE.CylinderGeometry(0.07,0.08,0.14,10),pitch).translateX(-0.32).translateY(0.33).translateZ(0.22));
+    // Barrel iron bands
+    g.add(mkMesh(new THREE.TorusGeometry(0.08,0.01,4,12),iron).translateX(-0.32).translateY(0.37).translateZ(0.22).rotateX(Math.PI/2));
+    g.add(mkMesh(new THREE.TorusGeometry(0.08,0.01,4,12),iron).translateX(-0.32).translateY(0.29).translateZ(0.22).rotateX(Math.PI/2));
+    // Pitch ladle stuck in barrel
+    g.add(mkMesh(new THREE.CylinderGeometry(0.005,0.005,0.15,4),wood).translateX(-0.32).translateY(0.45).translateZ(0.22).rotateZ(0.2));
+    g.add(mkMesh(new THREE.SphereGeometry(0.02,5,4),iron).translateX(-0.35).translateY(0.52).translateZ(0.22));
+
+    // Coiled rope on deck
+    for(let cr=0;cr<4;cr++){
+      g.add(mkMesh(new THREE.TorusGeometry(0.06-cr*0.008,0.012,4,12),rope).translateX(0.3).translateY(0.28+cr*0.012).translateZ(0.22).rotateX(Math.PI/2));
+    }
+
+    // Tool rack - hammer and lever
+    const rackBase=mkMesh(new THREE.BoxGeometry(0.18,0.01,0.04),woodD);
+    rackBase.position.set(-0.3,0.28,-0.2);g.add(rackBase);
+    // Hammer (handle + head)
+    g.add(mkMesh(new THREE.CylinderGeometry(0.008,0.008,0.12,5),wood).translateX(-0.35).translateY(0.34).translateZ(-0.2).rotateZ(-0.2));
+    g.add(mkMesh(new THREE.BoxGeometry(0.035,0.025,0.025),iron).translateX(-0.33).translateY(0.4).translateZ(-0.2));
+    // Lever (crowbar)
+    g.add(mkMesh(new THREE.CylinderGeometry(0.006,0.006,0.15,5),iron).translateX(-0.28).translateY(0.35).translateZ(-0.2).rotateZ(0.15));
+    g.add(mkMesh(new THREE.BoxGeometry(0.015,0.008,0.008),iron).translateX(-0.28).translateY(0.425).translateZ(-0.2).rotateZ(0.6));
+
+    // Extra ammo basket (woven) with spare boulders
+    // Basket wall (ring of thin boxes)
+    for(let b=0;b<8;b++){
+      const a=b*Math.PI/4;
+      g.add(mkMesh(new THREE.BoxGeometry(0.008,0.08,0.02),rope).translateX(0.32+Math.cos(a)*0.08).translateY(0.3).translateZ(-0.18+Math.sin(a)*0.08).rotateY(-a));
+    }
+    // Basket bottom
+    g.add(mkMesh(new THREE.CylinderGeometry(0.085,0.085,0.01,8),rope).translateX(0.32).translateY(0.265).translateZ(-0.18));
+    // Boulders in basket
+    g.add(mkMesh(new THREE.DodecahedronGeometry(0.055,0),mkMat(0x555555)).translateX(0.32).translateY(0.32).translateZ(-0.18));
+    g.add(mkMesh(new THREE.DodecahedronGeometry(0.048,0),mkMat(0x666666)).translateX(0.34).translateY(0.36).translateZ(-0.16));
+    g.add(mkMesh(new THREE.DodecahedronGeometry(0.042,0),mkMat(0x777777)).translateX(0.3).translateY(0.36).translateZ(-0.2));
+
+    // Shield wall at front (2 wooden shields propped up)
+    [[-0.18,0.38],[0.18,0.38]].forEach(p=>{
+      g.add(mkMesh(new THREE.BoxGeometry(0.16,0.2,0.02),woodD).translateX(p[0]).translateY(0.35).translateZ(p[1]));
+      // Shield iron boss
+      g.add(mkMesh(new THREE.SphereGeometry(0.015,5,4),iron).translateX(p[0]).translateY(0.35).translateZ(p[1]+0.013));
+      // Team color band
+      g.add(mkMesh(new THREE.BoxGeometry(0.16,0.03,0.022),accent).translateX(p[0]).translateY(0.41).translateZ(p[1]));
+    });
+
+    // Water bucket (hanging from frame)
+    g.add(mkMesh(new THREE.CylinderGeometry(0.05,0.055,0.08,8),woodD).translateX(0.28).translateY(0.85).translateZ(0));
+    g.add(mkMesh(new THREE.TorusGeometry(0.05,0.006,4,10),iron).translateX(0.28).translateY(0.88).translateZ(0).rotateX(Math.PI/2));
+    // Bucket handle
+    g.add(mkMesh(new THREE.TorusGeometry(0.05,0.003,3,6,Math.PI),iron).translateX(0.28).translateY(0.92).translateZ(0).rotateX(Math.PI));
+    // Rope to frame
+    g.add(mkMesh(new THREE.CylinderGeometry(0.002,0.002,0.16,3),rope).translateX(0.28).translateY(1.02).translateZ(0));
+
+    // Lantern hanging from frame (other side)
+    g.add(mkMesh(new THREE.CylinderGeometry(0.002,0.002,0.12,3),iron).translateX(-0.28).translateY(1.08).translateZ(0));
+    g.add(mkMesh(new THREE.BoxGeometry(0.05,0.008,0.05),iron).translateX(-0.28).translateY(1.02).translateZ(0));
+    g.add(mkMesh(new THREE.BoxGeometry(0.04,0.06,0.04),lanternGlow).translateX(-0.28).translateY(0.97).translateZ(0));
+    g.add(mkMesh(new THREE.BoxGeometry(0.05,0.008,0.05),iron).translateX(-0.28).translateY(0.94).translateZ(0));
+    // Lantern frame corners (4 vertical rods)
+    [[0.025,0.025],[-0.025,0.025],[0.025,-0.025],[-0.025,-0.025]].forEach(c=>{
+      g.add(mkMesh(new THREE.BoxGeometry(0.003,0.06,0.003),iron).translateX(-0.28+c[0]).translateY(0.97).translateZ(c[1]));
+    });
+
+    // Crew silhouette — gunner pulling rope (simplified standing figure)
+    // Body
+    g.add(mkMesh(new THREE.CylinderGeometry(0.04,0.045,0.16,6),crewCloth).translateX(-0.1).translateY(0.42).translateZ(-0.1));
+    // Head
+    g.add(mkMesh(new THREE.SphereGeometry(0.04,6,5),crewSkin).translateX(-0.1).translateY(0.56).translateZ(-0.1));
+    // Helmet
+    g.add(mkMesh(new THREE.SphereGeometry(0.042,6,4,0,Math.PI*2,0,Math.PI*0.5),iron).translateX(-0.1).translateY(0.58).translateZ(-0.1));
+    // Arm raised (pulling lanyard toward the arm)
+    g.add(mkMesh(new THREE.CylinderGeometry(0.015,0.013,0.1,4),crewCloth).translateX(-0.05).translateY(0.5).translateZ(-0.1).rotateZ(-0.6));
+
+    // Chain anchoring counterweight to frame
+    for(let ch=0;ch<4;ch++){
+      g.add(mkMesh(new THREE.TorusGeometry(0.015,0.003,3,6),iron).translateY(0.78+ch*0.03).translateZ(-0.28).rotateX(ch%2===0?0:Math.PI/2));
+    }
+
+    // Measuring knotted rope (ranging tool) hanging off side
+    for(let k=0;k<5;k++){
+      g.add(mkMesh(new THREE.SphereGeometry(0.008,4,3),rope).translateX(0.44).translateY(0.48-k*0.05).translateZ(0.2));
+    }
+    g.add(mkMesh(new THREE.CylinderGeometry(0.002,0.002,0.26,3),rope).translateX(0.44).translateY(0.35).translateZ(0.2));
+
+    // Sparks on the fuse slot (tiny emissive bits near pitch barrel - the lit torch for flame shots)
+    g.add(mkMesh(new THREE.CylinderGeometry(0.008,0.008,0.1,4),wood).translateX(-0.22).translateY(0.34).translateZ(0.22).rotateZ(0.3));
+    g.add(mkMesh(new THREE.SphereGeometry(0.014,5,4),mkMat(0xff8822,{emissive:0xff5500,emissiveIntensity:2.5})).translateX(-0.18).translateY(0.4).translateZ(0.22));
+
   }else if(type==='bombard'){
     const stone=mkMat(0x8a8a7a),dark=mkMat(0x6a6a5a),light=mkMat(0x9a9a8a);
     const metal=mkMat(0x2a2a2a,{metalness:0.7,roughness:0.25});
@@ -439,6 +730,94 @@ function createTower(type,owner){
     g.add(mkMesh(new THREE.CylinderGeometry(0.015,0.015,0.55,6),mkMat(0x2a2a2a)).translateY(0.85).translateZ(-0.4));
     g.add(mkMesh(new THREE.BoxGeometry(0.22,0.14,0.02),accent).translateX(0.12).translateY(1.05).translateZ(-0.4));
     g.add(mkMesh(new THREE.SphereGeometry(0.025,6,4),mkMat(0xffd700,{emissive:0xaa7700,emissiveIntensity:0.6})).translateY(1.14).translateZ(-0.4));
+
+    // ============ v3.3 DETAIL PASS ============
+    const sandbagCloth=mkMat(0xa08858,{roughness:0.95});
+    const sandbagDark=mkMat(0x7a6438,{roughness:0.95});
+    const scorch2=mkMat(0x0a0a0a);
+    const powder=mkMat(0x2a1a10);
+    const brass=mkMat(0xccaa44,{metalness:0.8,roughness:0.3});
+    const glass=mkMat(0xaaccee,{metalness:0.3,roughness:0.1,transparent:true,opacity:0.6});
+    const emberGlow=mkMat(0xff6622,{emissive:0xff4400,emissiveIntensity:2.5});
+    const crewCloth2=mkMat(0x4a2a1a);
+    const crewSkin2=mkMat(0xc4956a);
+
+    // Sandbags stacked around base (3 rows, staggered)
+    for(let row=0;row<3;row++){
+      const count=4-row;
+      for(let c=0;c<count;c++){
+        const sx=-0.35+c*0.18+row*0.05;
+        const sy=0.13+row*0.1;
+        g.add(mkMesh(new THREE.BoxGeometry(0.14,0.08,0.08),row%2===0?sandbagCloth:sandbagDark).translateX(sx).translateY(sy).translateZ(0.44));
+        // Rope tie across middle
+        g.add(mkMesh(new THREE.BoxGeometry(0.14,0.012,0.082),sandbagDark).translateX(sx).translateY(sy).translateZ(0.44));
+      }
+    }
+    // Another sandbag stack on opposite side
+    for(let row=0;row<2;row++){
+      for(let c=0;c<3;c++){
+        g.add(mkMesh(new THREE.BoxGeometry(0.14,0.08,0.08),row%2===0?sandbagDark:sandbagCloth).translateX(-0.3+c*0.15).translateY(0.13+row*0.1).translateZ(-0.44));
+      }
+    }
+
+    // Water bucket (for cooling barrel) next to gun
+    g.add(mkMesh(new THREE.CylinderGeometry(0.06,0.065,0.1,8),wood).translateX(-0.3).translateY(0.6).translateZ(0.12));
+    g.add(mkMesh(new THREE.TorusGeometry(0.065,0.006,4,10),iron).translateX(-0.3).translateY(0.64).translateZ(0.12).rotateX(Math.PI/2));
+    g.add(mkMesh(new THREE.TorusGeometry(0.065,0.006,4,10),iron).translateX(-0.3).translateY(0.56).translateZ(0.12).rotateX(Math.PI/2));
+    // Water surface (reflective blue)
+    g.add(mkMesh(new THREE.CylinderGeometry(0.055,0.055,0.005,8),glass).translateX(-0.3).translateY(0.645).translateZ(0.12));
+    // Bucket handle
+    g.add(mkMesh(new THREE.TorusGeometry(0.06,0.003,3,6,Math.PI),iron).translateX(-0.3).translateY(0.68).translateZ(0.12));
+
+    // Powder horn (curved, brass-tipped)
+    g.add(mkMesh(new THREE.CylinderGeometry(0.022,0.035,0.12,8),powder).translateX(0.32).translateY(0.62).translateZ(0.08).rotateZ(0.4));
+    g.add(mkMesh(new THREE.CylinderGeometry(0.01,0.015,0.02,6),brass).translateX(0.37).translateY(0.68).translateZ(0.08).rotateZ(0.4));
+    // Strap
+    g.add(mkMesh(new THREE.BoxGeometry(0.003,0.15,0.015),mkMat(0x3a2010)).translateX(0.32).translateY(0.6).translateZ(0.08).rotateZ(0.2));
+
+    // Rammer/sponge tool leaning on side
+    g.add(mkMesh(new THREE.CylinderGeometry(0.01,0.01,0.6,5),wood).translateX(0.42).translateY(0.4).translateZ(-0.1).rotateZ(0.4));
+    // Rammer head (cylinder wrap)
+    g.add(mkMesh(new THREE.CylinderGeometry(0.035,0.035,0.08,6),sandbagCloth).translateX(0.52).translateY(0.64).translateZ(-0.1).rotateZ(0.4));
+
+    // Scorch marks on barrel
+    [[0.0,0.56,0.25],[0.03,0.58,0.35],[-0.04,0.57,0.3]].forEach(p=>{
+      g.add(mkMesh(new THREE.SphereGeometry(0.014,5,4),scorch2).translateX(p[0]).translateY(p[1]).translateZ(p[2]));
+    });
+
+    // Extra cannonballs on ground (rolled out of pyramid)
+    [[0.1,0.08,0.35],[-0.06,0.08,0.32],[0.25,0.08,0.3]].forEach(p=>{
+      g.add(mkMesh(new THREE.SphereGeometry(0.04,8,6),mkMat(0x222,{metalness:0.55})).translateX(p[0]).translateY(p[1]).translateZ(p[2]));
+    });
+
+    // Match cord holder (slow-burning rope with glowing ember)
+    g.add(mkMesh(new THREE.CylinderGeometry(0.006,0.008,0.16,5),wood).translateX(0.16).translateY(0.72).translateZ(-0.1).rotateZ(-0.2));
+    g.add(mkMesh(new THREE.CylinderGeometry(0.005,0.005,0.12,4),mkMat(0x3a2a10)).translateX(0.18).translateY(0.82).translateZ(-0.1));
+    // Glowing ember at the tip
+    g.add(mkMesh(new THREE.SphereGeometry(0.012,5,4),emberGlow).translateX(0.19).translateY(0.88).translateZ(-0.1));
+
+    // Spyglass on platform (brass telescope)
+    g.add(mkMesh(new THREE.CylinderGeometry(0.012,0.014,0.12,8),brass).translateX(0.08).translateY(0.54).translateZ(-0.1).rotateZ(Math.PI/2));
+    g.add(mkMesh(new THREE.CylinderGeometry(0.01,0.012,0.08,8),brass).translateX(0.16).translateY(0.54).translateZ(-0.1).rotateZ(Math.PI/2));
+    // Glass lens
+    g.add(mkMesh(new THREE.CylinderGeometry(0.011,0.011,0.003,8),glass).translateX(0.2).translateY(0.54).translateZ(-0.1).rotateZ(Math.PI/2));
+
+    // Crew silhouette — loader kneeling beside cannon
+    g.add(mkMesh(new THREE.CylinderGeometry(0.04,0.045,0.12,6),crewCloth2).translateX(0.35).translateY(0.62).translateZ(0.05));
+    g.add(mkMesh(new THREE.SphereGeometry(0.035,6,5),crewSkin2).translateX(0.35).translateY(0.72).translateZ(0.05));
+    // Crew hat
+    g.add(mkMesh(new THREE.CylinderGeometry(0.04,0.045,0.03,6),iron).translateX(0.35).translateY(0.75).translateZ(0.05));
+    // Crew arm reaching toward powder
+    g.add(mkMesh(new THREE.CylinderGeometry(0.013,0.011,0.1,4),crewCloth2).translateX(0.32).translateY(0.64).translateZ(0.08).rotateZ(0.5));
+
+    // Additional powder keg (small, beside cannon)
+    g.add(mkMesh(new THREE.CylinderGeometry(0.05,0.05,0.1,8),woodL).translateX(-0.15).translateY(0.6).translateZ(0.1));
+    g.add(mkMesh(new THREE.TorusGeometry(0.052,0.005,4,10),iron).translateX(-0.15).translateY(0.63).translateZ(0.1).rotateX(Math.PI/2));
+    g.add(mkMesh(new THREE.TorusGeometry(0.052,0.005,4,10),iron).translateX(-0.15).translateY(0.57).translateZ(0.1).rotateX(Math.PI/2));
+    // Powder symbol (dark X marking)
+    g.add(mkMesh(new THREE.BoxGeometry(0.015,0.003,0.003),scorch2).translateX(-0.1).translateY(0.6).translateZ(0.1).rotateZ(Math.PI/4));
+    g.add(mkMesh(new THREE.BoxGeometry(0.015,0.003,0.003),scorch2).translateX(-0.1).translateY(0.6).translateZ(0.1).rotateZ(-Math.PI/4));
+
   }
   return g;
 }
