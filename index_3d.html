@@ -411,7 +411,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0604}
     </div>
     <div style="margin-top:16px;display:flex;justify-content:space-between;align-items:center;font-family:'Cinzel',monospace;font-size:11px;opacity:0.85">
       <span style="color:#555">Three.js &bull; Procedural</span>
-      <span style="color:#ffd700;font-weight:bold;letter-spacing:1px">v3.11 &bull; Build 2026-04-13</span>
+      <span style="color:#ffd700;font-weight:bold;letter-spacing:1px">v3.12 &bull; Build 2026-04-13</span>
     </div>
   </div>
 </div>
@@ -2168,6 +2168,255 @@ function createExtraScenery(){
   __disableDecoShadows(__before);
 }
 
+// ==================== v3.12: BATTLEFIELD DECALS ====================
+// Decorative ground details INSIDE the playfield (between castles).
+// Placed at y~0.02 to avoid z-fighting with the terrain. These are
+// pure visuals — the gameplay grid is logical and doesn't care
+// about meshes, so this won't affect pathfinding or building placement.
+function createBattlefieldDecals(){
+  const __before=scene.children.length;
+  // Deterministic PRNG so decals are consistent across loads.
+  let seed=4242;
+  const rr=()=>{seed=(seed*9301+49297)%233280;return seed/233280};
+  const rrange=(a,b)=>a+rr()*(b-a);
+
+  // The playfield in world space maps roughly to x ∈ [-20, 20], z ∈ [-9, 9].
+  // Most combat happens in the central band where enemy paths cross.
+
+  // ---- Worn dirt path down the center of the battlefield ----
+  // Two parallel streaks of darker grass showing where enemies march
+  // back and forth across the middle rows.
+  const dirtMat=new THREE.MeshStandardMaterial({color:0x6a4a28,roughness:0.98,flatShading:true});
+  const dirtDark=new THREE.MeshStandardMaterial({color:0x4a3018,roughness:0.98});
+  for(let i=0;i<38;i++){
+    const px=-19+i*1+rrange(-0.2,0.2);
+    const pz=rrange(-0.4,0.4);
+    const sx=0.9+rr()*0.4, sz=0.35+rr()*0.2;
+    const patch=new THREE.Mesh(new THREE.BoxGeometry(sx,0.01,sz), rr()>0.5?dirtMat:dirtDark);
+    patch.position.set(px,0.015,pz);
+    patch.rotation.y=rrange(-0.1,0.1);
+    patch.receiveShadow=false;
+    scene.add(patch);
+  }
+
+  // ---- Footprint trail (small dark elongated ovals) ----
+  const footMat=new THREE.MeshStandardMaterial({color:0x3a2a18,roughness:0.95});
+  for(let i=0;i<50;i++){
+    const fx=rrange(-19,19);
+    const fz=rrange(-3,3);
+    const fp=new THREE.Mesh(new THREE.SphereGeometry(0.1,6,4),footMat);
+    fp.scale.set(1.4,0.05,0.7);
+    fp.position.set(fx,0.016,fz);
+    fp.rotation.y=rrange(0,Math.PI);
+    scene.add(fp);
+  }
+
+  // ---- Blood splatter spots scattered in combat zones ----
+  // More concentrated in the center where melee happens.
+  const bloodMat=new THREE.MeshStandardMaterial({color:0x6a0a0a,roughness:0.9,emissive:0x220404,emissiveIntensity:0.3});
+  for(let i=0;i<24;i++){
+    const bx=rrange(-15,15);
+    const bz=rrange(-5,5);
+    const bs=0.15+rr()*0.15;
+    const splat=new THREE.Mesh(new THREE.SphereGeometry(bs,6,4),bloodMat);
+    splat.scale.set(1,0.04,1+rr()*0.6);
+    splat.position.set(bx,0.018,bz);
+    splat.rotation.y=rr()*Math.PI*2;
+    scene.add(splat);
+  }
+
+  // ---- Impact craters (dark circles from past bombard hits) ----
+  const craterMat=new THREE.MeshStandardMaterial({color:0x2a1a10,roughness:0.95,flatShading:true});
+  const craterRim=new THREE.MeshStandardMaterial({color:0x5a4028,roughness:0.95});
+  for(let i=0;i<8;i++){
+    const cx=rrange(-17,17);
+    const cz=rrange(-6,6);
+    const cs=0.35+rr()*0.2;
+    // Crater body
+    const crater=new THREE.Mesh(new THREE.CylinderGeometry(cs,cs*0.7,0.02,12),craterMat);
+    crater.position.set(cx,0.013,cz);
+    scene.add(crater);
+    // Crater rim (slightly raised dirt)
+    const rim=new THREE.Mesh(new THREE.TorusGeometry(cs,0.04,4,14),craterRim);
+    rim.rotation.x=Math.PI/2;
+    rim.position.set(cx,0.025,cz);
+    scene.add(rim);
+    // Scorched center
+    const burn=new THREE.Mesh(new THREE.CylinderGeometry(cs*0.5,cs*0.3,0.008,10),
+      new THREE.MeshStandardMaterial({color:0x0a0504,roughness:1}));
+    burn.position.set(cx,0.02,cz);
+    scene.add(burn);
+  }
+
+  // ---- Mud puddles (more visible after wave 4 rain) ----
+  const mudWaterMat=new THREE.MeshStandardMaterial({color:0x2a3044,roughness:0.25,metalness:0.3,emissive:0x0a1525,emissiveIntensity:0.15});
+  const mudEdgeMat=new THREE.MeshStandardMaterial({color:0x3a2a18,roughness:0.95});
+  for(let i=0;i<10;i++){
+    const mx=rrange(-17,17);
+    const mz=rrange(-5,5);
+    const mr=0.25+rr()*0.15;
+    // Mud edge (darker ring)
+    const edge=new THREE.Mesh(new THREE.CylinderGeometry(mr*1.2,mr*1.3,0.012,10),mudEdgeMat);
+    edge.position.set(mx,0.019,mz);
+    scene.add(edge);
+    // Water surface (reflective)
+    const water=new THREE.Mesh(new THREE.CylinderGeometry(mr,mr,0.008,12),mudWaterMat);
+    water.position.set(mx,0.025,mz);
+    scene.add(water);
+  }
+
+  // ---- Scattered bone fragments (femurs, skulls, ribs) ----
+  const boneMat=new THREE.MeshStandardMaterial({color:0xddd0a8,roughness:0.55,flatShading:true});
+  const boneDark=new THREE.MeshStandardMaterial({color:0xaaaa88,roughness:0.6});
+  for(let i=0;i<18;i++){
+    const bx=rrange(-17,17);
+    const bz=rrange(-7,7);
+    // Femur
+    const bone=new THREE.Mesh(new THREE.CylinderGeometry(0.025,0.02,0.18,5),boneMat);
+    bone.position.set(bx,0.03,bz);
+    bone.rotation.z=Math.PI/2;
+    bone.rotation.y=rr()*Math.PI;
+    scene.add(bone);
+    // Knob ends
+    [-0.09,0.09].forEach(off=>{
+      const knob=new THREE.Mesh(new THREE.SphereGeometry(0.03,6,5),boneMat);
+      knob.position.set(bx+Math.cos(bone.rotation.y)*off,0.04,bz+Math.sin(bone.rotation.y)*off);
+      scene.add(knob);
+    });
+  }
+  // Skull fragments (smaller, 6 scattered)
+  for(let i=0;i<6;i++){
+    const sx=rrange(-16,16);
+    const sz=rrange(-6,6);
+    const skull=new THREE.Mesh(new THREE.SphereGeometry(0.06,7,6),boneMat);
+    skull.position.set(sx,0.06,sz);
+    skull.scale.set(1,0.85,1.1);
+    scene.add(skull);
+    // Eye sockets
+    [-0.018,0.018].forEach(ex=>{
+      const socket=new THREE.Mesh(new THREE.SphereGeometry(0.01,5,4),
+        new THREE.MeshStandardMaterial({color:0x111100}));
+      socket.position.set(sx+ex,0.07,sz+0.045);
+      scene.add(socket);
+    });
+  }
+
+  // ---- Broken weapons stuck in the ground (abandoned from past fights) ----
+  const rustyIron=new THREE.MeshStandardMaterial({color:0x554433,metalness:0.4,roughness:0.7});
+  const handleWood=new THREE.MeshStandardMaterial({color:0x4a2a10,roughness:0.85});
+  for(let i=0;i<6;i++){
+    const wx=rrange(-15,15);
+    const wz=rrange(-5,5);
+    // Spear shaft angled up out of the ground
+    const shaft=new THREE.Mesh(new THREE.CylinderGeometry(0.018,0.018,0.6,5),handleWood);
+    shaft.position.set(wx,0.3,wz);
+    shaft.rotation.z=0.4+rr()*0.3;
+    scene.add(shaft);
+    // Spear tip
+    const tip=new THREE.Mesh(new THREE.ConeGeometry(0.03,0.08,5),rustyIron);
+    tip.position.set(wx+Math.sin(shaft.rotation.z)*0.3,0.3+Math.cos(shaft.rotation.z)*0.3,wz);
+    tip.rotation.z=shaft.rotation.z;
+    scene.add(tip);
+  }
+  // Broken shields lying on the ground (3 scattered)
+  for(let i=0;i<4;i++){
+    const sx=rrange(-14,14);
+    const sz=rrange(-5,5);
+    const shield=new THREE.Mesh(new THREE.SphereGeometry(0.18,6,4,0,Math.PI*2,0,Math.PI*0.5),rustyIron);
+    shield.position.set(sx,0.04,sz);
+    shield.rotation.x=Math.PI/2;
+    shield.rotation.z=rr()*Math.PI;
+    scene.add(shield);
+    // Shield boss
+    const boss=new THREE.Mesh(new THREE.SphereGeometry(0.025,5,4),rustyIron);
+    boss.position.set(sx,0.06,sz);
+    scene.add(boss);
+  }
+
+  // ---- Cobblestone path near castle gates (stepping stones of dark stone) ----
+  const cobbleMat=new THREE.MeshStandardMaterial({color:0x6a6a6a,roughness:0.9,flatShading:true});
+  const cobbleDark=new THREE.MeshStandardMaterial({color:0x4a4a4a,roughness:0.95});
+  // Near left (P1) castle
+  for(let i=0;i<12;i++){
+    const cbx=-19.5+i*0.4;
+    const cbz=rrange(-0.7,0.7);
+    const cb=new THREE.Mesh(new THREE.BoxGeometry(0.3+rr()*0.1,0.02,0.3+rr()*0.1),
+      rr()>0.5?cobbleMat:cobbleDark);
+    cb.position.set(cbx,0.016,cbz);
+    cb.rotation.y=rrange(-0.3,0.3);
+    scene.add(cb);
+  }
+  // Near right (P2) castle
+  for(let i=0;i<12;i++){
+    const cbx=19.5-i*0.4;
+    const cbz=rrange(-0.7,0.7);
+    const cb=new THREE.Mesh(new THREE.BoxGeometry(0.3+rr()*0.1,0.02,0.3+rr()*0.1),
+      rr()>0.5?cobbleMat:cobbleDark);
+    cb.position.set(cbx,0.016,cbz);
+    cb.rotation.y=rrange(-0.3,0.3);
+    scene.add(cb);
+  }
+
+  // ---- Grass tufts for color variation (taller patches) ----
+  const tallGrass=new THREE.MeshStandardMaterial({color:0x3a6a28,roughness:0.9,flatShading:true});
+  const tallGrass2=new THREE.MeshStandardMaterial({color:0x4a7a38,roughness:0.9});
+  for(let i=0;i<30;i++){
+    const gx=rrange(-18,18);
+    const gz=rrange(-8,8);
+    // Skip central path area
+    if(Math.abs(gz)<1)continue;
+    const tuft=new THREE.Group();
+    for(let b=0;b<3;b++){
+      const blade=new THREE.Mesh(new THREE.BoxGeometry(0.03,0.15,0.008),
+        rr()>0.5?tallGrass:tallGrass2);
+      blade.position.set((b-1)*0.03,0.075,0);
+      blade.rotation.z=(rr()-0.5)*0.4;
+      tuft.add(blade);
+    }
+    tuft.position.set(gx,0.04,gz);
+    tuft.rotation.y=rr()*Math.PI*2;
+    scene.add(tuft);
+  }
+
+  // ---- Scorched ember patches (persistent burn marks) ----
+  const emberMat=new THREE.MeshStandardMaterial({color:0x1a0a04,roughness:0.95});
+  for(let i=0;i<12;i++){
+    const ex=rrange(-17,17);
+    const ez=rrange(-6,6);
+    const ep=new THREE.Mesh(new THREE.SphereGeometry(0.12+rr()*0.08,6,4),emberMat);
+    ep.scale.set(1,0.04,1+rr()*0.5);
+    ep.position.set(ex,0.015,ez);
+    ep.rotation.y=rr()*Math.PI*2;
+    scene.add(ep);
+    // A few dim embers inside the patch
+    if(rr()>0.5){
+      const glowMat=new THREE.MeshStandardMaterial({color:0xff6622,emissive:0xff3300,emissiveIntensity:1.5,transparent:true,opacity:0.85});
+      g_addAt(scene,new THREE.SphereGeometry(0.012,5,4),glowMat,ex+(rr()-0.5)*0.15,0.025,ez+(rr()-0.5)*0.15);
+    }
+  }
+
+  // ---- Small stones scattered everywhere ----
+  const smStone=new THREE.MeshStandardMaterial({color:0x6a6a5a,flatShading:true});
+  const smStone2=new THREE.MeshStandardMaterial({color:0x7a7a6a,flatShading:true});
+  for(let i=0;i<40;i++){
+    const sx=rrange(-18,18);
+    const sz=rrange(-8,8);
+    const stone=new THREE.Mesh(new THREE.DodecahedronGeometry(0.04+rr()*0.04,0),
+      rr()>0.5?smStone:smStone2);
+    stone.position.set(sx,0.04,sz);
+    stone.rotation.set(rr()*Math.PI,rr()*Math.PI,rr()*Math.PI);
+    scene.add(stone);
+  }
+
+  __disableDecoShadows(__before);
+  __freezeNewStaticDeco(__before); // v3.5: all battlefield decals are fully static
+}
+// Tiny helper for adding a mesh at a specific position (used above)
+function g_addAt(parent,geo,mat,x,y,z){
+  const m=new THREE.Mesh(geo,mat);
+  m.position.set(x,y,z);
+  parent.add(m);
+}
 
 
 
@@ -3667,6 +3916,7 @@ function init(){
   createScenery();
   createAtmosphere();
   createExtraScenery();
+  createBattlefieldDecals(); // v3.12
   initGrid();
   addCastles();
   initParticles();
