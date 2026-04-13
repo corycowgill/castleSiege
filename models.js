@@ -1166,6 +1166,117 @@ function createWall(owner){
   // Team color accent strip
   g.add(mkMesh(new THREE.BoxGeometry(0.87,0.06,0.02),mkMat(ownerAccent(owner))).translateY(0.08+wallH*0.6).translateZ(0.43));
   g.add(mkMesh(new THREE.BoxGeometry(0.02,0.06,0.87),mkMat(ownerAccent(owner))).translateY(0.08+wallH*0.6).translateX(0.43));
+
+  // ============ v3.9 DETAIL PASS ============
+  // Shared palette. Per-wall randomization is fine — walls aren't
+  // pooled; each placement runs through the v3.5 merge+freeze pipe
+  // individually, so variation between walls is free.
+  const ivy=mkMat(0x2d5a2a,{roughness:0.9});
+  const moss=mkMat(0x3a6a2a,{roughness:0.95});
+  const iron=mkMat(0x2a2a2a,{metalness:0.55,roughness:0.35});
+  const ironLight=mkMat(0x666677,{metalness:0.6,roughness:0.35});
+  const torchFire=mkMat(0xff6622,{emissive:0xff3300,emissiveIntensity:2.2,transparent:true,opacity:0.9});
+  const torchGlow=mkMat(0xffcc44,{emissive:0xff8822,emissiveIntensity:1.8,transparent:true,opacity:0.85});
+  const scorchMat=mkMat(0x1a1510);
+  const bloodStain=mkMat(0x6a0a0a,{emissive:0x220404,emissiveIntensity:0.3,roughness:0.9});
+
+  // Vertical stone block seams (4 per face, centered between crenels)
+  [-0.3,-0.1,0.1,0.3].forEach(dx=>{
+    g.add(mkMesh(new THREE.BoxGeometry(0.008,wallH*0.9,0.86),vdark).translateX(dx).translateY(0.08+wallH/2));
+  });
+  [-0.3,-0.1,0.1,0.3].forEach(dz=>{
+    g.add(mkMesh(new THREE.BoxGeometry(0.86,wallH*0.9,0.008),vdark).translateY(0.08+wallH/2).translateZ(dz));
+  });
+
+  // Arrow slits on 2 opposing sides (thin dark slots + defender glow)
+  [-1,1].forEach(s=>{
+    g.add(mkMesh(new THREE.BoxGeometry(0.03,0.26,0.005),mkMat(0x111111))
+      .translateX(s*0.425).translateY(0.08+wallH*0.6));
+    // Defender torchlight behind the slit
+    g.add(mkMesh(new THREE.BoxGeometry(0.02,0.16,0.003),mkMat(0xffaa44,{emissive:0xff8822,emissiveIntensity:1.0}))
+      .translateX(s*0.43).translateY(0.08+wallH*0.6));
+  });
+
+  // Moss patches at base (2-4 randomly placed)
+  const __mossCount=2+(Math.random()*3|0);
+  for(let i=0;i<__mossCount;i++){
+    const mx=(Math.random()-0.5)*0.8;
+    const mz=(Math.random()-0.5)*0.8;
+    const edge=Math.random()<0.5?0.43:-0.43;
+    g.add(mkMesh(new THREE.SphereGeometry(0.035+Math.random()*0.02,5,4),moss)
+      .translateX(Math.abs(mx)>Math.abs(mz)?edge:mx).translateY(0.11+Math.random()*0.05).translateZ(Math.abs(mz)>=Math.abs(mx)?edge:mz));
+  }
+
+  // Ivy climbing one random face (trunk + leaf clusters)
+  const ivyFace=Math.random()*4|0;
+  const ivyDx=[0.43,-0.43,0,0][ivyFace];
+  const ivyDz=[0,0,0.43,-0.43][ivyFace];
+  g.add(mkMesh(new THREE.CylinderGeometry(0.008,0.008,wallH*0.85,4),ivy)
+    .translateX(ivyDx).translateY(0.08+wallH*0.45).translateZ(ivyDz));
+  for(let iy=0.15;iy<wallH-0.05;iy+=0.18){
+    g.add(mkMesh(new THREE.SphereGeometry(0.035,5,4),ivy)
+      .translateX(ivyDx+(ivyDx===0?(Math.random()-0.5)*0.1:(Math.random()-0.5)*0.05))
+      .translateY(0.08+iy)
+      .translateZ(ivyDz+(ivyDz===0?(Math.random()-0.5)*0.1:(Math.random()-0.5)*0.05)));
+  }
+
+  // Battle damage — 1-3 scorch marks on the outer walls
+  const __scorchCount=1+(Math.random()*3|0);
+  for(let i=0;i<__scorchCount;i++){
+    const side=Math.random()<0.5?1:-1;
+    const vert=Math.random()<0.5;
+    g.add(mkMesh(new THREE.BoxGeometry(vert?0.005:0.06,0.05,vert?0.06:0.005),scorchMat)
+      .translateX(vert?0.432*side:(Math.random()-0.5)*0.6)
+      .translateY(0.2+Math.random()*wallH*0.6)
+      .translateZ(vert?(Math.random()-0.5)*0.6:0.432*side));
+  }
+
+  // Rivet pattern on one face (decorative studs)
+  const rivetFace=Math.random()<0.5?1:-1;
+  for(let rr=0;rr<4;rr++){
+    g.add(mkMesh(new THREE.SphereGeometry(0.012,4,3),ironLight)
+      .translateX(-0.25+rr*0.17).translateY(0.25).translateZ(0.434*rivetFace));
+  }
+
+  // Wall torch on one merlon (50% chance; if present, glows at night)
+  if(Math.random()<0.6){
+    const torchDx=(Math.random()*3-1)*0.3;
+    const torchDz=Math.random()<0.5?0.3:-0.3;
+    // Bracket
+    g.add(mkMesh(new THREE.BoxGeometry(0.02,0.03,0.025),iron).translateX(torchDx).translateY(mTop+0.18).translateZ(torchDz));
+    // Fire core
+    g.add(mkMesh(new THREE.SphereGeometry(0.035,6,5),torchFire).translateX(torchDx).translateY(mTop+0.22).translateZ(torchDz));
+    // Flame cone
+    g.add(mkMesh(new THREE.ConeGeometry(0.03,0.09,5),torchGlow).translateX(torchDx).translateY(mTop+0.29).translateZ(torchDz));
+  }
+
+  // Defender helmet peeking from behind the crenellations (one random merlon gap)
+  if(Math.random()<0.5){
+    const hx=(Math.random()*3-1)*0.3;
+    const hz=Math.random()<0.5?0.3:-0.3;
+    // Helmet dome peeking over the top
+    g.add(mkMesh(new THREE.SphereGeometry(0.05,6,4,0,Math.PI*2,0,Math.PI*0.5),iron)
+      .translateX(hx).translateY(mTop+0.14).translateZ(hz*0.5));
+    // Crest plume (team color)
+    g.add(mkMesh(new THREE.BoxGeometry(0.005,0.02,0.04),mkMat(ownerAccent(owner)))
+      .translateX(hx).translateY(mTop+0.18).translateZ(hz*0.5));
+  }
+
+  // Blood stains on outer face (rare, 30% chance)
+  if(Math.random()<0.3){
+    const bs=Math.random()<0.5?1:-1;
+    g.add(mkMesh(new THREE.BoxGeometry(0.004,0.1,0.015),bloodStain)
+      .translateX(0.434*bs).translateY(0.5).translateZ((Math.random()-0.5)*0.4));
+  }
+
+  // Small rubble pile at base (some walls only)
+  if(Math.random()<0.4){
+    const rbx=(Math.random()-0.5)*0.6;
+    const rbz=0.43*(Math.random()<0.5?1:-1);
+    g.add(mkMesh(new THREE.DodecahedronGeometry(0.035,0),vdark).translateX(rbx).translateY(0.1).translateZ(rbz));
+    g.add(mkMesh(new THREE.DodecahedronGeometry(0.028,0),dark).translateX(rbx+0.05).translateY(0.1).translateZ(rbz-0.03));
+  }
+
   return g;
 }
 function createBarricade(owner){
@@ -1206,6 +1317,117 @@ function createBarricade(owner){
   // Metal binding bands
   g.add(mkMesh(new THREE.BoxGeometry(0.84,0.025,0.025),metal).translateY(0.25));
   g.add(mkMesh(new THREE.BoxGeometry(0.84,0.025,0.025),metal).translateY(0.45));
+
+  // ============ v3.9 DETAIL PASS ============
+  const rope=mkMat(0xaa8855,{roughness:0.85});
+  const bone=mkMat(0xeeeecc,{roughness:0.55});
+  const boneDark=mkMat(0xaaaa88,{roughness:0.6});
+  const ironB=mkMat(0x3a3a3a,{metalness:0.55,roughness:0.4});
+  const bloodStain2=mkMat(0x6a0a0a,{emissive:0x220404,emissiveIntensity:0.4,roughness:0.9});
+  const mudMat=mkMat(0x2a1808,{roughness:0.95});
+  const ragMat=mkMat(owner===1?0x1a3d7a:0x7a1a3d,{roughness:0.85});
+  const torchFireB=mkMat(0xff6622,{emissive:0xff3300,emissiveIntensity:2.2,transparent:true,opacity:0.9});
+  const torchGlowB=mkMat(0xffcc44,{emissive:0xff8822,emissiveIntensity:1.8,transparent:true,opacity:0.85});
+
+  // Rope lashings at X-frame joints
+  [-0.25,0.25].forEach(zOff=>{
+    g.add(mkMesh(new THREE.TorusGeometry(0.035,0.006,4,10),rope).translateY(0.35).translateZ(zOff).rotateY(Math.PI/2));
+    g.add(mkMesh(new THREE.TorusGeometry(0.032,0.005,4,8),rope).translateY(0.36).translateZ(zOff).rotateY(Math.PI/2).rotateZ(0.3));
+  });
+
+  // Impaled skull on center stake (trophy display, every other barricade)
+  if(Math.random()<0.5){
+    const skullY=0.85+Math.random()*0.05;
+    g.add(mkMesh(new THREE.SphereGeometry(0.04,7,6),bone).translateY(skullY));
+    // Eye sockets
+    [-0.012,0.012].forEach(ex=>{
+      g.add(mkMesh(new THREE.SphereGeometry(0.007,4,3),mkMat(0x111100)).translateX(ex).translateY(skullY+0.005).translateZ(0.028));
+    });
+    // Jaw
+    g.add(mkMesh(new THREE.BoxGeometry(0.04,0.008,0.02),bone).translateY(skullY-0.018).translateZ(0.018));
+    // Tiny teeth
+    [-0.01,0,0.01].forEach(tx=>{
+      g.add(mkMesh(new THREE.ConeGeometry(0.003,0.008,3),bone).translateX(tx).translateY(skullY-0.02).translateZ(0.025).rotateX(Math.PI));
+    });
+  }
+
+  // Extra scattered animal bones on top bar (ribs/femur fragments)
+  for(let bi=0;bi<3;bi++){
+    g.add(mkMesh(new THREE.CylinderGeometry(0.006,0.006,0.05,4),boneDark)
+      .translateX(-0.3+bi*0.3+(Math.random()-0.5)*0.05)
+      .translateY(0.6)
+      .translateZ((Math.random()-0.5)*0.15).rotateZ(Math.PI/2+Math.random()*0.4));
+  }
+
+  // Iron reinforcement plates (nailed on the X-braces)
+  [-0.25,0.25].forEach(zOff=>{
+    g.add(mkMesh(new THREE.BoxGeometry(0.08,0.08,0.008),ironB).translateY(0.35).translateZ(zOff));
+    // Rivets on plate (4 corners)
+    for(let rx=-1;rx<=1;rx+=2)for(let ry=-1;ry<=1;ry+=2){
+      g.add(mkMesh(new THREE.SphereGeometry(0.006,4,3),mkMat(0x888899,{metalness:0.7}))
+        .translateX(rx*0.03).translateY(0.35+ry*0.03).translateZ(zOff+0.005));
+    }
+  });
+
+  // Blood on outward spikes (kill markers, 50% chance per spike side)
+  if(Math.random()<0.5){
+    g.add(mkMesh(new THREE.SphereGeometry(0.015,5,4),bloodStain2).translateX(-0.36).translateY(0.35).translateZ(0.55));
+    g.add(mkMesh(new THREE.SphereGeometry(0.012,5,4),bloodStain2).translateX(0,0).translateY(0.33).translateZ(0.58));
+  }
+  if(Math.random()<0.5){
+    g.add(mkMesh(new THREE.SphereGeometry(0.013,5,4),bloodStain2).translateX(0.18).translateY(0.36).translateZ(-0.55));
+  }
+
+  // Mud splatter at base (random)
+  for(let mi=0;mi<4;mi++){
+    g.add(mkMesh(new THREE.SphereGeometry(0.025+Math.random()*0.015,4,3),mudMat)
+      .translateX((Math.random()-0.5)*0.8).translateY(0.06+Math.random()*0.03).translateZ((Math.random()-0.5)*0.8));
+  }
+
+  // Ragged cloth banner strip tied to top (team color)
+  if(Math.random()<0.5){
+    const ragX=(Math.random()*3-1)*0.2;
+    g.add(mkMesh(new THREE.BoxGeometry(0.06,0.12,0.008),ragMat).translateX(ragX).translateY(0.7).translateZ(0));
+    // Tattered bottom strips
+    g.add(mkMesh(new THREE.BoxGeometry(0.02,0.05,0.008),ragMat).translateX(ragX-0.015).translateY(0.62).translateZ(0.002));
+    g.add(mkMesh(new THREE.BoxGeometry(0.02,0.04,0.008),ragMat).translateX(ragX+0.015).translateY(0.625).translateZ(0.002));
+    // Tie string
+    g.add(mkMesh(new THREE.CylinderGeometry(0.002,0.002,0.04,3),rope).translateX(ragX).translateY(0.77));
+  }
+
+  // Small torch mounted on one end stake (emissive; stands out at night)
+  if(Math.random()<0.4){
+    const tx=Math.random()<0.5?-0.36:0.36;
+    // Iron clamp
+    g.add(mkMesh(new THREE.BoxGeometry(0.015,0.02,0.015),ironB).translateX(tx).translateY(0.7));
+    // Fire core
+    g.add(mkMesh(new THREE.SphereGeometry(0.03,6,5),torchFireB).translateX(tx).translateY(0.76));
+    // Flame cone
+    g.add(mkMesh(new THREE.ConeGeometry(0.025,0.07,5),torchGlowB).translateX(tx).translateY(0.82));
+    // Bright spark
+    g.add(mkMesh(new THREE.SphereGeometry(0.014,5,4),mkMat(0xffffcc,{emissive:0xffee88,emissiveIntensity:2.8,transparent:true,opacity:0.95}))
+      .translateX(tx).translateY(0.78));
+  }
+
+  // Hanging shield on a side (round iron shield)
+  if(Math.random()<0.4){
+    const sdx=Math.random()<0.5?-0.42:0.42;
+    g.add(mkMesh(new THREE.SphereGeometry(0.065,6,4,0,Math.PI*2,0,Math.PI*0.5),ironB).translateX(sdx).translateY(0.3).rotateZ(Math.PI/2));
+    // Boss in middle
+    g.add(mkMesh(new THREE.SphereGeometry(0.012,5,4),mkMat(0x666677,{metalness:0.7})).translateX(sdx).translateY(0.3).translateZ(0.002));
+    // Team cross
+    g.add(mkMesh(new THREE.BoxGeometry(0.003,0.07,0.006),mkMat(ownerAccent(owner))).translateX(sdx).translateY(0.3));
+    g.add(mkMesh(new THREE.BoxGeometry(0.003,0.006,0.07),mkMat(ownerAccent(owner))).translateX(sdx).translateY(0.3));
+  }
+
+  // Thorny brambles twisted around a stake (small spheres + tiny spikes)
+  for(let ti=0;ti<4;ti++){
+    const tax=-0.4+ti*0.27;
+    const tay=0.3+(ti%2)*0.08;
+    g.add(mkMesh(new THREE.SphereGeometry(0.012,5,4),mkMat(0x2a1a08)).translateX(tax).translateY(tay).translateZ(0.05));
+    g.add(mkMesh(new THREE.ConeGeometry(0.004,0.015,3),mkMat(0x3a2a1a)).translateX(tax).translateY(tay+0.01).translateZ(0.06).rotateX(0.3));
+  }
+
   return g;
 }
 
