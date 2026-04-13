@@ -2483,6 +2483,36 @@ function createProjectileModel(type){
     }
     // Nock end cap
     g.add(mkMesh(new THREE.SphereGeometry(0.016,6,5),mkMat(0x3a1a1a)).translateX(-0.18));
+
+    // ============ v3.11 DETAIL PASS ============
+    // Barbs on the arrowhead (2 small spines angled back)
+    [[-1,0],[1,0],[0,-1],[0,1]].forEach(p=>{
+      const barb=mkMesh(new THREE.ConeGeometry(0.006,0.025,3),mkMat(0xaaaaaa,{metalness:0.6}));
+      barb.position.set(0.2,p[0]*0.018,p[1]*0.018);
+      barb.rotation.z=-Math.PI/2+0.5*p[0];
+      barb.rotation.x=0.5*p[1];
+      g.add(barb);
+    });
+    // Leather binding wraps (3 thin dark bands along the shaft)
+    [0.08,0.0,-0.08].forEach(x=>{
+      g.add(mkMesh(new THREE.CylinderGeometry(0.0135,0.0135,0.012,6),mkMat(0x4a2a0a,{roughness:0.85}))
+        .translateX(x).rotateZ(Math.PI/2));
+    });
+    // Wood grain dark stripes (2 thin lines)
+    const grain=mkMat(0x5a3a10);
+    g.add(mkMesh(new THREE.BoxGeometry(0.32,0.003,0.003),grain).translateY(0.011));
+    g.add(mkMesh(new THREE.BoxGeometry(0.32,0.003,0.003),grain).translateY(-0.011));
+    // 5th (center) feather for extra silhouette richness
+    const cfin=mkMesh(new THREE.BoxGeometry(0.07,0.042,0.004),mkMat(0xaa1818));
+    cfin.position.x=-0.13;cfin.rotation.x=Math.PI/4;g.add(cfin);
+    // Glowing enchanted tip accent (ember near the head)
+    g.add(mkMesh(new THREE.SphereGeometry(0.014,6,5),
+      new THREE.MeshStandardMaterial({color:0xffaa44,emissive:0xff6622,emissiveIntensity:2.2,transparent:true,opacity:0.9,depthWrite:false})).translateX(0.245));
+    // Thin streak trail behind the arrow (faint elongated cone)
+    g.add(mkMesh(new THREE.ConeGeometry(0.012,0.16,6),
+      new THREE.MeshBasicMaterial({color:0xffee88,transparent:true,opacity:0.35,depthWrite:false}))
+      .translateX(-0.24).rotateZ(Math.PI/2));
+
   }else if(type==='proj_magic'){
     // Bright white core
     g.add(mkMesh(new THREE.SphereGeometry(0.07,12,10),
@@ -2505,9 +2535,34 @@ function createProjectileModel(type){
       new THREE.MeshStandardMaterial({color:0xffaaff,emissive:0xcc66ff,emissiveIntensity:1.3,transparent:true,opacity:0.6,depthWrite:false}));
     r2.rotation.z=Math.PI/3;g.add(r2);
     r2.userData.spin='ring2';
-    // Dynamic point light for scene illumination
-    // PERF: no PointLight on projectile (was expensive per-active-projectile).
-    // Glow comes from emissive materials only.
+
+    // ============ v3.11 DETAIL PASS ============
+    // Third orbiting ring (cross-axis)
+    const r3=mkMesh(new THREE.TorusGeometry(0.16,0.008,6,24),
+      new THREE.MeshStandardMaterial({color:0xddaaff,emissive:0xbb55ff,emissiveIntensity:1.4,transparent:true,opacity:0.55,depthWrite:false}));
+    r3.rotation.y=Math.PI/3;r3.rotation.x=Math.PI/5;g.add(r3);
+    r3.userData.spin='ring1';
+    // Runic symbols floating inside the orb (4 tiny emissive cubes)
+    const runeMat=new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:0.95});
+    [[0.06,0,0],[-0.06,0,0],[0,0.06,0],[0,-0.06,0]].forEach(p=>{
+      g.add(mkMesh(new THREE.BoxGeometry(0.015,0.015,0.015),runeMat).translateX(p[0]).translateY(p[1]).translateZ(p[2]));
+    });
+    // Sparkle specks orbiting at the outer shell (6 random)
+    const sparkMat=new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:0.9,fog:false});
+    for(let i=0;i<6;i++){
+      const a=i*Math.PI/3;
+      g.add(mkMesh(new THREE.TetrahedronGeometry(0.012,0),sparkMat)
+        .translateX(Math.cos(a)*0.2).translateY(Math.sin(a)*0.2).translateZ((i%2===0?1:-1)*0.05));
+    }
+    // Thin lightning tendrils shooting out (4 directions)
+    const boltMat=new THREE.MeshBasicMaterial({color:0xffddff,transparent:true,opacity:0.55,depthWrite:false,fog:false});
+    [0,Math.PI/2,Math.PI,Math.PI*1.5].forEach(a=>{
+      const bolt=mkMesh(new THREE.CylinderGeometry(0.004,0.001,0.18,3),boltMat);
+      bolt.position.set(Math.cos(a)*0.24,0,Math.sin(a)*0.24);
+      bolt.rotation.z=Math.PI/2-a;
+      g.add(bolt);
+    });
+
   }else if(type==='proj_boulder'){
     // Rough rock core with flat shading
     g.add(mkMesh(new THREE.DodecahedronGeometry(0.15,0),
@@ -2527,6 +2582,31 @@ function createProjectileModel(type){
       dust.position.y=(i%2)*0.03;
       g.add(dust);
     }
+
+    // ============ v3.11 DETAIL PASS ============
+    const rockMoss=mkMat(0x3a6a2a,{roughness:0.95});
+    const rockDark=mkMat(0x3a3028,{roughness:0.95,flatShading:true});
+    const rockLight=mkMat(0xaaa088,{roughness:0.9,flatShading:true});
+    // Additional overlapping chunks for a bumpier, less uniform shape
+    g.add(mkMesh(new THREE.DodecahedronGeometry(0.055,0),rockLight).translateX(0.08).translateY(-0.04).translateZ(0.05));
+    g.add(mkMesh(new THREE.DodecahedronGeometry(0.045,0),rockDark).translateX(-0.04).translateY(0.07).translateZ(-0.06));
+    g.add(mkMesh(new THREE.DodecahedronGeometry(0.04,0),rockLight).translateX(0.05).translateY(0.06).translateZ(0.08));
+    // Moss patches (green clumps on top/side)
+    g.add(mkMesh(new THREE.SphereGeometry(0.035,5,4),rockMoss).translateX(0.02).translateY(0.12).translateZ(-0.02));
+    g.add(mkMesh(new THREE.SphereGeometry(0.028,5,4),rockMoss).translateX(-0.08).translateY(0.08).translateZ(0.06));
+    // Scorch marks (dark patches)
+    g.add(mkMesh(new THREE.SphereGeometry(0.025,5,4),mkMat(0x1a1008)).translateX(0.1).translateY(0.02).translateZ(0.1));
+    g.add(mkMesh(new THREE.SphereGeometry(0.02,5,4),mkMat(0x0a0504)).translateX(-0.1).translateY(-0.05).translateZ(-0.08));
+    // Small flying gravel bits trailing behind
+    for(let gi=0;gi<5;gi++){
+      g.add(mkMesh(new THREE.DodecahedronGeometry(0.015+Math.random()*0.01,0),rockDark)
+        .translateX(-0.22-gi*0.06).translateY((Math.random()-0.5)*0.08).translateZ((Math.random()-0.5)*0.08));
+    }
+    // Extra wide dust cloud in back
+    g.add(mkMesh(new THREE.SphereGeometry(0.14,8,6),
+      new THREE.MeshBasicMaterial({color:0x8a7858,transparent:true,opacity:0.22,depthWrite:false}))
+      .translateX(-0.42));
+
   }else{// cannonball
     // Dark iron sphere (metallic)
     g.add(mkMesh(new THREE.SphereGeometry(0.11,14,12),
@@ -2552,6 +2632,40 @@ function createProjectileModel(type){
         new THREE.MeshBasicMaterial({color:0x2a2a2a,transparent:true,opacity:0.35-i*0.09,depthWrite:false}))
         .translateX(-0.32-i*0.09).translateY(0.015*(i+1)));
     }
+
+    // ============ v3.11 DETAIL PASS ============
+    // Iron surface pitting (small dark bumps on the sphere)
+    const pitMat=mkMat(0x0a0a0a,{metalness:0.9,roughness:0.2});
+    [[0.09,0.03,0.04],[-0.04,0.09,0.02],[0.02,-0.08,0.06],[-0.07,-0.04,-0.05],[0.06,0.05,-0.07]].forEach(p=>{
+      g.add(mkMesh(new THREE.SphereGeometry(0.015,5,4),pitMat).translateX(p[0]).translateY(p[1]).translateZ(p[2]));
+    });
+    // Glowing crack lines across the sphere (emissive thin boxes)
+    const crackMat=new THREE.MeshStandardMaterial({color:0xff6622,emissive:0xff4400,emissiveIntensity:2.5,transparent:true,opacity:0.9});
+    [[0.11,0,0,0],[0,0.11,0,Math.PI/2],[0,0,0.11,0]].forEach(p=>{
+      const crack=mkMesh(new THREE.BoxGeometry(0.004,0.08,0.004),crackMat);
+      crack.position.set(p[0],p[1],p[2]);
+      crack.rotation.z=p[3];
+      g.add(crack);
+    });
+    // Additional curved fire tendrils shooting off the trail (3 angled cones)
+    const flameMat=new THREE.MeshStandardMaterial({color:0xff8800,emissive:0xff6600,emissiveIntensity:2.2,transparent:true,opacity:0.7,depthWrite:false});
+    [[-0.15,0.08,0.3],[-0.12,-0.07,-0.3],[-0.18,0.03,0.1]].forEach(p=>{
+      g.add(mkMesh(new THREE.ConeGeometry(0.025,0.08,6),flameMat).translateX(p[0]).translateY(p[1]).translateZ(p[2]*0.2).rotateZ(p[2]));
+    });
+    // Ember sparks orbiting the fire trail (5 tiny emissive)
+    const emberMat=new THREE.MeshBasicMaterial({color:0xffee88,transparent:true,opacity:0.9,fog:false});
+    for(let ei=0;ei<5;ei++){
+      const a=ei*1.3;
+      g.add(mkMesh(new THREE.SphereGeometry(0.01,4,3),emberMat)
+        .translateX(-0.1-ei*0.04).translateY(Math.sin(a)*0.04).translateZ(Math.cos(a)*0.04));
+    }
+    // Heat distortion outer shell (very faint red sphere)
+    g.add(mkMesh(new THREE.SphereGeometry(0.16,10,8),
+      new THREE.MeshBasicMaterial({color:0xff6644,transparent:true,opacity:0.12,depthWrite:false})));
+    // Extra fat smoke puff further back
+    g.add(mkMesh(new THREE.SphereGeometry(0.12,7,6),
+      new THREE.MeshBasicMaterial({color:0x2a2a2a,transparent:true,opacity:0.2,depthWrite:false}))
+      .translateX(-0.55).translateY(0.06));
     // PERF: no PointLight on projectile — glow is emissive-only.
   }
   return g;
