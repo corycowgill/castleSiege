@@ -411,7 +411,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0604}
     </div>
     <div style="margin-top:16px;display:flex;justify-content:space-between;align-items:center;font-family:'Cinzel',monospace;font-size:11px;opacity:0.85">
       <span style="color:#555">Three.js &bull; Procedural</span>
-      <span style="color:#ffd700;font-weight:bold;letter-spacing:1px">v3.5 &bull; Build 2026-04-13</span>
+      <span style="color:#ffd700;font-weight:bold;letter-spacing:1px">v3.6 &bull; Build 2026-04-13</span>
     </div>
   </div>
 </div>
@@ -688,6 +688,57 @@ let gameState='modeselect';
 let waveNum=0,buildTimer=0,waveEndTimer=0;
 let spawnQueue1=[],spawnQueue2=[],spawnTimer=0;
 const enemies=[],towers=[],projectiles=[];
+
+// PERF v3.6: spatial grid for radial enemy lookups. Each cell holds
+// an array of enemies currently inside that tile. Rebuilt once per
+// sim tick at the top of updateCombat, then used by:
+//   - tower targeting (radius = t.range tiles)
+//   - enemy combat scanning (radius = 1.5 tiles)
+//   - projectile splash damage (radius = p.splash tiles)
+// Pre-v3.6 each of these walked the full `enemies` array every call.
+const __spatCells=Array.from({length:ROWS},()=>Array.from({length:COLS},()=>[]));
+function __rebuildSpatialGrid(){
+  for(let r=0;r<ROWS;r++){
+    const row=__spatCells[r];
+    for(let c=0;c<COLS;c++)row[c].length=0;
+  }
+  for(const e of enemies){
+    if(!e.alive)continue;
+    // Map pixel coords back to tile coords. GAME_Y is the Y offset of
+    // the playfield; xToCol/yToRow also do this but with Math.floor,
+    // which is what we need for cell bucketing.
+    const c=Math.floor(e.x/T);
+    const r=Math.floor((e.y-GAME_Y)/T);
+    if(c<0||c>=COLS||r<0||r>=ROWS)continue;
+    __spatCells[r][c].push(e);
+  }
+}
+// Push enemies within `radius` tiles of pixel (cx,cy) into `out`,
+// then return `out`. Conservative overshoot (cell-aligned box) —
+// callers still filter by exact distance.
+function __spatQuery(cx,cy,radius,out){
+  out.length=0;
+  const cc=cx/T;
+  const cr=(cy-GAME_Y)/T;
+  const c0=Math.max(0,Math.floor(cc-radius));
+  const c1=Math.min(COLS-1,Math.floor(cc+radius));
+  const r0=Math.max(0,Math.floor(cr-radius));
+  const r1=Math.min(ROWS-1,Math.floor(cr+radius));
+  for(let r=r0;r<=r1;r++){
+    const row=__spatCells[r];
+    for(let c=c0;c<=c1;c++){
+      const cell=row[c];
+      for(let i=0;i<cell.length;i++)out.push(cell[i]);
+    }
+  }
+  return out;
+}
+// Three pre-allocated out arrays so the three call sites never
+// clobber each other even if the logic gets reshuffled later.
+const __nearbyTower=[];
+const __nearbyScan=[];
+const __nearbySplash=[];
+
 const players=[null,
   {castleHP:CASTLE_HP,maxHP:CASTLE_HP,credits:START_CREDITS,cursor:{c:10,r:9},
    selectedIdx:0,enemyQueue:{goblin:0,orc:0,darkKnight:0,archer:0},
@@ -2339,6 +2390,16 @@ function updateCombat(dt){
     if(spawnQueue2.length){spawnEnemy(spawnQueue2.shift(),37,6+Math.floor(Math.random()*6),2)}
   }
 
+  // PERF v3.6: rebuild spatial grid once per sim tick. All subsequent
+  // per-enemy radial lookups (tower targeting, combat scanning, splash
+  // damage) use cell queries instead of full linear scans. Pre-v3.6:
+  // updateCombat did O(towers × enemies) for targeting + O(enemies²)
+  // for combat scanning (throttled) + O(projectiles × enemies) for
+  // splash. At 20 towers and 100 enemies that's ~4,000 linear-scan
+  // probes per tick. v3.6 replaces them with cell queries that touch
+  // only ~1-10 enemies per call.
+  __rebuildSpatialGrid();
+
   // Update enemies
   for(const e of enemies){
     if(!e.alive)continue;
@@ -2351,7 +2412,15 @@ function updateCombat(dt){
       e.combatScanTimer=(e.combatScanTimer||0)-dt;
       if(e.combatScanTimer<=0){
         e.combatScanTimer=0.2;let closest=null,closestD=T*1.5;
-        for(const e2 of enemies){if(!e2.alive||e2.owner===e.owner)continue;const d2=dist(e.x,e.y,e2.x,e2.y);if(d2<closestD){closestD=d2;closest=e2}}
+        // v3.6: cell query instead of full enemy walk. At radius 1.5
+        // tiles the query touches ~2-6 enemies in typical combat.
+        const nearbyScan=__spatQuery(e.x,e.y,1.5,__nearbyScan);
+        for(let i=0;i<nearbyScan.length;i++){
+          const e2=nearbyScan[i];
+          if(!e2.alive||e2.owner===e.owner)continue;
+          const d2=dist(e.x,e.y,e2.x,e2.y);
+          if(d2<closestD){closestD=d2;closest=e2}
+        }
         if(closest){e.combatTarget=closest;closest.combatTarget=e}
       }
     }
@@ -2415,7 +2484,12 @@ function updateCombat(dt){
   for(const t of towers){
     t.cooldown-=dt;const targetOwner=t.owner===1?2:1;
     let best=null,bestDist=Infinity;
-    for(const e of enemies){
+    // v3.6: cell query instead of full enemy walk. With 20 towers and
+    // 100 enemies this was the single worst linear-scan offender in
+    // updateCombat.
+    const nearbyT=__spatQuery(t.x,t.y,t.range,__nearbyTower);
+    for(let i=0;i<nearbyT.length;i++){
+      const e=nearbyT[i];
       if(!e.alive||e.owner!==targetOwner)continue;const d=dist(t.x,t.y,e.x,e.y)/T;
       if(d<=t.range&&e.pathIdx>((best&&best.pathIdx)||0)){best=e;bestDist=d}
       else if(d<=t.range&&e.pathIdx===((best&&best.pathIdx)||0)&&d<bestDist){best=e;bestDist=d}
@@ -2456,7 +2530,13 @@ function updateCombat(dt){
       p.alive=false;
       if(p.splash>0){
         const enemyTeam=p.owner===1?2:1;
-        for(const e of enemies){if(!e.alive||e.owner!==enemyTeam)continue;if(dist(p.tx,p.ty,e.x,e.y)/T<=p.splash)dealDamage(e,p.dmg)}
+        // v3.6: cell query instead of full enemy walk.
+        const nearbyP=__spatQuery(p.tx,p.ty,p.splash,__nearbySplash);
+        for(let i=0;i<nearbyP.length;i++){
+          const e=nearbyP[i];
+          if(!e.alive||e.owner!==enemyTeam)continue;
+          if(dist(p.tx,p.ty,e.x,e.y)/T<=p.splash)dealDamage(e,p.dmg);
+        }
         const wp=pixelToWorld(p.tx,p.ty);
         // Type-specific splash impact
         if(p.type==='proj_magic'){
