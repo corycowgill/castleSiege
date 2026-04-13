@@ -409,7 +409,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0604}
     </div>
     <div style="margin-top:16px;display:flex;justify-content:space-between;align-items:center;font-family:'Cinzel',monospace;font-size:11px;opacity:0.85">
       <span style="color:#555">Three.js &bull; Procedural</span>
-      <span style="color:#ffd700;font-weight:bold;letter-spacing:1px">v3.0 &bull; Build 2026-04-13</span>
+      <span style="color:#ffd700;font-weight:bold;letter-spacing:1px">v3.1 &bull; Build 2026-04-13</span>
     </div>
   </div>
 </div>
@@ -4127,6 +4127,128 @@ function __cacheEnemyMeshRefs(mesh){
   mesh.userData.tintMats=tintMats;
 }
 
+// PERF v3.1: inline BufferGeometry merger. Three.js's BufferGeometryUtils
+// is shipped as a separate addon and we use the single-file `three.min.js`
+// build, so we roll a tiny merger here. Takes [{geometry, matrix}] and
+// returns a single BufferGeometry with each source transform baked in.
+// All source geometries must have matching attribute sets (position,
+// normal, optionally uv) — true for Three.js primitive geometries.
+function __mergeGeos(entries){
+  if(entries.length===0)return null;
+  // Bake each source: non-indexed clone with matrix applied.
+  // Non-indexed because we then just concatenate the attribute arrays;
+  // handling index remapping is more complex for marginal benefit on
+  // a few hundred triangles per enemy.
+  const baked=[];
+  for(const e of entries){
+    let g=e.geometry.index?e.geometry.toNonIndexed():e.geometry.clone();
+    g.applyMatrix4(e.matrix);
+    baked.push(g);
+  }
+  if(baked.length===1)return baked[0];
+  const out=new THREE.BufferGeometry();
+  const names=['position','normal','uv'];
+  for(const name of names){
+    const first=baked[0].attributes[name];
+    if(!first)continue;
+    const itemSize=first.itemSize;
+    let total=0,allHave=true;
+    for(const g of baked){
+      if(!g.attributes[name]){allHave=false;break}
+      total+=g.attributes[name].count;
+    }
+    if(!allHave)continue;
+    const arr=new Float32Array(total*itemSize);
+    let off=0;
+    for(const g of baked){
+      const a=g.attributes[name].array;
+      arr.set(a,off);
+      off+=a.length;
+    }
+    out.setAttribute(name,new THREE.BufferAttribute(arr,itemSize));
+  }
+  // Temps have been copied into `out` — safe to drop their GPU refs.
+  for(const g of baked)g.dispose();
+  return out;
+}
+
+// PERF v3.1: post-process an enemy model to collapse its ~50 sub-meshes
+// into ~1 merged mesh per (owner, material). Each goblin now ends up
+// around 10 draw calls instead of 50 — a 5x reduction. Limb Groups
+// (leftLeg/rightLeg/leftArm/rightArm) are preserved as containers so
+// per-limb walk/attack animation still works — we merge WITHIN each
+// limb and WITHIN the root-body separately, attaching the merged
+// results as direct children of their owner.
+function __mergeEnemyModel(root){
+  // Neutralize the root's per-enemy facing/scale so merge-relative
+  // matrices bake only sub-geometry offsets, not the per-instance
+  // transform that syncEnemies sets each frame.
+  const savPos=root.position.clone();
+  const savQuat=root.quaternion.clone();
+  const savScl=root.scale.clone();
+  root.position.set(0,0,0);
+  root.quaternion.identity();
+  root.scale.set(1,1,1);
+  root.updateMatrixWorld(true);
+
+  // Find nearest limb ancestor (or null if none up to the root).
+  function limbAncestorOf(c){
+    let p=c.parent;
+    while(p&&p!==root){
+      if(p.userData&&p.userData.limb)return p;
+      p=p.parent;
+    }
+    return null;
+  }
+
+  // owner (limb or root) -> Map(material -> [{geometry, matrix}])
+  const groups=new Map();
+  const toRemove=[];
+  root.traverse(c=>{
+    if(!c.isMesh||!c.geometry)return;
+    const owner=limbAncestorOf(c)||root;
+    const ownerInv=new THREE.Matrix4().copy(owner.matrixWorld).invert();
+    const rel=new THREE.Matrix4().multiplyMatrices(ownerInv,c.matrixWorld);
+    const mat=Array.isArray(c.material)?c.material[0]:c.material;
+    if(!groups.has(owner))groups.set(owner,new Map());
+    const byMat=groups.get(owner);
+    if(!byMat.has(mat))byMat.set(mat,[]);
+    byMat.get(mat).push({geometry:c.geometry,matrix:rel});
+    toRemove.push(c);
+  });
+
+  // Detach originals before building merged replacements.
+  for(const c of toRemove){
+    if(c.parent)c.parent.remove(c);
+  }
+
+  // Build one merged Mesh per (owner, material).
+  for(const[owner,byMat] of groups){
+    for(const[mat,entries] of byMat){
+      const merged=__mergeGeos(entries);
+      if(!merged)continue;
+      const m=new THREE.Mesh(merged,mat);
+      m.castShadow=true;m.receiveShadow=true;
+      owner.add(m);
+    }
+  }
+
+  // Dispose original GPU geometries (now captured into merged buffers).
+  const disposed=new Set();
+  for(const c of toRemove){
+    if(c.geometry&&!disposed.has(c.geometry)){
+      c.geometry.dispose();
+      disposed.add(c.geometry);
+    }
+  }
+
+  // Restore root transform.
+  root.position.copy(savPos);
+  root.quaternion.copy(savQuat);
+  root.scale.copy(savScl);
+  root.updateMatrixWorld(true);
+}
+
 // PERF v3.0: enemy mesh pool. Creating an enemy model allocates
 // ~50 sub-meshes and ~20 materials; at spawn-death churn this is the
 // #1 GC pressure source. Pooling means we build each (type,owner)
@@ -4153,6 +4275,7 @@ function acquireEnemyMesh(type,owner){
   }
   const mesh=createEnemyModel(type,owner);
   __canonicalizeEnemyMaterials(mesh);
+  __mergeEnemyModel(mesh); // v3.1: collapse ~50 sub-meshes to ~10 per enemy
   __cacheEnemyMeshRefs(mesh);
   mesh.userData._poolKey=k;
   return mesh;
