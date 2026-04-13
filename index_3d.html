@@ -409,7 +409,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0604}
     </div>
     <div style="margin-top:16px;display:flex;justify-content:space-between;align-items:center;font-family:'Cinzel',monospace;font-size:11px;opacity:0.85">
       <span style="color:#555">Three.js &bull; Procedural</span>
-      <span style="color:#ffd700;font-weight:bold;letter-spacing:1px">v2.6 &bull; Build 2026-04-13</span>
+      <span style="color:#ffd700;font-weight:bold;letter-spacing:1px">v3.0 &bull; Build 2026-04-13</span>
     </div>
   </div>
 </div>
@@ -4070,9 +4070,42 @@ function syncTowers(){
 // `mesh.traverse` (which is the single biggest per-frame allocator in
 // syncEnemies). Called once when an enemy mesh is first created.
 const __SLOW_TINT=new THREE.Color(0x66ccff);
+
+// PERF v3.0: canonicalize materials within a single enemy model. Each
+// createEnemyModel() call allocates ~10-20 unique MeshStandardMaterial
+// instances (one per mkMat call). Many of them are duplicates in all
+// but object identity (same color, same roughness, etc.). This walks
+// the mesh tree, groups materials by signature, and reassigns every
+// mesh to point at the first material of each group. The effect: one
+// enemy's ~20 materials collapse to ~6, and the per-frame slow-tint
+// loop iterates ~70% fewer entries.
+function __matSig(m){
+  const c=m.color?m.color.getHex():0;
+  const e=m.emissive?m.emissive.getHex():0;
+  return `${m.type}|${c}|${m.roughness??-1}|${m.metalness??-1}|${e}|${m.emissiveIntensity??0}|${m.transparent?1:0}|${m.opacity??1}|${m.flatShading?1:0}`;
+}
+function __canonicalizeEnemyMaterials(mesh){
+  const cache=new Map();
+  mesh.traverse(c=>{
+    if(!c.isMesh||!c.material)return;
+    if(Array.isArray(c.material)){
+      for(let i=0;i<c.material.length;i++){
+        const k=__matSig(c.material[i]);
+        if(!cache.has(k))cache.set(k,c.material[i]);
+        else c.material[i]=cache.get(k);
+      }
+    }else{
+      const k=__matSig(c.material);
+      if(!cache.has(k))cache.set(k,c.material);
+      else c.material=cache.get(k);
+    }
+  });
+}
+
 function __cacheEnemyMeshRefs(mesh){
   const limbs=[]; // {grp, type:0=leftLeg,1=rightLeg,2=leftArm,3=rightArm}
   const tintMats=[]; // materials with stored _origColor
+  const seenMats=new Set(); // so canonicalized materials appear once
   mesh.traverse(c=>{
     if(c.isGroup&&c.userData.limb){
       const l=c.userData.limb;
@@ -4082,8 +4115,9 @@ function __cacheEnemyMeshRefs(mesh){
     if(c.isMesh&&c.material){
       const mats=Array.isArray(c.material)?c.material:[c.material];
       for(const m of mats){
-        if(m.color&&!m._origColor){
-          m._origColor=m.color.clone();
+        if(m.color&&!seenMats.has(m)){
+          seenMats.add(m);
+          if(!m._origColor)m._origColor=m.color.clone();
           tintMats.push(m);
         }
       }
@@ -4093,16 +4127,93 @@ function __cacheEnemyMeshRefs(mesh){
   mesh.userData.tintMats=tintMats;
 }
 
+// PERF v3.0: enemy mesh pool. Creating an enemy model allocates
+// ~50 sub-meshes and ~20 materials; at spawn-death churn this is the
+// #1 GC pressure source. Pooling means we build each (type,owner)
+// prototype at most POOL_CAP times and reuse indefinitely.
+const POOL_CAP=32; // per (type,owner) key — 3 types x 2 owners x 32 = 192 max
+const __enemyPool=new Map(); // key -> array of free meshes
+function __enemyKey(type,owner){return type+'_'+owner}
+function acquireEnemyMesh(type,owner){
+  const k=__enemyKey(type,owner);
+  const pool=__enemyPool.get(k);
+  if(pool&&pool.length){
+    const mesh=pool.pop();
+    mesh.visible=true;
+    // Reset tint in case last user was slowed.
+    const tintMats=mesh.userData.tintMats;
+    if(tintMats&&mesh.userData._wasTinted){
+      for(let i=0;i<tintMats.length;i++){
+        const m=tintMats[i];
+        if(m._origColor)m.color.copy(m._origColor);
+      }
+      mesh.userData._wasTinted=false;
+    }
+    return mesh;
+  }
+  const mesh=createEnemyModel(type,owner);
+  __canonicalizeEnemyMaterials(mesh);
+  __cacheEnemyMeshRefs(mesh);
+  mesh.userData._poolKey=k;
+  return mesh;
+}
+function releaseEnemyMesh(mesh){
+  const k=mesh.userData._poolKey;
+  if(!k){scene.remove(mesh);return}
+  let pool=__enemyPool.get(k);
+  if(!pool){pool=[];__enemyPool.set(k,pool)}
+  if(pool.length>=POOL_CAP){
+    // Pool is full — detach from scene and let GC reclaim.
+    scene.remove(mesh);
+    return;
+  }
+  // Hide in place; keep parented to scene to avoid scene-graph reshuffle.
+  mesh.visible=false;
+  pool.push(mesh);
+}
+
+// PERF v3.0: projectile mesh pool. Same pattern.
+const __projPool=new Map(); // type -> array
+function acquireProjMesh(type){
+  const pool=__projPool.get(type);
+  if(pool&&pool.length){
+    const mesh=pool.pop();
+    mesh.visible=true;
+    return mesh;
+  }
+  const mesh=createProjectileModel(type);
+  // Cache magic ring refs at first creation.
+  if(type==='proj_magic'){
+    const rings=[];
+    for(const ch of mesh.children){
+      if(ch.userData&&(ch.userData.spin==='ring1'||ch.userData.spin==='ring2'))rings.push(ch);
+    }
+    mesh.userData.rings=rings;
+  }
+  mesh.userData._poolType=type;
+  return mesh;
+}
+function releaseProjMesh(mesh){
+  const type=mesh.userData._poolType;
+  if(!type){scene.remove(mesh);return}
+  let pool=__projPool.get(type);
+  if(!pool){pool=[];__projPool.set(type,pool)}
+  if(pool.length>=POOL_CAP){scene.remove(mesh);return}
+  mesh.visible=false;
+  pool.push(mesh);
+}
+
 function syncEnemies(){
   // PERF v2.6: iterate projMeshes/enemyMeshes by identity + check e.alive.
   // Avoid per-frame `new Set(enemies.filter(...))` allocation.
+  // PERF v3.0: acquire/release meshes via pool instead of create/destroy.
   // Add new
   for(const e of enemies){
     if(!e.alive)continue;
     if(!enemyMeshes.has(e)){
-      const mesh=createEnemyModel(e.type,e.owner);
-      __cacheEnemyMeshRefs(mesh);
-      scene.add(mesh);enemyMeshes.set(e,mesh);
+      const mesh=acquireEnemyMesh(e.type,e.owner);
+      if(!mesh.parent)scene.add(mesh);
+      enemyMeshes.set(e,mesh);
     }
     const mesh=enemyMeshes.get(e);
     const wp=pixelToWorld(e.x,e.y);
@@ -4158,29 +4269,23 @@ function syncEnemies(){
     }
   }
   // Remove dead — walk the map directly, no Set allocation.
+  // PERF v3.0: return mesh to pool instead of disposing.
   for(const[e,mesh] of enemyMeshes){
-    if(!e.alive){scene.remove(mesh);enemyMeshes.delete(e)}
+    if(!e.alive){releaseEnemyMesh(mesh);enemyMeshes.delete(e)}
   }
 }
 
 function syncProjectiles(){
   // PERF v2.6: no per-frame Set allocation; walk projMeshes directly.
+  // PERF v3.0: acquire/release meshes via pool.
   const now=performance.now()*0.001;
   for(const p of projectiles){
     if(!p.alive)continue;
     if(!projMeshes.has(p)){
-      const mesh=createProjectileModel(p.type);scene.add(mesh);projMeshes.set(p,mesh);
+      const mesh=acquireProjMesh(p.type);
+      if(!mesh.parent)scene.add(mesh);
+      projMeshes.set(p,mesh);
       p._birth=now;
-      // Cache spin-ring child refs so we don't forEach every frame.
-      if(p.type==='proj_magic'){
-        const rings=[];
-        for(const ch of mesh.children){
-          if(ch.userData&&(ch.userData.spin==='ring1'||ch.userData.spin==='ring2')){
-            rings.push(ch);
-          }
-        }
-        mesh.userData.rings=rings;
-      }
     }
     const mesh=projMeshes.get(p);
     const wp=pixelToWorld(p.x,p.y);
@@ -4240,8 +4345,9 @@ function syncProjectiles(){
     }
   }
   // Remove dead — no Set allocation; check p.alive directly.
+  // PERF v3.0: return mesh to pool instead of disposing.
   for(const[p,mesh] of projMeshes){
-    if(!p.alive){scene.remove(mesh);projMeshes.delete(p)}
+    if(!p.alive){releaseProjMesh(mesh);projMeshes.delete(p)}
   }
 }
 
