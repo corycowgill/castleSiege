@@ -411,7 +411,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0604}
     </div>
     <div style="margin-top:16px;display:flex;justify-content:space-between;align-items:center;font-family:'Cinzel',monospace;font-size:11px;opacity:0.85">
       <span style="color:#555">Three.js &bull; Procedural</span>
-      <span style="color:#ffd700;font-weight:bold;letter-spacing:1px">v3.6 &bull; Build 2026-04-13</span>
+      <span style="color:#ffd700;font-weight:bold;letter-spacing:1px">v3.7 &bull; Build 2026-04-13</span>
     </div>
   </div>
 </div>
@@ -771,6 +771,9 @@ function pixelToWorld(px,py){return{x:px/T+GRID_OX, y:0, z:(py-GAME_Y)/T+GRID_OZ
 let scene,camera,renderer,clock;
 let camZoom=1.0;
 let screenShake=0;
+// v3.7: references to the lighting rig so applyTimeOfDay() can drive
+// them. Assigned inside initScene().
+let __sunLight=null, __hemi=null, __ambient=null, __fill=null, __skyDome=null;
 const CAM_BASE={x:0,y:20,z:16};
 function setCameraZoom(z){
   camZoom=clamp(z,0.5,2.0);
@@ -813,18 +816,20 @@ function initScene(container){
   setCameraZoom(1.0);
 
   // Lighting
-  scene.add(new THREE.HemisphereLight(0x87CEEB,0x556B2F,0.5));
-  scene.add(new THREE.AmbientLight(0xffffff,0.3));
-  const sun=new THREE.DirectionalLight(0xFFF4E0,1.2);
-  sun.position.set(15,25,-10);sun.castShadow=true;
-  sun.shadow.camera.left=-25;sun.shadow.camera.right=25;
-  sun.shadow.camera.top=15;sun.shadow.camera.bottom=-15;
+  __hemi=new THREE.HemisphereLight(0x87CEEB,0x556B2F,0.5);
+  scene.add(__hemi);
+  __ambient=new THREE.AmbientLight(0xffffff,0.3);
+  scene.add(__ambient);
+  __sunLight=new THREE.DirectionalLight(0xFFF4E0,1.2);
+  __sunLight.position.set(15,25,-10);__sunLight.castShadow=true;
+  __sunLight.shadow.camera.left=-25;__sunLight.shadow.camera.right=25;
+  __sunLight.shadow.camera.top=15;__sunLight.shadow.camera.bottom=-15;
   // PERF: shadow map reduced from 2048 to 1024 (4x less GPU cost per frame)
-  sun.shadow.mapSize.width=1024;sun.shadow.mapSize.height=1024;
-  sun.shadow.bias=-0.0005;
-  scene.add(sun);
-  const fill=new THREE.DirectionalLight(0xB0C4DE,0.3);
-  fill.position.set(-10,15,8);scene.add(fill);
+  __sunLight.shadow.mapSize.width=1024;__sunLight.shadow.mapSize.height=1024;
+  __sunLight.shadow.bias=-0.0005;
+  scene.add(__sunLight);
+  __fill=new THREE.DirectionalLight(0xB0C4DE,0.3);
+  __fill.position.set(-10,15,8);scene.add(__fill);
 
   clock=new THREE.Clock();
 
@@ -836,9 +841,12 @@ function initScene(container){
   gr.addColorStop(0.75,'#B8D8E8');gr.addColorStop(0.85,'#E8D8C0');gr.addColorStop(1,'#D4C4A8');
   skyCtx.fillStyle=gr;skyCtx.fillRect(0,0,4,256);
   const skyTex=new THREE.CanvasTexture(skyC);
-  const skyDome=new THREE.Mesh(new THREE.SphereGeometry(90,16,16),
+  __skyDome=new THREE.Mesh(new THREE.SphereGeometry(90,16,16),
     new THREE.MeshBasicMaterial({map:skyTex,side:THREE.BackSide,fog:false,depthWrite:false}));
-  scene.add(skyDome);
+  scene.add(__skyDome);
+
+  // v3.7: apply the starting time-of-day (noon, wave 1 baseline).
+  applyTimeOfDay(0);
 
   window.addEventListener('resize',()=>{
     camera.aspect=container.clientWidth/container.clientHeight;
@@ -846,6 +854,77 @@ function initScene(container){
     renderer.setSize(container.clientWidth,container.clientHeight);
     renderer.setPixelRatio(_computePR());
   });
+}
+
+// ==================== v3.7: DYNAMIC TIME-OF-DAY LIGHTING ====================
+// Keyframe palette for the 24-hour cycle. tod ∈ [0,1]:
+//   0.00 = noon     (bright, white sun high overhead)
+//   0.25 = dusk     (orange sun low, warm scene, long shadows)
+//   0.50 = midnight (dark, blue ambient, sun below horizon)
+//   0.75 = dawn     (orange sun rising, warm scene, long shadows)
+//   1.00 = noon     (wrap)
+// Fields:
+//   az/el: sun azimuth/elevation in DEGREES (converted below)
+//   sC: sun color, sI: sun intensity
+//   hSky/hGnd: hemisphere light sky/ground colors, hI: hemi intensity
+//   aI: ambient intensity
+//   fog: scene fog color
+//   sky: sky-dome tint color (multiplied over the gradient texture)
+const TOD_KEY=[
+  {t:0.00, az:-45, el:55, sC:0xFFF4E0, sI:1.30, hSky:0x87CEEB, hGnd:0x556B2F, hI:0.55, aI:0.30, fog:0xB8D8E8, sky:0xFFFFFF}, // noon
+  {t:0.25, az:-85, el:6,  sC:0xFF7A28, sI:0.55, hSky:0xC25030, hGnd:0x3A2A1A, hI:0.42, aI:0.28, fog:0xC04828, sky:0xD05A30}, // dusk
+  {t:0.50, az:135, el:-30,sC:0x0A1025, sI:0.0,  hSky:0x1A2150, hGnd:0x080810, hI:0.18, aI:0.42, fog:0x060C20, sky:0x1C2E60}, // midnight
+  {t:0.75, az:95,  el:6,  sC:0xFF9038, sI:0.60, hSky:0xBD5030, hGnd:0x3A281C, hI:0.44, aI:0.30, fog:0xC04828, sky:0xD06030}, // dawn
+  {t:1.00, az:-45, el:55, sC:0xFFF4E0, sI:1.30, hSky:0x87CEEB, hGnd:0x556B2F, hI:0.55, aI:0.30, fog:0xB8D8E8, sky:0xFFFFFF}, // noon wrap
+];
+function __lerp(a,b,t){return a+(b-a)*t}
+function __lerpHex(a,b,t){
+  const ar=(a>>16)&0xff, ag=(a>>8)&0xff, ab=a&0xff;
+  const br=(b>>16)&0xff, bg=(b>>8)&0xff, bb=b&0xff;
+  return (Math.round(__lerp(ar,br,t))<<16)|(Math.round(__lerp(ag,bg,t))<<8)|Math.round(__lerp(ab,bb,t));
+}
+function applyTimeOfDay(tod){
+  if(!__sunLight)return;
+  tod=((tod%1)+1)%1; // wrap to [0,1)
+  let i=0;
+  while(i<TOD_KEY.length-1 && tod>=TOD_KEY[i+1].t) i++;
+  const a=TOD_KEY[i], b=TOD_KEY[i+1]||TOD_KEY[0];
+  const seg=(tod-a.t)/(b.t-a.t);
+
+  // Sun position: rotate around the scene center on a dome of radius 28.
+  const az=__lerp(a.az,b.az,seg)*Math.PI/180;
+  const el=__lerp(a.el,b.el,seg)*Math.PI/180;
+  const R=28;
+  __sunLight.position.set(
+    Math.cos(el)*Math.cos(az)*R,
+    Math.sin(el)*R,
+    Math.cos(el)*Math.sin(az)*R
+  );
+  __sunLight.color.setHex(__lerpHex(a.sC,b.sC,seg));
+  __sunLight.intensity=__lerp(a.sI,b.sI,seg);
+  // Sun is effectively off below the horizon — disable shadows to save GPU.
+  __sunLight.castShadow=(el>0);
+
+  __hemi.color.setHex(__lerpHex(a.hSky,b.hSky,seg));
+  __hemi.groundColor.setHex(__lerpHex(a.hGnd,b.hGnd,seg));
+  __hemi.intensity=__lerp(a.hI,b.hI,seg);
+
+  __ambient.intensity=__lerp(a.aI,b.aI,seg);
+  // Fill light follows sun color at a fraction (cool blue at night).
+  if(__fill){
+    __fill.color.setHex(__lerpHex(a.hSky,b.hSky,seg));
+    __fill.intensity=0.3*__hemi.intensity/0.55;
+  }
+
+  scene.fog.color.setHex(__lerpHex(a.fog,b.fog,seg));
+  if(__skyDome) __skyDome.material.color.setHex(__lerpHex(a.sky,b.sky,seg));
+}
+// Map a wave number to a point in the 24-hour cycle. 5 waves cycle
+// through the whole day: wave 1 starts at noon (bright), wave 2 at
+// dusk, wave 3 at midnight (torches and campfires stand out), wave 4
+// at dawn, wave 5 back at noon.
+function timeOfDayForWave(w){
+  return ((w-1)/MAX_WAVES)%1;
 }
 
 // ==================== TERRAIN ====================
@@ -2270,6 +2349,9 @@ function spawnEnemy(type,spawnCol,spawnRow,owner){
 
 function startWave(){
   waveNum++;gameState='combat';sndWaveStart();
+  // v3.7: advance the time-of-day with each wave (noon → dusk →
+  // midnight → dawn → noon across MAX_WAVES waves).
+  applyTimeOfDay(timeOfDayForWave(waveNum));
   // Wave start castle particles
   {const cw1=tileToWorld(1,9),cw2=tileToWorld(38,9);
   emitParticles(cw1.x,1.0,cw1.z,0x3366cc,15,80);
