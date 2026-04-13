@@ -411,7 +411,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0604}
     </div>
     <div style="margin-top:16px;display:flex;justify-content:space-between;align-items:center;font-family:'Cinzel',monospace;font-size:11px;opacity:0.85">
       <span style="color:#555">Three.js &bull; Procedural</span>
-      <span style="color:#ffd700;font-weight:bold;letter-spacing:1px">v3.12 &bull; Build 2026-04-13</span>
+      <span style="color:#ffd700;font-weight:bold;letter-spacing:1px">v3.13 &bull; Build 2026-04-13</span>
     </div>
   </div>
 </div>
@@ -777,6 +777,8 @@ let __sunLight=null, __hemi=null, __ambient=null, __fill=null, __skyDome=null;
 // v3.10: night sky + weather refs.
 let __stars=null, __moon=null, __rain=null;
 let __weatherRain=false; // set per wave; rain mesh visibility + animation toggle
+// v3.13: cached HUD element references (populated on first updateHUD call).
+let __hud=null;
 const CAM_BASE={x:0,y:20,z:16};
 function setCameraZoom(z){
   camZoom=clamp(z,0.5,2.0);
@@ -2173,6 +2175,12 @@ function createExtraScenery(){
 // Placed at y~0.02 to avoid z-fighting with the terrain. These are
 // pure visuals — the gameplay grid is logical and doesn't care
 // about meshes, so this won't affect pathfinding or building placement.
+//
+// v3.13: the ~420 decals added here are post-processed at the end:
+// collected into a Group, canonicalized + merged so the whole
+// battlefield collapses to ~1 draw call per canonical material,
+// shadows disabled, and frozen. Without this the decals were the
+// biggest draw-call regression since v3.5.
 function createBattlefieldDecals(){
   const __before=scene.children.length;
   // Deterministic PRNG so decals are consistent across loads.
@@ -2408,8 +2416,30 @@ function createBattlefieldDecals(){
     scene.add(stone);
   }
 
-  __disableDecoShadows(__before);
-  __freezeNewStaticDeco(__before); // v3.5: all battlefield decals are fully static
+  // v3.13: collect everything we just added into a single Group and
+  // run it through the canonicalize + merge pipeline. This collapses
+  // the ~420 individual decal meshes into ~1 draw call per canonical
+  // material (~10 total). Without this, battlefield decals alone
+  // cost more draw calls than all the enemies and towers combined.
+  const decalGroup=new THREE.Group();
+  // Detach added children from scene and re-parent under decalGroup.
+  // Iterate by index from the end so splice/remove doesn't shift us.
+  const newStart=__before;
+  const added=[];
+  for(let i=scene.children.length-1;i>=newStart;i--) added.push(scene.children[i]);
+  for(const obj of added){ scene.remove(obj); decalGroup.add(obj); }
+  // Canonicalize materials (reuse enemy pipeline — it's generic).
+  __canonicalizeEnemyMaterials(decalGroup);
+  // Merge all meshes by canonical material. No limb detection needed —
+  // decals have no userData.limb, so everything buckets under decalGroup.
+  __mergeEnemyModel(decalGroup);
+  // Decals are decorative — no shadow casting, no receiving.
+  decalGroup.traverse(c=>{
+    if(c.isMesh){c.castShadow=false;c.receiveShadow=false}
+  });
+  // Freeze — never moves.
+  __freezeSubtree(decalGroup);
+  scene.add(decalGroup);
 }
 // Tiny helper for adding a mesh at a specific position (used above)
 function g_addAt(parent,geo,mat,x,y,z){
@@ -2548,67 +2578,116 @@ function showScreen(name){
 
 function updateHUD(){
   const p1=players[1],p2=players[2];
-  document.getElementById('p1-hp-bar').style.width=Math.max(0,p1.castleHP/p1.maxHP*100)+'%';
-  document.getElementById('p1-hp-text').textContent=Math.max(0,Math.ceil(p1.castleHP));
-  document.getElementById('p2-hp-bar').style.width=Math.max(0,p2.castleHP/p2.maxHP*100)+'%';
-  document.getElementById('p2-hp-text').textContent=Math.max(0,Math.ceil(p2.castleHP));
-  document.getElementById('p1-credits').textContent='$'+p1.credits;
-  document.getElementById('p2-credits').textContent='$'+p2.credits;
-  document.getElementById('p1-specials-ct').textContent='\u2733'+p1.specials;
-  document.getElementById('p2-specials-ct').textContent='\u2733'+p2.specials;
+  // PERF v3.13: initialize HUD element cache on first call. Previously
+  // this function did ~40 getElementById + 4 querySelectorAll per
+  // render frame (at display rate, not sim rate). On a 144Hz display
+  // that's ~6,000 DOM queries/sec. Caching drops that to zero.
+  if(!__hud){
+    __hud={
+      p1hpBar:document.getElementById('p1-hp-bar'),
+      p1hpText:document.getElementById('p1-hp-text'),
+      p2hpBar:document.getElementById('p2-hp-bar'),
+      p2hpText:document.getElementById('p2-hp-text'),
+      p1credits:document.getElementById('p1-credits'),
+      p2credits:document.getElementById('p2-credits'),
+      p1specCt:document.getElementById('p1-specials-ct'),
+      p2specCt:document.getElementById('p2-specials-ct'),
+      phaseInfo:document.getElementById('phase-info'),
+      phaseTimer:document.getElementById('phase-timer'),
+      armyCounts:document.getElementById('army-counts'),
+      p1army:document.getElementById('p1-army'),
+      p2army:document.getElementById('p2-army'),
+      weTitle:document.getElementById('we-title'),
+      weTimer:document.getElementById('we-timer'),
+      p1readyOv:document.getElementById('p1-ready-ov'),
+      p2readyOv:document.getElementById('p2-ready-ov'),
+      p1buildOpts:document.getElementById('p1-build-opts'),
+      p2buildOpts:document.getElementById('p2-build-opts'),
+      p1specials:document.getElementById('p1-specials'),
+      p2specials:document.getElementById('p2-specials'),
+      btnP2ready:document.getElementById('btn-p2-ready'),
+      // NodeList caches — set once, iterated every frame.
+      p1buildOptEls:document.querySelectorAll('#p1-build-opts .build-opt'),
+      p2buildOptEls:document.querySelectorAll('#p2-build-opts .build-opt'),
+      p1specEls:document.querySelectorAll('#p1-specials .spec-btn'),
+      p2specEls:document.querySelectorAll('#p2-specials .spec-btn'),
+    };
+  }
+  const h=__hud;
+
+  h.p1hpBar.style.width=Math.max(0,p1.castleHP/p1.maxHP*100)+'%';
+  h.p1hpText.textContent=Math.max(0,Math.ceil(p1.castleHP));
+  h.p2hpBar.style.width=Math.max(0,p2.castleHP/p2.maxHP*100)+'%';
+  h.p2hpText.textContent=Math.max(0,Math.ceil(p2.castleHP));
+  h.p1credits.textContent='$'+p1.credits;
+  h.p2credits.textContent='$'+p2.credits;
+  h.p1specCt.textContent='\u2733'+p1.specials;
+  h.p2specCt.textContent='\u2733'+p2.specials;
 
   if(gameState==='build'){
-    document.getElementById('phase-info').textContent='BUILD PHASE';
-    document.getElementById('phase-timer').textContent=Math.ceil(buildTimer)+'s';
-    document.getElementById('phase-timer').style.display='';
-    document.getElementById('army-counts').style.display='flex';
+    h.phaseInfo.textContent='BUILD PHASE';
+    h.phaseTimer.textContent=Math.ceil(buildTimer)+'s';
+    h.phaseTimer.style.display='';
+    h.armyCounts.style.display='flex';
     const eq1=p1.enemyQueue,eq2=p2.enemyQueue;
-    document.getElementById('p1-army').textContent=`P1:G${eq1.goblin} O${eq1.orc} D${eq1.darkKnight} A${eq1.archer}`;
-    document.getElementById('p2-army').textContent=`P2:G${eq2.goblin} O${eq2.orc} D${eq2.darkKnight} A${eq2.archer}`;
+    h.p1army.textContent=`P1:G${eq1.goblin} O${eq1.orc} D${eq1.darkKnight} A${eq1.archer}`;
+    h.p2army.textContent=`P2:G${eq2.goblin} O${eq2.orc} D${eq2.darkKnight} A${eq2.archer}`;
   }else if(gameState==='combat'){
-    document.getElementById('phase-info').textContent=`WAVE ${waveNum}/${MAX_WAVES}`;
-    document.getElementById('phase-timer').textContent=`${enemies.filter(e=>e.alive).length} enemies`;
-    document.getElementById('army-counts').style.display='none';
+    h.phaseInfo.textContent=`WAVE ${waveNum}/${MAX_WAVES}`;
+    // PERF v3.13: inline alive counter avoids per-frame filter alloc.
+    let aliveCount=0;
+    for(let i=0;i<enemies.length;i++)if(enemies[i].alive)aliveCount++;
+    h.phaseTimer.textContent=`${aliveCount} enemies`;
+    h.armyCounts.style.display='none';
   }else if(gameState==='waveEnd'){
-    document.getElementById('phase-info').textContent=`WAVE ${waveNum} DONE`;
-    document.getElementById('phase-timer').style.display='none';
-    document.getElementById('army-counts').style.display='none';
-    document.getElementById('we-title').textContent=`WAVE ${waveNum} COMPLETE!`;
-    document.getElementById('we-timer').textContent=`Next wave in ${Math.ceil(waveEndTimer)}s`;
+    h.phaseInfo.textContent=`WAVE ${waveNum} DONE`;
+    h.phaseTimer.style.display='none';
+    h.armyCounts.style.display='none';
+    h.weTitle.textContent=`WAVE ${waveNum} COMPLETE!`;
+    h.weTimer.textContent=`Next wave in ${Math.ceil(waveEndTimer)}s`;
   }
 
-  // Build option highlighting
-  document.querySelectorAll('#p1-build-opts .build-opt').forEach((el,i)=>{
-    el.classList.toggle('p1s',i===p1.selectedIdx)});
-  document.querySelectorAll('#p2-build-opts .build-opt').forEach((el,i)=>{
-    el.classList.toggle('p2s',i===p2.selectedIdx)});
-  document.querySelectorAll('#p1-specials .spec-btn').forEach((el,i)=>{
-    el.classList.toggle('p1s',i===p1.selectedSpecial);el.classList.toggle('disabled',p1.specials<=0)});
-  document.querySelectorAll('#p2-specials .spec-btn').forEach((el,i)=>{
-    el.classList.toggle('p2s',i===p2.selectedSpecial);el.classList.toggle('disabled',p2.specials<=0)});
+  // Build option highlighting (uses cached NodeLists)
+  const p1si=p1.selectedIdx, p2si=p2.selectedIdx;
+  for(let i=0;i<h.p1buildOptEls.length;i++) h.p1buildOptEls[i].classList.toggle('p1s',i===p1si);
+  for(let i=0;i<h.p2buildOptEls.length;i++) h.p2buildOptEls[i].classList.toggle('p2s',i===p2si);
+  const p1ss=p1.selectedSpecial, p2ss=p2.selectedSpecial;
+  const p1noSpec=p1.specials<=0, p2noSpec=p2.specials<=0;
+  for(let i=0;i<h.p1specEls.length;i++){
+    const el=h.p1specEls[i];
+    el.classList.toggle('p1s',i===p1ss);
+    el.classList.toggle('disabled',p1noSpec);
+  }
+  for(let i=0;i<h.p2specEls.length;i++){
+    const el=h.p2specEls[i];
+    el.classList.toggle('p2s',i===p2ss);
+    el.classList.toggle('disabled',p2noSpec);
+  }
 
   // Ready overlays
-  document.getElementById('p1-ready-ov').style.display=p1.ready&&gameState==='build'?'flex':'none';
-  document.getElementById('p2-ready-ov').style.display=p2.ready&&gameState==='build'?'flex':'none';
+  h.p1readyOv.style.display=p1.ready&&gameState==='build'?'flex':'none';
+  h.p2readyOv.style.display=p2.ready&&gameState==='build'?'flex':'none';
 
   // In 1P mode
   if(gameMode==='1p'){
     if(isMobile){
       // Mobile: dim P2 panel (AI controls it), hide ready
-      document.getElementById('p2-build-opts').style.opacity='0.3';
-      document.getElementById('p2-specials').style.opacity='0.3';
-      document.getElementById('btn-p2-ready').style.display='none';
+      h.p2buildOpts.style.opacity='0.3';
+      h.p2specials.style.opacity='0.3';
+      h.btnP2ready.style.display='none';
     }else{
       // Desktop: P2 panel mirrors P1 selection (mouse clicks route to P1)
-      document.getElementById('p2-build-opts').style.opacity='1';
-      document.getElementById('p2-specials').style.opacity='1';
-      document.getElementById('btn-p2-ready').style.display='';
-      document.getElementById('btn-p2-ready').textContent='READY (R)';
+      h.p2buildOpts.style.opacity='1';
+      h.p2specials.style.opacity='1';
+      h.btnP2ready.style.display='';
+      h.btnP2ready.textContent='READY (R)';
       // Highlight P1's selection on P2 panel too
-      document.querySelectorAll('#p2-build-opts .build-opt').forEach((el,i)=>{
-        el.classList.toggle('p2s',i===p1.selectedIdx)});
-      document.querySelectorAll('#p2-specials .spec-btn').forEach((el,i)=>{
-        el.classList.toggle('p2s',i===p1.selectedSpecial);el.classList.toggle('disabled',p1.specials<=0)});
+      for(let i=0;i<h.p2buildOptEls.length;i++) h.p2buildOptEls[i].classList.toggle('p2s',i===p1si);
+      for(let i=0;i<h.p2specEls.length;i++){
+        const el=h.p2specEls[i];
+        el.classList.toggle('p2s',i===p1ss);
+        el.classList.toggle('disabled',p1noSpec);
+      }
     }
   }
 }
@@ -3810,9 +3889,13 @@ function processTouchInput(dt){
   }
 
   // Update special button highlights
-  const specBtns=document.querySelectorAll('#touch-special-row .touch-spec');
-  specBtns.forEach((btn,i)=>btn.classList.toggle('sel',i===p1.selectedSpecial));
+  // v3.13: cache the NodeList on first call instead of querying per tick.
+  if(!__touchSpecBtns) __touchSpecBtns=document.querySelectorAll('#touch-special-row .touch-spec');
+  for(let i=0;i<__touchSpecBtns.length;i++){
+    __touchSpecBtns[i].classList.toggle('sel',i===p1.selectedSpecial);
+  }
 }
+let __touchSpecBtns=null;
 
 // ==================== TITLE SCREEN LOGIC ====================
 function updateTitle(){
