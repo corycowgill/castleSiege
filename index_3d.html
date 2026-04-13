@@ -411,7 +411,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0604}
     </div>
     <div style="margin-top:16px;display:flex;justify-content:space-between;align-items:center;font-family:'Cinzel',monospace;font-size:11px;opacity:0.85">
       <span style="color:#555">Three.js &bull; Procedural</span>
-      <span style="color:#ffd700;font-weight:bold;letter-spacing:1px">v3.4 &bull; Build 2026-04-13</span>
+      <span style="color:#ffd700;font-weight:bold;letter-spacing:1px">v3.5 &bull; Build 2026-04-13</span>
     </div>
   </div>
 </div>
@@ -857,6 +857,8 @@ function createTerrain(){
   const mesh=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({map:tex,roughness:0.9}));
   mesh.receiveShadow=true;mesh.name='terrain';
   scene.add(mesh);
+  // v3.5: terrain never moves — freeze its matrix.
+  __freezeSubtree(mesh);
   return mesh;
 }
 
@@ -1098,6 +1100,7 @@ function createScenery(){
   }
 
   __disableDecoShadows(__before);
+  __freezeNewStaticDeco(__before); // v3.5: createScenery is fully static
 }
 
 // Disable shadow casting/receiving on decorative meshes added since `beforeLen`.
@@ -1110,6 +1113,42 @@ function __disableDecoShadows(beforeLen){
       if(c.isMesh){c.castShadow=false;c.receiveShadow=false}
     });
   }
+}
+
+// PERF v3.5: freeze static object matrices. Three.js's default
+// `matrixAutoUpdate=true` means every object recomposes its local
+// matrix from position/quaternion/scale on every frame — even if
+// nothing has moved. For a scene with hundreds of static trees,
+// rocks, walls, castle pieces, and merged body chunks, that's a
+// non-trivial per-frame cost. Setting matrixAutoUpdate=false after
+// placement skips the compose step; the cached matrix is reused
+// forever. Animated descendants opt out via `userData.keepAuto=true`.
+// (If a child's updateMatrix is called, it sets matrixWorldNeedsUpdate
+// so force propagation still picks it up on the next render pass.)
+function __freezeSubtree(root){
+  // Force a full matrix compose + matrixWorld compute before freezing,
+  // so every node has the right cached matrices going forward.
+  root.updateMatrixWorld(true);
+  root.traverse(c=>{
+    if(c.userData&&c.userData.keepAuto)return;
+    c.matrixAutoUpdate=false;
+  });
+}
+// Freeze everything added to scene.children since `beforeLen`.
+function __freezeNewStaticDeco(beforeLen){
+  for(let i=beforeLen;i<scene.children.length;i++){
+    __freezeSubtree(scene.children[i]);
+  }
+}
+// v3.5: freeze only Mesh descendants, leaving Groups auto-updating.
+// Used for models where the root Group and/or limb Groups still
+// animate per frame, but the merged body meshes inside them have
+// fixed local transforms.
+function __freezeMergedMeshes(root){
+  root.updateMatrixWorld(true);
+  root.traverse(c=>{
+    if(c.isMesh)c.matrixAutoUpdate=false;
+  });
 }
 
 // ==================== ATMOSPHERE (clouds, mountains, torches, birds) ====================
@@ -1914,13 +1953,23 @@ function addCastles(){
   const halfFieldWidth=COLS/2;
   const CW=2; // must match createCastle()
 
+  // v3.5: castles are ~100 meshes each and never move. Apply the same
+  // canonicalize + merge pipeline used for towers/enemies, then freeze
+  // matrices. Result: ~8 draw calls per castle instead of ~100, and
+  // zero per-frame matrix cost.
   castle1Mesh=createCastle(1);
+  __canonicalizeEnemyMaterials(castle1Mesh);
+  __mergeEnemyModel(castle1Mesh);
   castle1Mesh.position.set(-halfFieldWidth+CW/2, 0, 0);
   scene.add(castle1Mesh);
+  __freezeSubtree(castle1Mesh);
 
   castle2Mesh=createCastle(2);
+  __canonicalizeEnemyMaterials(castle2Mesh);
+  __mergeEnemyModel(castle2Mesh);
   castle2Mesh.position.set(halfFieldWidth-CW/2, 0, 0);
   scene.add(castle2Mesh);
+  __freezeSubtree(castle2Mesh);
 }
 
 // ==================== HUD CONTROLLER ====================
@@ -2499,6 +2548,11 @@ function syncBuildings(){
       const mesh=cell.type==='wall'?createWall(cell.owner):createBarricade(cell.owner);
       const wp=tileToWorld(c,r);mesh.position.set(wp.x,0,wp.z);
       scene.add(mesh);buildingMeshes.set(key,mesh);
+      // v3.5: walls and barricades never move — freeze their matrices.
+      // Also canonicalize + merge to collapse internal sub-meshes.
+      __canonicalizeEnemyMaterials(mesh);
+      __mergeEnemyModel(mesh);
+      __freezeSubtree(mesh);
     }
   }
   // Remove stale
@@ -2521,6 +2575,12 @@ function syncTowers(){
       // buckets under the root.
       __canonicalizeEnemyMaterials(mesh);
       __mergeEnemyModel(mesh);
+      // v3.5: freeze the merged body meshes. The root Group still
+      // rotates per frame (to aim at targets), so it stays auto-update;
+      // its merged Mesh children are at identity and never change
+      // locally, so matrixAutoUpdate=false on them skips ~60 compose
+      // steps per tower per frame.
+      __freezeMergedMeshes(mesh);
       const wp=tileToWorld(t.col,t.row);mesh.position.set(wp.x,0,wp.z);
       scene.add(mesh);towerMeshes.set(t,mesh);
     }
@@ -2749,6 +2809,12 @@ function acquireEnemyMesh(type,owner){
   __canonicalizeEnemyMaterials(mesh);
   __mergeEnemyModel(mesh); // v3.1: collapse ~50 sub-meshes to ~10 per enemy
   __cacheEnemyMeshRefs(mesh);
+  // v3.5: freeze the merged Mesh children. The root Group moves/rotates
+  // each frame (in syncEnemies), and limb Groups rotate each frame
+  // (for walk/attack animation), so THEY stay auto-updating. The merged
+  // body meshes inside them are at identity and never change locally —
+  // freezing skips ~10 per-enemy matrix composes per frame.
+  __freezeMergedMeshes(mesh);
   mesh.userData._poolKey=k;
   return mesh;
 }
