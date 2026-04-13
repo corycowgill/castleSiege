@@ -409,7 +409,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0604}
     </div>
     <div style="margin-top:16px;display:flex;justify-content:space-between;align-items:center;font-family:'Cinzel',monospace;font-size:11px;opacity:0.85">
       <span style="color:#555">Three.js &bull; Procedural</span>
-      <span style="color:#ffd700;font-weight:bold;letter-spacing:1px">v2.5 &bull; Build 2026-04-12</span>
+      <span style="color:#ffd700;font-weight:bold;letter-spacing:1px">v2.6 &bull; Build 2026-04-13</span>
     </div>
   </div>
 </div>
@@ -732,11 +732,20 @@ const mouseNDC=new THREE.Vector2();
 const groundPlane=new THREE.Plane(new THREE.Vector3(0,1,0),0);
 
 function initScene(container){
-  renderer=new THREE.WebGLRenderer({antialias:true});
+  renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
+  // PERF v2.6: compute an effective pixel ratio that also caps total
+  // resolution at ~2.07M pixels (≈1920x1080). On 4K screens this matters
+  // a lot more than the DPR cap alone.
+  const _computePR=()=>{
+    const cw=container.clientWidth,ch=container.clientHeight;
+    let pr=Math.min(window.devicePixelRatio||1,1.5);
+    const maxPixels=1920*1080;
+    const want=cw*ch*pr*pr;
+    if(want>maxPixels)pr*=Math.sqrt(maxPixels/want);
+    return pr;
+  };
   renderer.setSize(container.clientWidth,container.clientHeight);
-  // PERF: cap pixel ratio at 1.5 instead of 2. On retina displays this
-  // cuts pixel count ~44% with minimal perceptual quality loss.
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio,1.5));
+  renderer.setPixelRatio(_computePR());
   renderer.shadowMap.enabled=true;
   renderer.shadowMap.type=THREE.PCFSoftShadowMap;
   renderer.toneMapping=THREE.ACESFilmicToneMapping;
@@ -782,6 +791,7 @@ function initScene(container){
     camera.aspect=container.clientWidth/container.clientHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(container.clientWidth,container.clientHeight);
+    renderer.setPixelRatio(_computePR());
   });
 }
 
@@ -4056,13 +4066,42 @@ function syncTowers(){
   }
 }
 
+// PERF v2.6: cache mesh references so the hot loop never calls
+// `mesh.traverse` (which is the single biggest per-frame allocator in
+// syncEnemies). Called once when an enemy mesh is first created.
+const __SLOW_TINT=new THREE.Color(0x66ccff);
+function __cacheEnemyMeshRefs(mesh){
+  const limbs=[]; // {grp, type:0=leftLeg,1=rightLeg,2=leftArm,3=rightArm}
+  const tintMats=[]; // materials with stored _origColor
+  mesh.traverse(c=>{
+    if(c.isGroup&&c.userData.limb){
+      const l=c.userData.limb;
+      const t=l==='leftLeg'?0:l==='rightLeg'?1:l==='leftArm'?2:l==='rightArm'?3:-1;
+      if(t>=0)limbs.push({grp:c,type:t});
+    }
+    if(c.isMesh&&c.material){
+      const mats=Array.isArray(c.material)?c.material:[c.material];
+      for(const m of mats){
+        if(m.color&&!m._origColor){
+          m._origColor=m.color.clone();
+          tintMats.push(m);
+        }
+      }
+    }
+  });
+  mesh.userData.limbs=limbs;
+  mesh.userData.tintMats=tintMats;
+}
+
 function syncEnemies(){
-  const activeEnemies=new Set(enemies.filter(e=>e.alive));
+  // PERF v2.6: iterate projMeshes/enemyMeshes by identity + check e.alive.
+  // Avoid per-frame `new Set(enemies.filter(...))` allocation.
   // Add new
   for(const e of enemies){
     if(!e.alive)continue;
     if(!enemyMeshes.has(e)){
       const mesh=createEnemyModel(e.type,e.owner);
+      __cacheEnemyMeshRefs(mesh);
       scene.add(mesh);enemyMeshes.set(e,mesh);
     }
     const mesh=enemyMeshes.get(e);
@@ -4081,49 +4120,67 @@ function syncEnemies(){
       const twp=pixelToWorld(colToX(tgt.c),rowToY(tgt.r));
       mesh.rotation.y=Math.atan2(twp.x-wp.x,twp.z-wp.z);
     }
-    // Walk / attack limb animation
+    // Walk / attack limb animation — uses cached limb refs, no traverse.
     const anim=e._anim;
     const inCombat=e.combatTarget&&e.combatTarget.alive;
     const animSpeed=inCombat?anim*2.5:anim;
     const legSwing=inCombat?0.6:0.4;
     const armSwing=inCombat?0.5:0.3;
-    mesh.traverse(child=>{
-      if(child.isGroup&&child.userData.limb){
-        const limb=child.userData.limb;
-        if(limb==='leftLeg') child.rotation.x=Math.sin(animSpeed)*legSwing;
-        else if(limb==='rightLeg') child.rotation.x=-Math.sin(animSpeed)*legSwing;
-        else if(limb==='leftArm') child.rotation.x=-Math.sin(animSpeed)*armSwing;
-        else if(limb==='rightArm') child.rotation.x=Math.sin(animSpeed)*armSwing;
-      }
-    });
-    // Slow tint
-    mesh.traverse(child=>{
-      if(child.isMesh&&child.material&&!child.material._origColor){
-        child.material._origColor=child.material.color.clone();
-      }
-    });
-    if(e.slowTimer>0){
-      mesh.traverse(child=>{
-        if(child.isMesh&&child.material&&child.material._origColor){
-          child.material.color.lerp(new THREE.Color(0x66ccff),0.3);
+    const s=Math.sin(animSpeed);
+    const limbs=mesh.userData.limbs;
+    if(limbs){
+      for(let i=0;i<limbs.length;i++){
+        const L=limbs[i];
+        switch(L.type){
+          case 0: L.grp.rotation.x= s*legSwing; break;
+          case 1: L.grp.rotation.x=-s*legSwing; break;
+          case 2: L.grp.rotation.x=-s*armSwing; break;
+          case 3: L.grp.rotation.x= s*armSwing; break;
         }
-      });
+      }
+    }
+    // Slow tint — uses cached material list + _origColor. Fixes v2.5 bug
+    // where lerp(new Color(blue),0.3) permanently drifted toward blue.
+    const tintMats=mesh.userData.tintMats;
+    if(tintMats){
+      if(e.slowTimer>0){
+        for(let i=0;i<tintMats.length;i++){
+          const m=tintMats[i];
+          m.color.copy(m._origColor).lerp(__SLOW_TINT,0.35);
+        }
+      }else if(mesh.userData._wasTinted){
+        for(let i=0;i<tintMats.length;i++){
+          const m=tintMats[i];
+          m.color.copy(m._origColor);
+        }
+      }
+      mesh.userData._wasTinted=e.slowTimer>0;
     }
   }
-  // Remove dead
+  // Remove dead — walk the map directly, no Set allocation.
   for(const[e,mesh] of enemyMeshes){
-    if(!activeEnemies.has(e)){scene.remove(mesh);enemyMeshes.delete(e)}
+    if(!e.alive){scene.remove(mesh);enemyMeshes.delete(e)}
   }
 }
 
 function syncProjectiles(){
-  const activeProjs=new Set(projectiles.filter(p=>p.alive));
+  // PERF v2.6: no per-frame Set allocation; walk projMeshes directly.
   const now=performance.now()*0.001;
   for(const p of projectiles){
     if(!p.alive)continue;
     if(!projMeshes.has(p)){
       const mesh=createProjectileModel(p.type);scene.add(mesh);projMeshes.set(p,mesh);
       p._birth=now;
+      // Cache spin-ring child refs so we don't forEach every frame.
+      if(p.type==='proj_magic'){
+        const rings=[];
+        for(const ch of mesh.children){
+          if(ch.userData&&(ch.userData.spin==='ring1'||ch.userData.spin==='ring2')){
+            rings.push(ch);
+          }
+        }
+        mesh.userData.rings=rings;
+      }
     }
     const mesh=projMeshes.get(p);
     const wp=pixelToWorld(p.x,p.y);
@@ -4151,10 +4208,14 @@ function syncProjectiles(){
       const pulse=1.0+Math.sin(now*12)*0.1;
       mesh.scale.setScalar(pulse);
       mesh.rotation.y+=0.12;
-      mesh.children.forEach(ch=>{
-        if(ch.userData&&ch.userData.spin==='ring1')ch.rotation.y+=0.25;
-        if(ch.userData&&ch.userData.spin==='ring2')ch.rotation.x+=0.2;
-      });
+      const rings=mesh.userData.rings;
+      if(rings){
+        for(let ri=0;ri<rings.length;ri++){
+          const ch=rings[ri];
+          if(ch.userData.spin==='ring1')ch.rotation.y+=0.25;
+          else ch.rotation.x+=0.2;
+        }
+      }
       if(mesh.userData.light){
         mesh.userData.light.intensity=2.5+Math.sin(now*18)*0.8;
       }
@@ -4178,9 +4239,9 @@ function syncProjectiles(){
       else if(p.type==='proj_arrow'&&p._trailTick%6===0)emitParticles(wp.x,yOff,wp.z,0xddccaa,1,3);
     }
   }
-  // Remove dead
+  // Remove dead — no Set allocation; check p.alive directly.
   for(const[p,mesh] of projMeshes){
-    if(!activeProjs.has(p)){scene.remove(mesh);projMeshes.delete(p)}
+    if(!p.alive){scene.remove(mesh);projMeshes.delete(p)}
   }
 }
 
