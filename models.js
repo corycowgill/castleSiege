@@ -1542,3 +1542,101 @@ function createEnemyModel(type,owner){
   g.scale.set(2.2,2.2,2.2);
   return g;
 }
+// ==================== PROJECTILE MODELS ====================
+function createProjectileModel(type){
+  const g=new THREE.Group();
+  if(type==='proj_arrow'){
+    // Wooden shaft (cylindrical, with grain color)
+    const shaft=mkMesh(new THREE.CylinderGeometry(0.012,0.012,0.36,6),mkMat(0x8b6914));
+    shaft.rotation.z=Math.PI/2;g.add(shaft);
+    // Brighter wood highlight stripe
+    const hl=mkMesh(new THREE.CylinderGeometry(0.013,0.013,0.3,3),mkMat(0xa07528));
+    hl.rotation.z=Math.PI/2;g.add(hl);
+    // Iron conical head
+    const head=mkMesh(new THREE.ConeGeometry(0.025,0.09,8),mkMat(0xcccccc,{metalness:0.7,roughness:0.25}));
+    head.rotation.z=-Math.PI/2;head.position.x=0.22;g.add(head);
+    // Head socket (iron band)
+    const sock=mkMesh(new THREE.CylinderGeometry(0.016,0.016,0.025,8),mkMat(0x555555,{metalness:0.6}));
+    sock.rotation.z=Math.PI/2;sock.position.x=0.17;g.add(sock);
+    // Fletching - 4 triangular feather fins
+    for(let i=0;i<4;i++){
+      const fin=mkMesh(new THREE.BoxGeometry(0.065,0.036,0.005),mkMat(i%2===0?0xcc2222:0x881818));
+      fin.position.x=-0.13;
+      fin.rotation.x=i*Math.PI/2;
+      g.add(fin);
+    }
+    // Nock end cap
+    g.add(mkMesh(new THREE.SphereGeometry(0.016,6,5),mkMat(0x3a1a1a)).translateX(-0.18));
+  }else if(type==='proj_magic'){
+    // Bright white core
+    g.add(mkMesh(new THREE.SphereGeometry(0.07,12,10),
+      new THREE.MeshStandardMaterial({color:0xffffff,emissive:0xffddff,emissiveIntensity:3.5})));
+    // Main purple orb
+    g.add(mkMesh(new THREE.SphereGeometry(0.11,14,12),
+      new THREE.MeshStandardMaterial({color:0xcc55ff,emissive:0x9933ff,emissiveIntensity:2.0})));
+    // Outer translucent glow shell
+    g.add(mkMesh(new THREE.SphereGeometry(0.18,12,10),
+      new THREE.MeshStandardMaterial({color:0xaa55ff,emissive:0x7733cc,emissiveIntensity:0.9,transparent:true,opacity:0.35,depthWrite:false})));
+    // Outermost aura (very faint)
+    g.add(mkMesh(new THREE.SphereGeometry(0.26,10,8),
+      new THREE.MeshBasicMaterial({color:0xdd88ff,transparent:true,opacity:0.12,depthWrite:false})));
+    // Two orbiting sparkle rings (cross-oriented)
+    const r1=mkMesh(new THREE.TorusGeometry(0.15,0.012,6,20),
+      new THREE.MeshStandardMaterial({color:0xffddff,emissive:0xcc66ff,emissiveIntensity:1.6,transparent:true,opacity:0.75,depthWrite:false}));
+    r1.rotation.x=Math.PI/3;g.add(r1);
+    r1.userData.spin='ring1';
+    const r2=mkMesh(new THREE.TorusGeometry(0.14,0.01,6,20),
+      new THREE.MeshStandardMaterial({color:0xffaaff,emissive:0xcc66ff,emissiveIntensity:1.3,transparent:true,opacity:0.6,depthWrite:false}));
+    r2.rotation.z=Math.PI/3;g.add(r2);
+    r2.userData.spin='ring2';
+    // Dynamic point light for scene illumination
+    // PERF: no PointLight on projectile (was expensive per-active-projectile).
+    // Glow comes from emissive materials only.
+  }else if(type==='proj_boulder'){
+    // Rough rock core with flat shading
+    g.add(mkMesh(new THREE.DodecahedronGeometry(0.15,0),
+      new THREE.MeshStandardMaterial({color:0x7a7a6a,roughness:0.95,flatShading:true})));
+    // Darker cracks/lumps for depth
+    g.add(mkMesh(new THREE.DodecahedronGeometry(0.09,0),
+      new THREE.MeshStandardMaterial({color:0x554a3a,roughness:0.95,flatShading:true})).translateX(0.06).translateY(0.04));
+    g.add(mkMesh(new THREE.DodecahedronGeometry(0.08,0),
+      new THREE.MeshStandardMaterial({color:0x99907a,roughness:0.9,flatShading:true})).translateX(-0.06).translateZ(0.05));
+    g.add(mkMesh(new THREE.DodecahedronGeometry(0.06,0),
+      new THREE.MeshStandardMaterial({color:0x665a4a,roughness:0.9,flatShading:true})).translateX(0.02).translateY(-0.06).translateZ(-0.04));
+    // Dust trail cloud behind (3 fading puffs)
+    for(let i=0;i<3;i++){
+      const dust=mkMesh(new THREE.SphereGeometry(0.1-i*0.015,7,6),
+        new THREE.MeshBasicMaterial({color:0xa89866,transparent:true,opacity:0.38-i*0.09,depthWrite:false}));
+      dust.position.x=-0.16-i*0.1;
+      dust.position.y=(i%2)*0.03;
+      g.add(dust);
+    }
+  }else{// cannonball
+    // Dark iron sphere (metallic)
+    g.add(mkMesh(new THREE.SphereGeometry(0.11,14,12),
+      new THREE.MeshStandardMaterial({color:0x1a1a1a,metalness:0.9,roughness:0.15})));
+    // Hot glowing core visible through "cracks"
+    g.add(mkMesh(new THREE.SphereGeometry(0.095,10,8),
+      new THREE.MeshStandardMaterial({color:0xff3300,emissive:0xff4400,emissiveIntensity:0.7,transparent:true,opacity:0.55,depthWrite:false})));
+    // Layered fire trail behind the ball (bright core outward)
+    const trailLayers=[
+      {c:0xffee88,s:0.045,ox:-0.22,e:2.5,o:0.85},
+      {c:0xffaa00,s:0.07, ox:-0.17,e:2.0,o:0.80},
+      {c:0xff8800,s:0.085,ox:-0.12,e:1.6,o:0.75},
+      {c:0xff4400,s:0.10, ox:-0.07,e:1.2,o:0.70}
+    ];
+    for(const tc of trailLayers){
+      g.add(mkMesh(new THREE.SphereGeometry(tc.s,10,8),
+        new THREE.MeshStandardMaterial({color:tc.c,emissive:tc.c,emissiveIntensity:tc.e,transparent:true,opacity:tc.o,depthWrite:false}))
+        .translateX(tc.ox));
+    }
+    // Smoke trail behind the fire
+    for(let i=0;i<3;i++){
+      g.add(mkMesh(new THREE.SphereGeometry(0.07+i*0.022,7,6),
+        new THREE.MeshBasicMaterial({color:0x2a2a2a,transparent:true,opacity:0.35-i*0.09,depthWrite:false}))
+        .translateX(-0.32-i*0.09).translateY(0.015*(i+1)));
+    }
+    // PERF: no PointLight on projectile — glow is emissive-only.
+  }
+  return g;
+}
