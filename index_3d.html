@@ -411,7 +411,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0604}
     </div>
     <div style="margin-top:16px;display:flex;justify-content:space-between;align-items:center;font-family:'Cinzel',monospace;font-size:11px;opacity:0.85">
       <span style="color:#555">Three.js &bull; Procedural</span>
-      <span style="color:#ffd700;font-weight:bold;letter-spacing:1px">v3.3 &bull; Build 2026-04-13</span>
+      <span style="color:#ffd700;font-weight:bold;letter-spacing:1px">v3.4 &bull; Build 2026-04-13</span>
     </div>
   </div>
 </div>
@@ -3221,51 +3221,75 @@ function updateTitle(){
 }
 
 // ==================== MAIN GAME LOOP ====================
+// PERF v3.4: fixed-timestep game simulation.
+// Game logic (updateBuild, updateCombat, processInput, aiUpdate,
+// path following, combat scanning, tower targeting) runs at a fixed
+// 60 Hz regardless of display refresh rate. Rendering still runs at
+// the display rate (requestAnimationFrame). On a 144 Hz monitor this
+// drops simulation cost from ~144×/sec to ~60×/sec — a 58% reduction
+// in the single biggest CPU bucket. On 60 Hz displays it's neutral
+// but still gains determinism (sim always sees a constant dt).
+const SIM_DT=1/60;
+const MAX_SIM_STEPS=4; // cap catch-up to prevent spiral of death
+let __simAcc=0;
+
 function gameLoop(){
   requestAnimationFrame(gameLoop);
-  const dt=Math.min(clock.getDelta(),0.05);
+  // Cap rawDt so simAcc can never accumulate more than MAX_SIM_STEPS
+  // worth of sim time in a single frame (handles tab-switch gaps).
+  const rawDt=Math.min(clock.getDelta(),MAX_SIM_STEPS*SIM_DT);
 
   if(gameState==='modeselect'){
     // Just render, waiting for button click
   }else if(gameState==='title'){
-    // Title input
+    // Title input (run every frame — no fixed-step sim needed here)
     if(consumeKey('Space'))players[1].ready=true;
     if(mouseClicked){if(!audioCtx)initAudio();if(gameMode==='2p')players[2].ready=true;else players[1].ready=true}
     const gp=getGamepad();
     if(gp&&gpPressed(gp,0)){if(!audioCtx)initAudio();players[1].ready=true}
     if(gp){const np={};for(let i=0;i<gp.buttons.length;i++)np[i]=gp.buttons[i].pressed;gpPrev=np}
     updateTitle();
-  }else if(gameState!=='gameover'||true){
-    if(gameState!=='title'&&gameState!=='modeselect'){
-      processInput(dt);
-      // Touch input for 1P mobile
-      if(gameMode==='1p')processTouchInput(dt);
-      // AI for 1P mode
-      if(gameMode==='1p')aiUpdate(dt);
+    mouseClicked=false;mouseRightClicked=false;scrollDelta=0;middleClicked=false;
+    Object.keys(keyPressed).forEach(k=>keyPressed[k]=false);
+  }else{
+    // Fixed-timestep sim loop. Accumulate real elapsed time and run
+    // as many SIM_DT steps as needed. One-frame inputs are reset at
+    // the end of each sim tick so multiple ticks on one frame don't
+    // double-process the same click, and render-only frames (144Hz)
+    // preserve queued inputs until the next sim tick.
+    __simAcc+=rawDt;
+    let simSteps=0;
+    while(__simAcc>=SIM_DT&&simSteps<MAX_SIM_STEPS){
+      processInput(SIM_DT);
+      if(gameMode==='1p')processTouchInput(SIM_DT);
+      if(gameMode==='1p')aiUpdate(SIM_DT);
+      if(gameState==='build')updateBuild(SIM_DT);
+      else if(gameState==='combat')updateCombat(SIM_DT);
+      else if(gameState==='waveEnd'){waveEndTimer-=SIM_DT;if(waveEndTimer<=0)startBuild()}
+      // Consume one-frame inputs at end of tick.
+      mouseClicked=false;mouseRightClicked=false;scrollDelta=0;middleClicked=false;
+      Object.keys(keyPressed).forEach(k=>keyPressed[k]=false);
+      __simAcc-=SIM_DT;
+      simSteps++;
     }
-    if(gameState==='build')updateBuild(dt);
-    else if(gameState==='combat')updateCombat(dt);
-    else if(gameState==='waveEnd'){waveEndTimer-=dt;if(waveEndTimer<=0)startBuild()}
   }
 
-  // Sync 3D state
+  // Sync 3D state every render frame so visuals stay smooth at
+  // display rate. Sync functions only read positions that the sim
+  // sets, so rendering between sim ticks shows the last sim state.
   if(gameState!=='title'){
     syncBuildings();syncTowers();syncEnemies();syncProjectiles();updateCursors();
-    updateParticles(dt);updateDmgNumbers(dt);updateVfx(dt);
+    updateParticles(rawDt);updateDmgNumbers(rawDt);updateVfx(rawDt);
   }
 
   updateHUD();
 
-  // Reset one-frame inputs
-  mouseClicked=false;mouseRightClicked=false;scrollDelta=0;middleClicked=false;
-  Object.keys(keyPressed).forEach(k=>keyPressed[k]=false);
-
-  // Screen shake effect
+  // Screen shake effect (visual only — uses raw render dt)
   if(screenShake>0&&camera){
     const shakeIntensity=screenShake*0.15;
     camera.position.x=CAM_BASE.x+(Math.random()-0.5)*shakeIntensity;
     camera.position.z=CAM_BASE.z/camZoom+(Math.random()-0.5)*shakeIntensity;
-    screenShake-=dt||0.016;
+    screenShake-=rawDt||0.016;
     if(screenShake<=0){screenShake=0;setCameraZoom(camZoom)}
   }
 
