@@ -585,6 +585,76 @@ function createEnemyModel(type,owner){
     const hood=mkMesh(new THREE.SphereGeometry(0.083,8,4,0,Math.PI*2,0,Math.PI*0.5),acMat);
     hood.position.y=0.39;g.add(hood);
 
+    // ============ v3.2 DETAIL PASS (ported from index_3d.html) ============
+    const goblinMuscle=mkMat(0x3e7a28,{roughness:0.75});
+    const goblinDark=mkMat(0x2a5018,{roughness:0.85});
+    const poisonGlow=mkMat(0x66ff44,{emissive:0x33aa22,emissiveIntensity:0.9,transparent:true,opacity:0.85});
+    const steelMat=mkMat(0xbbbbcc,{metalness:0.75,roughness:0.2});
+    const goldMat=mkMat(0xccaa44,{metalness:0.7,roughness:0.3});
+    const bone=mkMat(0xeeeecc,{roughness:0.5});
+
+    [[0.03,0.4,0.06],[-0.04,0.39,0.065],[0.05,0.37,0.055],[-0.02,0.405,0.07],
+     [0.07,0.41,0.04],[-0.06,0.4,0.05],[0,0.415,0.06]].forEach(p=>{
+      g.add(mkMesh(new THREE.SphereGeometry(0.005,4,3),goblinDark).translateX(p[0]).translateY(p[1]).translateZ(p[2]));
+    });
+    [[0.04,0.2,0.08],[-0.03,0.18,0.085],[0.02,0.12,0.08]].forEach(p=>{
+      g.add(mkMesh(new THREE.SphereGeometry(0.004,4,3),goblinDark).translateX(p[0]).translateY(p[1]).translateZ(p[2]));
+    });
+    [-0.015,-0.005,0.005,0.015].forEach(x=>{
+      g.add(mkMesh(new THREE.ConeGeometry(0.003,0.008,3),mkMat(0xccccaa)).translateX(x).translateY(0.345).translateZ(0.072).rotateX(Math.PI));
+    });
+    g.add(mkMesh(new THREE.BoxGeometry(0.012,0.005,0.008),mkMat(0xcc4466)).translateY(0.347).translateZ(0.077));
+    g.add(mkMesh(new THREE.ConeGeometry(0.005,0.015,4),bone).translateX(0.015).translateY(0.348).translateZ(0.073).rotateZ(0.2));
+    g.add(mkMesh(new THREE.BoxGeometry(0.025,0.003,0.003),goblinDark).translateX(-0.035).translateY(0.4).translateZ(0.078).rotateZ(0.4));
+    [-0.008,0,0.008].forEach(dx=>{
+      g.add(mkMesh(new THREE.BoxGeometry(0.003,0.005,0.003),goblinDark).translateX(-0.035+dx).translateY(0.4).translateZ(0.079));
+    });
+    [-0.02,0,0.02].forEach((hx,i)=>{
+      g.add(mkMesh(new THREE.ConeGeometry(0.008,0.025,4),goblinDark).translateX(hx).translateY(0.45+i*0.002).translateZ(0.01).rotateX(-0.3));
+    });
+    [-1,1].forEach(s=>{
+      g.add(mkMesh(new THREE.ConeGeometry(0.005,0.018,3),goblinDark).translateX(s*0.08).translateY(0.43).translateZ(0.01).rotateZ(s*0.4));
+    });
+    [-1,1].forEach(s=>{
+      g.add(mkMesh(new THREE.SphereGeometry(0.012,5,4),goblinMuscle).translateX(s*0.11).translateY(0.28).translateZ(0.008));
+    });
+    [-1,1].forEach(s=>{
+      for(let k=0;k<3;k++){
+        const cl=mkMesh(new THREE.ConeGeometry(0.0035,0.018,3),mkMat(0x221100));
+        cl.position.set(s*0.14,0.15+(k-1)*0.006,0.012);
+        cl.rotation.z=-s*Math.PI/2;cl.rotation.x=0.1;
+        g.add(cl);
+      }
+    });
+    [0.1,0.14,0.18,0.22].forEach(y=>{
+      g.add(mkMesh(new THREE.SphereGeometry(0.008,4,3),goblinDark).translateY(y).translateZ(-0.07));
+    });
+    [-0.05,0.05].forEach(x=>{
+      g.add(mkMesh(new THREE.SphereGeometry(0.015,5,4),goblinMuscle).translateX(x).translateY(0.22).translateZ(-0.08));
+    });
+    g.add(mkMesh(new THREE.CylinderGeometry(0.012,0.012,0.028,6),poisonGlow).translateX(0.04).translateY(0.15).translateZ(0.078));
+    g.add(mkMesh(new THREE.CylinderGeometry(0.008,0.008,0.006,5),mkMat(0x4a2a08)).translateX(0.04).translateY(0.17).translateZ(0.078));
+    g.add(mkMesh(new THREE.CylinderGeometry(0.005,0.005,0.005,5),poisonGlow).translateX(0.04).translateY(0.166).translateZ(0.078));
+    g.add(mkMesh(new THREE.SphereGeometry(0.012,5,4),bone).translateX(-0.04).translateY(0.135).translateZ(0.08));
+    [-0.004,0.004].forEach(sx=>{
+      g.add(mkMesh(new THREE.SphereGeometry(0.002,4,3),mkMat(0x111100)).translateX(-0.04+sx).translateY(0.137).translateZ(0.09));
+    });
+    g.add(mkMesh(new THREE.CylinderGeometry(0.001,0.001,0.02,3),leather).translateX(-0.04).translateY(0.155).translateZ(0.078));
+    [-0.03,0,0.03].forEach(x=>{
+      g.add(mkMesh(new THREE.CylinderGeometry(0.004,0.004,0.012,4),bone).translateX(x).translateY(0.29).translateZ(0.075).rotateZ(Math.PI/2));
+    });
+    const gobStrap=mkMesh(new THREE.BoxGeometry(0.014,0.2,0.005),leather);
+    gobStrap.rotation.z=0.45;gobStrap.position.set(0,0.24,0.076);g.add(gobStrap);
+    [-0.04,0,0.04].forEach(dy=>{
+      g.add(mkMesh(new THREE.SphereGeometry(0.003,4,3),goldMat).translateX(-dy*0.4).translateY(0.24+dy).translateZ(0.078));
+    });
+    g.add(mkMesh(new THREE.BoxGeometry(0.009,0.04,0.003),poisonGlow).translateX(0.16).translateY(0.18).translateZ(0.001));
+    [0.15,0.17,0.19].forEach(y=>{
+      g.add(mkMesh(new THREE.ConeGeometry(0.002,0.006,3),steelMat).translateX(0.167).translateY(y).rotateZ(-Math.PI/2));
+    });
+    g.add(mkMesh(new THREE.TorusGeometry(0.007,0.0015,3,8),goldMat).translateX(-0.1).translateY(0.37).translateZ(0.005).rotateY(Math.PI/2));
+    g.add(mkMesh(new THREE.TorusGeometry(0.004,0.001,3,8),goldMat).translateY(0.37).translateZ(0.082).rotateX(Math.PI/2));
+
   }else if(type==='orc'){
     const skin=mkMat(0x2d5a1e);
     const darkSkin=mkMat(0x1e4a10);
@@ -640,6 +710,96 @@ function createEnemyModel(type,owner){
       const a=i*Math.PI/2;
       sp.position.set(0.26+Math.cos(a)*0.04,0.34,Math.sin(a)*0.04);
       sp.rotation.z=Math.cos(a)*0.5;sp.rotation.x=Math.sin(a)*0.5;g.add(sp);
+    });
+
+    // ============ v3.2 DETAIL PASS (ported from index_3d.html) ============
+    const orcMuscle=mkMat(0x3a6e22,{roughness:0.7});
+    const orcVein=mkMat(0x1a3a0a);
+    const rustyIron=mkMat(0x554433,{metalness:0.4,roughness:0.7});
+    const bloodStain=mkMat(0x6a0a0a,{emissive:0x330505,emissiveIntensity:0.3,roughness:0.9});
+    const orcBone=mkMat(0xddd0a8,{roughness:0.55});
+    const orcGold=mkMat(0xaa7722,{metalness:0.6,roughness:0.4});
+
+    [-1,1].forEach(s=>{
+      const pec=mkMesh(new THREE.SphereGeometry(0.055,6,5),orcMuscle);
+      pec.scale.set(1,0.8,0.6);
+      pec.position.set(s*0.06,0.36,0.08);
+      g.add(pec);
+    });
+    for(let r=0;r<2;r++)for(let c=-1;c<=1;c++){
+      g.add(mkMesh(new THREE.SphereGeometry(0.022,5,4),orcMuscle).translateX(c*0.04).translateY(0.24-r*0.035).translateZ(0.1));
+    }
+    [-1,1].forEach(s=>{
+      g.add(mkMesh(new THREE.SphereGeometry(0.022,5,4),orcMuscle).translateX(s*0.19).translateY(0.4).translateZ(0.012));
+    });
+    [-1,1].forEach(s=>{
+      g.add(mkMesh(new THREE.SphereGeometry(0.018,5,4),orcMuscle).translateX(s*0.19).translateY(0.39).translateZ(-0.015));
+    });
+    [-1,1].forEach(s=>{
+      g.add(mkMesh(new THREE.SphereGeometry(0.028,5,4),orcMuscle).translateX(s*0.06).translateY(0.47).translateZ(0.02));
+    });
+    g.add(mkMesh(new THREE.CylinderGeometry(0.042,0.05,0.05,7),skin).translateY(0.47));
+    const mohawkHeights=[0.02,0.035,0.045,0.035,0.02];
+    mohawkHeights.forEach((h,i)=>{
+      g.add(mkMesh(new THREE.ConeGeometry(0.008,h,4),darkSkin).translateX((i-2)*0.012).translateY(0.66+h*0.5).translateZ(-0.005));
+    });
+    [-1,1].forEach(s=>{
+      [0.005,0.015,0.025].forEach(dz=>{
+        g.add(mkMesh(new THREE.TorusGeometry(0.006,0.0015,3,8),orcGold).translateX(s*0.1).translateY(0.55-dz).translateZ(0).rotateY(Math.PI/2));
+      });
+    });
+    g.add(mkMesh(new THREE.TorusGeometry(0.012,0.0025,4,10),orcGold).translateY(0.535).translateZ(0.103).rotateX(Math.PI/2));
+    g.add(mkMesh(new THREE.TorusGeometry(0.055,0.012,4,10),rustyIron).translateY(0.47));
+    for(let a=0;a<8;a++){
+      const ang=a*Math.PI/4;
+      const sp=mkMesh(new THREE.ConeGeometry(0.008,0.025,4),metal);
+      sp.position.set(Math.cos(ang)*0.056,0.47,Math.sin(ang)*0.056);
+      sp.rotation.z=-Math.cos(ang)*Math.PI/2;sp.rotation.x=Math.sin(ang)*Math.PI/2;
+      g.add(sp);
+    }
+    [-1,1].forEach(s=>{
+      g.add(mkMesh(new THREE.SphereGeometry(0.035,6,5),orcBone).translateX(s*0.19).translateY(0.5).translateZ(-0.01));
+      [-0.01,0.01].forEach(ex=>{
+        g.add(mkMesh(new THREE.SphereGeometry(0.006,4,3),mkMat(0x111100)).translateX(s*0.19+ex).translateY(0.503).translateZ(0.02));
+      });
+      g.add(mkMesh(new THREE.BoxGeometry(0.035,0.005,0.02),orcBone).translateX(s*0.19).translateY(0.488).translateZ(0.015));
+    });
+    [-1,1].forEach(s=>{
+      for(let r=0;r<4;r++){
+        g.add(mkMesh(new THREE.BoxGeometry(0.02,0.003,0.004),orcVein).translateX(s*0.12).translateY(0.28-r*0.025).translateZ(0.06));
+      }
+    });
+    [[0.05,0.32,0.12],[-0.04,0.28,0.115],[0.02,0.36,0.118]].forEach(p=>{
+      g.add(mkMesh(new THREE.SphereGeometry(0.008,4,3),bloodStain).translateX(p[0]).translateY(p[1]).translateZ(p[2]));
+    });
+    g.add(mkMesh(new THREE.SphereGeometry(0.018,5,4),bloodStain).translateX(0.26).translateY(0.35).translateZ(0.02));
+    g.add(mkMesh(new THREE.SphereGeometry(0.014,5,4),bloodStain).translateX(0.255).translateY(0.33).translateZ(-0.015));
+    [-1,1].forEach(s=>{
+      const bigTusk=mkMesh(new THREE.ConeGeometry(0.012,0.05,5),orcBone);
+      bigTusk.position.set(s*0.055,0.485,0.09);
+      bigTusk.rotation.x=-0.2;bigTusk.rotation.z=s*0.3;
+      g.add(bigTusk);
+    });
+    [-1,1].forEach(s=>{
+      g.add(mkMesh(new THREE.BoxGeometry(0.04,0.02,0.025),rustyIron).translateX(s*0.24).translateY(0.15));
+      for(let k=0;k<3;k++){
+        g.add(mkMesh(new THREE.ConeGeometry(0.005,0.012,4),metal).translateX(s*0.24).translateY(0.15+(k-1)*0.008).translateZ(0.016));
+      }
+    });
+    g.add(mkMesh(new THREE.SphereGeometry(0.022,6,5),orcBone).translateX(-0.1).translateY(0.18).translateZ(0.08));
+    [-0.006,0.006].forEach(ex=>{
+      g.add(mkMesh(new THREE.SphereGeometry(0.004,4,3),mkMat(0x111100)).translateX(-0.1+ex).translateY(0.183).translateZ(0.1));
+    });
+    g.add(mkMesh(new THREE.CylinderGeometry(0.002,0.002,0.08,4),rustyIron).translateX(-0.1).translateY(0.23).translateZ(0.075));
+    g.add(mkMesh(new THREE.BoxGeometry(0.004,0.05,0.005),bloodStain).translateX(0.13).translateY(0.3).translateZ(0.075).rotateZ(0.3));
+    [-1,1].forEach(s=>{
+      const plate=mkMesh(new THREE.SphereGeometry(0.058,6,4,0,Math.PI*2,0,Math.PI*0.5),rustyIron);
+      plate.position.set(s*0.17,0.49,0);
+      g.add(plate);
+      for(let r=0;r<4;r++){
+        const ra=r*Math.PI/2+Math.PI/4;
+        g.add(mkMesh(new THREE.SphereGeometry(0.004,4,3),metal).translateX(s*0.17+Math.cos(ra)*0.045).translateY(0.49).translateZ(Math.sin(ra)*0.045));
+      }
     });
 
   }else if(type==='darkKnight'){
@@ -708,6 +868,115 @@ function createEnemyModel(type,owner){
     swordGroup.add(mkMesh(new THREE.CylinderGeometry(0.01,0.01,0.06,6),mkMat(0x3a2a1a,{roughness:0.9})).translateY(-0.03));
     swordGroup.add(mkMesh(new THREE.SphereGeometry(0.015,5,4),mkMat(0x886622,{metalness:0.5})).translateY(-0.065));
     swordGroup.position.set(0.2,0.18,0.03);g.add(swordGroup);
+
+    // ============ v3.2 DETAIL PASS (ported from index_3d.html) ============
+    // Also add the cape + chainmail skirt + horns that guide was missing.
+    const capeMat=mkMat(owner===1?0x1a3d7a:0x7a1a3d,{roughness:0.7});
+    const cape=mkMesh(new THREE.BoxGeometry(0.24,0.4,0.015),capeMat);
+    cape.position.set(0,0.28,-0.11);g.add(cape);
+    const mailMat=mkMat(0x555566,{metalness:0.55,roughness:0.5});
+    g.add(mkMesh(new THREE.CylinderGeometry(0.11,0.1,0.08,12),mailMat).translateY(0.15));
+    [-1,1].forEach(s=>{
+      const horn=mkMesh(new THREE.ConeGeometry(0.018,0.08,6),darkArmor);
+      horn.position.set(s*0.075,0.62,0);
+      horn.rotation.z=s*1.1;
+      g.add(horn);
+      g.add(mkMesh(new THREE.SphereGeometry(0.008,5,4),mkMat(0x222233)).translateX(s*0.11).translateY(0.645));
+    });
+
+    // v3.2 specific details
+    const dkSteel=mkMat(0x5a5a6a,{metalness:0.7,roughness:0.25});
+    const dkDarkSteel=mkMat(0x28283a,{metalness:0.75,roughness:0.2});
+    const dkGold=mkMat(0xd4b04a,{metalness:0.85,roughness:0.25});
+    const dkRune=mkMat(owner===1?0x66aaff:0xff66aa,{emissive:owner===1?0x2266cc:0xcc2266,emissiveIntensity:1.3});
+    const dkBloodRed=mkMat(0x8a1a1a,{emissive:0x3a0505,emissiveIntensity:0.4,metalness:0.3,roughness:0.6});
+    const dkChain=mkMat(0x6a6a7a,{metalness:0.55,roughness:0.45});
+
+    g.add(mkMesh(new THREE.TorusGeometry(0.12,0.008,4,16),dkGold).translateY(0.42));
+    g.add(mkMesh(new THREE.TorusGeometry(0.11,0.006,4,16),dkGold).translateY(0.22));
+    [-0.08,-0.05,0.05,0.08].forEach(x=>{
+      g.add(mkMesh(new THREE.BoxGeometry(0.006,0.14,0.005),dkGold).translateX(x).translateY(0.3).translateZ(0.11));
+    });
+    [[0.06,0.28],[0.06,0.32],[0.06,0.36],[-0.06,0.28],[-0.06,0.32],[-0.06,0.36]].forEach(p=>{
+      g.add(mkMesh(new THREE.BoxGeometry(0.012,0.012,0.002),dkRune).translateX(p[0]).translateY(p[1]).translateZ(0.118));
+    });
+    for(let a=0;a<12;a++){
+      const ang=a*Math.PI/6;
+      g.add(mkMesh(new THREE.SphereGeometry(0.005,4,3),mkMat(0x888899,{metalness:0.8}))
+        .translateX(Math.cos(ang)*0.115).translateY(0.32).translateZ(Math.sin(ang)*0.115));
+    }
+    [-1,1].forEach(s=>{
+      const lame=mkMesh(new THREE.SphereGeometry(0.048,6,3,0,Math.PI*2,0,Math.PI*0.45),dkDarkSteel);
+      lame.position.set(s*0.14,0.39,0);
+      g.add(lame);
+      const spk=mkMesh(new THREE.ConeGeometry(0.012,0.05,6),dkSteel);
+      spk.position.set(s*0.17,0.47,-0.01);
+      spk.rotation.z=s*0.6;spk.rotation.x=-0.3;
+      g.add(spk);
+      const spk2=mkMesh(new THREE.ConeGeometry(0.008,0.03,5),dkSteel);
+      spk2.position.set(s*0.18,0.44,0);
+      spk2.rotation.z=s*0.8;
+      g.add(spk2);
+    });
+    [-1,1].forEach(s=>{
+      g.add(mkMesh(new THREE.SphereGeometry(0.025,5,4),dkDarkSteel).translateX(s*0.17).translateY(0.3).translateZ(0));
+    });
+    [-1,1].forEach(s=>{
+      for(let k=0;k<4;k++){
+        g.add(mkMesh(new THREE.BoxGeometry(0.009,0.008,0.008),dkDarkSteel)
+          .translateX(s*0.19).translateY(0.14+(k-1.5)*0.007).translateZ(0.013));
+      }
+    });
+    for(let i=0;i<5;i++){
+      g.add(mkMesh(new THREE.BoxGeometry(0.01,0.015,0.015-i*0.001),dkDarkSteel).translateY(0.62+i*0.005).translateZ(-0.02+i*0.008));
+    }
+    [0.528,0.522,0.516].forEach(y=>{
+      g.add(mkMesh(new THREE.BoxGeometry(0.06,0.003,0.004),dkDarkSteel).translateY(y).translateZ(0.073));
+    });
+    [-1,1].forEach(s=>{
+      g.add(mkMesh(new THREE.BoxGeometry(0.015,0.04,0.015),armor).translateX(s*0.065).translateY(0.525).translateZ(0.05));
+    });
+    g.add(mkMesh(new THREE.TorusGeometry(0.078,0.005,4,16),dkGold).translateY(0.475));
+    for(let i=0;i<6;i++){
+      const a=i*Math.PI/3;
+      g.add(mkMesh(new THREE.ConeGeometry(0.006,0.015,4),dkGold).translateX(Math.cos(a)*0.08).translateY(0.485).translateZ(Math.sin(a)*0.08));
+    }
+    g.add(mkMesh(new THREE.TorusGeometry(0.08,0.012,5,16),dkChain).translateY(0.465));
+    g.add(mkMesh(new THREE.BoxGeometry(0.004,0.18,0.003),dkRune).translateX(0.2).translateY(0.2).translateZ(0.033));
+    [0.12,0.18,0.25].forEach(y=>{
+      g.add(mkMesh(new THREE.BoxGeometry(0.004,0.006,0.004),dkDarkSteel).translateX(0.211).translateY(y).translateZ(0.03));
+    });
+    g.add(mkMesh(new THREE.SphereGeometry(0.01,6,5),dkRune).translateX(-0.2).translateY(0.32).translateZ(0.094));
+    for(let i=0;i<8;i++){
+      const a=i*Math.PI/4;
+      g.add(mkMesh(new THREE.SphereGeometry(0.004,4,3),dkGold)
+        .translateX(-0.2+Math.cos(a)*0.072).translateY(0.32+Math.sin(a)*0.072).translateZ(0.09));
+    }
+    const sBrace1=mkMesh(new THREE.BoxGeometry(0.006,0.16,0.003),dkDarkSteel);
+    sBrace1.rotation.z=0.6;sBrace1.position.set(-0.2,0.32,0.088);g.add(sBrace1);
+    const sBrace2=mkMesh(new THREE.BoxGeometry(0.006,0.16,0.003),dkDarkSteel);
+    sBrace2.rotation.z=-0.6;sBrace2.position.set(-0.2,0.32,0.088);g.add(sBrace2);
+    for(let i=0;i<5;i++){
+      const cx=(i-2)*0.04;
+      g.add(mkMesh(new THREE.BoxGeometry(0.03,0.07-Math.abs(i-2)*0.01,0.012),capeMat).translateX(cx).translateY(0.06).translateZ(-0.112));
+    }
+    g.add(mkMesh(new THREE.BoxGeometry(0.22,0.03,0.013),dkGold).translateY(0.45).translateZ(-0.108));
+    [-0.06,0.06].forEach(x=>{
+      g.add(mkMesh(new THREE.ConeGeometry(0.012,0.025,5),dkSteel).translateX(x).translateY(0.1).translateZ(0.045).rotateX(-0.3));
+    });
+    [-1,1].forEach(s=>{
+      g.add(mkMesh(new THREE.BoxGeometry(0.028,0.035,0.02),mkMat(0x3a2208,{roughness:0.85})).translateX(s*0.08).translateY(0.21).translateZ(0.1));
+      g.add(mkMesh(new THREE.BoxGeometry(0.028,0.008,0.022),mkMat(0x2a1808,{roughness:0.85})).translateX(s*0.08).translateY(0.225).translateZ(0.101));
+    });
+    g.add(mkMesh(new THREE.CylinderGeometry(0.001,0.001,0.04,3),dkChain).translateY(0.42).translateZ(0.11));
+    g.add(mkMesh(new THREE.CylinderGeometry(0.012,0.012,0.004,8),dkGold).translateY(0.4).translateZ(0.115));
+    g.add(mkMesh(new THREE.SphereGeometry(0.005,5,4),dkRune).translateY(0.4).translateZ(0.118));
+    [[0.09,0.3,0.115],[-0.05,0.35,0.113],[0.03,0.25,0.116]].forEach(p=>{
+      g.add(mkMesh(new THREE.SphereGeometry(0.007,4,3),dkBloodRed).translateX(p[0]).translateY(p[1]).translateZ(p[2]));
+    });
+    [-0.06,0.06].forEach(x=>{
+      g.add(mkMesh(new THREE.BoxGeometry(0.004,0.08,0.003),dkGold).translateX(x).translateY(0.08).translateZ(0.042));
+    });
 
   }else{
     // archer
