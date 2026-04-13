@@ -155,6 +155,321 @@ function createCastle(owner){
     g.add(mkMesh(new THREE.BoxGeometry(0.3,0.18,0.012),flagMat).translateX(cx+0.15).translateY(towerH+0.62+0.42).translateZ(cz));
   });
 
+  // ============ v3.8 CASTLE DETAIL PASS ============
+  // Shared materials (canonicalization will dedupe any duplicates).
+  const ivy=mkMat(0x2d5a2a,{roughness:0.9});
+  const ivyDark=mkMat(0x1e4a1e,{roughness:0.9});
+  const moss=mkMat(0x3a6a2a,{roughness:0.95});
+  const iron=mkMat(0x2a2a2a,{metalness:0.55,roughness:0.35});
+  const ironLight=mkMat(0x666677,{metalness:0.6,roughness:0.35});
+  const gold=mkMat(0xd4b04a,{metalness:0.8,roughness:0.3});
+  const torchWood=mkMat(0x3a2208);
+  const torchFire=mkMat(0xff6622,{emissive:0xff3300,emissiveIntensity:2.4,transparent:true,opacity:0.9});
+  const torchGlow=mkMat(0xffcc44,{emissive:0xff8822,emissiveIntensity:2.0,transparent:true,opacity:0.85});
+  const stainRed=mkMat(0xcc2a1a,{emissive:0x661a0a,emissiveIntensity:0.6,transparent:true,opacity:0.85});
+  const stainBlue=mkMat(0x2a4acc,{emissive:0x0a1a66,emissiveIntensity:0.6,transparent:true,opacity:0.85});
+  const stainGold=mkMat(0xffcc44,{emissive:0xaa7722,emissiveIntensity:0.7,transparent:true,opacity:0.85});
+  const leadLine=mkMat(0x222233,{metalness:0.3});
+  const scorch=mkMat(0x1a1510);
+  const crewSkin=mkMat(0xc4956a);
+  const crewHelm=mkMat(0x44445a,{metalness:0.6,roughness:0.35});
+  const banner=mkMat(owner===1?0x1a3d7a:0x7a1a3d,{roughness:0.7});
+
+  // ---- Defender archer silhouettes patrolling the front wall ----
+  for(let i=0;i<4;i++){
+    const ax=0.25+i*(CW-0.5)/3;
+    // Only visible behind front wall (the one facing the enemy)
+    const az= (facing>0 ? -0.04 : CD+0.04);
+    // Torso (cuirass)
+    g.add(mkMesh(new THREE.BoxGeometry(0.12,0.16,0.08),crewHelm).translateX(ax).translateY(wallH+0.22).translateZ(az));
+    // Helmet
+    g.add(mkMesh(new THREE.SphereGeometry(0.05,6,5),iron).translateX(ax).translateY(wallH+0.34).translateZ(az));
+    // Helmet crest (team color)
+    g.add(mkMesh(new THREE.BoxGeometry(0.005,0.03,0.06),accent).translateX(ax).translateY(wallH+0.38).translateZ(az));
+    // Bow or spear in hand (every other one)
+    if(i%2===0){
+      g.add(mkMesh(new THREE.CylinderGeometry(0.006,0.006,0.28,4),mkMat(0x5a3a1a))
+        .translateX(ax+facing*0.06).translateY(wallH+0.32).translateZ(az).rotateZ(0.3));
+    }else{
+      // Bow (torus segment)
+      g.add(mkMesh(new THREE.TorusGeometry(0.06,0.006,4,8,Math.PI),mkMat(0x5a3a1a))
+        .translateX(ax+facing*0.07).translateY(wallH+0.24).translateZ(az).rotateZ(Math.PI/2));
+    }
+  }
+  // Two more defenders on side walls (long direction)
+  [[0-0.03,CD*0.25],[0-0.03,CD*0.75],[CW+0.03,CD*0.25],[CW+0.03,CD*0.75]].forEach(([dx,dz])=>{
+    g.add(mkMesh(new THREE.BoxGeometry(0.08,0.14,0.1),crewHelm).translateX(dx).translateY(wallH+0.21).translateZ(dz));
+    g.add(mkMesh(new THREE.SphereGeometry(0.045,6,5),iron).translateX(dx).translateY(wallH+0.31).translateZ(dz));
+  });
+
+  // ---- Wall torches flanking the gate (brazier + flame) ----
+  const gt1=gateZ-0.45, gt2=gateZ+0.45;
+  const tgX= gateWallX + facing*0.05;
+  [gt1,gt2].forEach(tz=>{
+    // Iron bracket
+    g.add(mkMesh(new THREE.BoxGeometry(0.03,0.04,0.04),iron).translateX(tgX).translateY(1.1).translateZ(tz));
+    // Wooden handle
+    g.add(mkMesh(new THREE.CylinderGeometry(0.014,0.016,0.16,5),torchWood).translateX(tgX+facing*0.02).translateY(1.2).translateZ(tz));
+    // Iron brazier bowl
+    g.add(mkMesh(new THREE.CylinderGeometry(0.05,0.035,0.05,8),iron).translateX(tgX+facing*0.04).translateY(1.3).translateZ(tz));
+    // Fire core
+    g.add(mkMesh(new THREE.SphereGeometry(0.045,8,6),torchFire).translateX(tgX+facing*0.04).translateY(1.34).translateZ(tz));
+    // Flame cone
+    g.add(mkMesh(new THREE.ConeGeometry(0.04,0.12,6),torchGlow).translateX(tgX+facing*0.04).translateY(1.42).translateZ(tz));
+    // Spark
+    g.add(mkMesh(new THREE.SphereGeometry(0.02,6,5),mkMat(0xffffcc,{emissive:0xffee88,emissiveIntensity:2.8,transparent:true,opacity:0.95}))
+      .translateX(tgX+facing*0.04).translateY(1.36).translateZ(tz));
+  });
+
+  // ---- Drawbridge chains (2 diagonal iron chains) ----
+  [gt1+0.1,gt2-0.1].forEach(cz=>{
+    // Upper attachment (arch top)
+    g.add(mkMesh(new THREE.SphereGeometry(0.02,6,4),iron).translateX(gateX).translateY(1.0).translateZ(cz));
+    // Chain links (6 per side)
+    for(let li=0;li<6;li++){
+      g.add(mkMesh(new THREE.TorusGeometry(0.012,0.003,3,8),ironLight)
+        .translateX(gateX+facing*li*0.025).translateY(0.96-li*0.06).translateZ(cz).rotateX(li%2===0?0:Math.PI/2));
+    }
+  });
+
+  // ---- Guard silhouettes flanking the gate ----
+  [gt1-0.18,gt2+0.18].forEach(tz=>{
+    // Body
+    g.add(mkMesh(new THREE.CylinderGeometry(0.06,0.07,0.28,6),crewHelm).translateX(gateX-facing*0.15).translateY(0.14).translateZ(tz));
+    // Head
+    g.add(mkMesh(new THREE.SphereGeometry(0.055,6,5),crewSkin).translateX(gateX-facing*0.15).translateY(0.32).translateZ(tz));
+    // Great helm
+    g.add(mkMesh(new THREE.CylinderGeometry(0.06,0.055,0.08,7),iron).translateX(gateX-facing*0.15).translateY(0.34).translateZ(tz));
+    // Crest plume (team)
+    g.add(mkMesh(new THREE.BoxGeometry(0.006,0.04,0.08),accent).translateX(gateX-facing*0.15).translateY(0.4).translateZ(tz));
+    // Spear (vertical)
+    g.add(mkMesh(new THREE.CylinderGeometry(0.006,0.006,0.55,4),mkMat(0x5a3a1a))
+      .translateX(gateX-facing*0.2).translateY(0.28).translateZ(tz));
+    // Spear tip
+    g.add(mkMesh(new THREE.ConeGeometry(0.012,0.04,4),ironLight)
+      .translateX(gateX-facing*0.2).translateY(0.58).translateZ(tz));
+    // Shield (rectangular, team color)
+    g.add(mkMesh(new THREE.BoxGeometry(0.008,0.15,0.08),accent)
+      .translateX(gateX-facing*0.08).translateY(0.18).translateZ(tz));
+  });
+
+  // ---- Stained glass rose window on front of keep ----
+  const rwX=keepFaceX+facing*0.005;
+  const rwY=keepH*0.82;
+  const rwZ=CD/2;
+  g.add(mkMesh(new THREE.CylinderGeometry(0.18,0.18,0.015,12),leadLine).translateX(rwX).translateY(rwY).translateZ(rwZ).rotateZ(Math.PI/2));
+  // Rose window petals (alternating colors)
+  for(let i=0;i<8;i++){
+    const a=i*Math.PI/4;
+    const pcol= i%3===0?stainRed : (i%3===1?stainBlue : stainGold);
+    g.add(mkMesh(new THREE.BoxGeometry(0.01,0.14,0.04),pcol)
+      .translateX(rwX+facing*0.005).translateY(rwY).translateZ(rwZ)
+      .rotateX(a));
+  }
+  // Rose window center (bright gold)
+  g.add(mkMesh(new THREE.SphereGeometry(0.025,8,6),stainGold).translateX(rwX+facing*0.008).translateY(rwY).translateZ(rwZ));
+  // Window lead crosspieces
+  g.add(mkMesh(new THREE.BoxGeometry(0.003,0.34,0.005),leadLine).translateX(rwX+facing*0.006).translateY(rwY).translateZ(rwZ));
+  g.add(mkMesh(new THREE.BoxGeometry(0.003,0.005,0.34),leadLine).translateX(rwX+facing*0.006).translateY(rwY).translateZ(rwZ));
+
+  // ---- Long team banners hanging from keep side walls ----
+  [-1,1].forEach(s=>{
+    const bx=CW/2+s*(keepW/2+0.005);
+    const by=keepH*0.65;
+    const bz=CD/2;
+    // Banner cloth
+    g.add(mkMesh(new THREE.BoxGeometry(0.015,0.8,0.35),banner).translateX(bx).translateY(by).translateZ(bz));
+    // Banner fringe (bottom ragged)
+    for(let f=-1;f<=1;f++){
+      g.add(mkMesh(new THREE.BoxGeometry(0.018,0.08,0.08),banner).translateX(bx).translateY(by-0.44).translateZ(bz+f*0.12));
+    }
+    // Banner top rod
+    g.add(mkMesh(new THREE.CylinderGeometry(0.01,0.01,0.38,5),gold).translateX(bx).translateY(by+0.42).translateZ(bz).rotateX(Math.PI/2));
+    // Cross or chevron emblem
+    g.add(mkMesh(new THREE.BoxGeometry(0.02,0.12,0.02),gold).translateX(bx+s*0.005).translateY(by).translateZ(bz));
+    g.add(mkMesh(new THREE.BoxGeometry(0.02,0.02,0.12),gold).translateX(bx+s*0.005).translateY(by).translateZ(bz));
+  });
+
+  // ---- Keep roof ridge tiles + golden finial ----
+  for(let rt=0;rt<4;rt++){
+    g.add(mkMesh(new THREE.BoxGeometry(0.02,0.04,0.02),dark).translateX(CW/2).translateY(keepH+0.6+rt*0.04).translateZ(CD/2));
+  }
+  // Golden finial on keep roof
+  g.add(mkMesh(new THREE.SphereGeometry(0.04,8,6),gold).translateX(CW/2).translateY(keepH+0.78).translateZ(CD/2));
+  g.add(mkMesh(new THREE.ConeGeometry(0.025,0.08,6),gold).translateX(CW/2).translateY(keepH+0.86).translateZ(CD/2));
+
+  // ---- Chimney with glowing ember smoke (on keep side) ----
+  g.add(mkMesh(new THREE.BoxGeometry(0.12,0.25,0.12),stone).translateX(CW/2+keepW/2-0.15).translateY(keepH+0.5).translateZ(CD/2-keepD/2+0.2));
+  g.add(mkMesh(new THREE.BoxGeometry(0.14,0.04,0.14),dark).translateX(CW/2+keepW/2-0.15).translateY(keepH+0.62).translateZ(CD/2-keepD/2+0.2));
+  // Ember glow inside
+  g.add(mkMesh(new THREE.SphereGeometry(0.035,6,4),torchFire).translateX(CW/2+keepW/2-0.15).translateY(keepH+0.6).translateZ(CD/2-keepD/2+0.2));
+  // Static smoke plume (3 stacked translucent spheres)
+  [0.18,0.32,0.48].forEach((h,i)=>{
+    g.add(mkMesh(new THREE.SphereGeometry(0.08-i*0.015,6,4),
+      mkMat(0x9a9a9a,{transparent:true,opacity:0.35-i*0.08}))
+      .translateX(CW/2+keepW/2-0.15).translateY(keepH+0.7+h).translateZ(CD/2-keepD/2+0.2));
+  });
+
+  // ---- Ivy climbing on side walls (clusters of leaves) ----
+  for(let iy=0.2;iy<wallH-0.2;iy+=0.25){
+    // Left wall
+    for(let ic=0;ic<2;ic++){
+      g.add(mkMesh(new THREE.SphereGeometry(0.04,5,4),ic%2===0?ivy:ivyDark)
+        .translateX(-0.02).translateY(iy).translateZ(CD*0.25+ic*CD*0.4+Math.sin(iy*7)*0.2));
+    }
+    // Right wall
+    for(let ic=0;ic<2;ic++){
+      g.add(mkMesh(new THREE.SphereGeometry(0.04,5,4),ic%2===0?ivy:ivyDark)
+        .translateX(CW+0.02).translateY(iy).translateZ(CD*0.3+ic*CD*0.35+Math.cos(iy*7)*0.2));
+    }
+  }
+  // Ivy trunks (vertical vines)
+  [[-0.02,CD*0.3],[-0.02,CD*0.7],[CW+0.02,CD*0.35],[CW+0.02,CD*0.65]].forEach(p=>{
+    g.add(mkMesh(new THREE.CylinderGeometry(0.008,0.008,wallH*0.8,4),ivyDark).translateX(p[0]).translateY(wallH*0.5).translateZ(p[1]));
+  });
+
+  // ---- Moss patches at base of walls ----
+  for(let mi=0;mi<10;mi++){
+    const mx=0.1+mi*(CW-0.2)/9;
+    g.add(mkMesh(new THREE.SphereGeometry(0.03+Math.random()*0.02,5,4),moss)
+      .translateX(mx).translateY(0.02).translateZ(-0.02));
+    g.add(mkMesh(new THREE.SphereGeometry(0.03+Math.random()*0.02,5,4),moss)
+      .translateX(mx).translateY(0.02).translateZ(CD+0.02));
+  }
+
+  // ---- Gargoyle drainspouts on corner tower tops ----
+  [[0,0],[CW,0],[0,CD],[CW,CD]].forEach(([cx,cz])=>{
+    // Small ugly head
+    const spoutDx=(cx===0?-1:1);
+    const spoutDz=(cz===0?-1:1);
+    g.add(mkMesh(new THREE.SphereGeometry(0.05,6,5),vdark).translateX(cx+spoutDx*(towerR+0.02)).translateY(towerH+0.05).translateZ(cz+spoutDz*(towerR+0.02)));
+    // Spout pipe
+    g.add(mkMesh(new THREE.CylinderGeometry(0.012,0.02,0.07,5),vdark)
+      .translateX(cx+spoutDx*(towerR+0.05)).translateY(towerH+0.02).translateZ(cz+spoutDz*(towerR+0.05))
+      .rotateZ(spoutDx*0.7).rotateX(spoutDz*0.7));
+  });
+
+  // ---- Iron-banded tower doors at base of each corner tower ----
+  [[0,0],[CW,0],[0,CD],[CW,CD]].forEach(([cx,cz])=>{
+    const doorDz=(cz<CD/2?-1:1);
+    g.add(mkMesh(new THREE.BoxGeometry(0.16,0.28,0.02),mkMat(0x4a2a0a,{roughness:0.85}))
+      .translateX(cx).translateY(0.17).translateZ(cz+doorDz*(towerR+0.005)));
+    // Iron bands
+    g.add(mkMesh(new THREE.BoxGeometry(0.16,0.02,0.022),iron)
+      .translateX(cx).translateY(0.25).translateZ(cz+doorDz*(towerR+0.006)));
+    g.add(mkMesh(new THREE.BoxGeometry(0.16,0.02,0.022),iron)
+      .translateX(cx).translateY(0.1).translateZ(cz+doorDz*(towerR+0.006)));
+    // Door handle
+    g.add(mkMesh(new THREE.SphereGeometry(0.012,5,4),ironLight)
+      .translateX(cx+0.05).translateY(0.17).translateZ(cz+doorDz*(towerR+0.014)));
+  });
+
+  // ---- Team pennants on corner tower cone roofs ----
+  [[0,0],[CW,0],[0,CD],[CW,CD]].forEach(([cx,cz])=>{
+    // Tiny flag pole
+    g.add(mkMesh(new THREE.CylinderGeometry(0.006,0.006,0.25,4),iron).translateX(cx).translateY(towerH+0.78).translateZ(cz));
+    // Pennant (triangular-ish box)
+    g.add(mkMesh(new THREE.BoxGeometry(0.14,0.06,0.01),accent).translateX(cx+0.075).translateY(towerH+0.9).translateZ(cz));
+    // Finial ball
+    g.add(mkMesh(new THREE.SphereGeometry(0.012,5,4),gold).translateX(cx).translateY(towerH+0.93).translateZ(cz));
+  });
+
+  // ---- Stone buttresses at corner tower bases ----
+  [[0,0],[CW,0],[0,CD],[CW,CD]].forEach(([cx,cz])=>{
+    const dx= cx<CW/2?-0.12:0.12;
+    const dz= cz<CD/2?-0.12:0.12;
+    g.add(mkMesh(new THREE.BoxGeometry(0.12,0.4,0.12),vdark)
+      .translateX(cx+dx*0.5).translateY(0.2).translateZ(cz+dz*0.5));
+  });
+
+  // ---- Battle damage (dark scorch patches on outer front wall) ----
+  [[0.35,0.8,-0.012],[1.3,0.6,-0.012],[0.7,1.2,-0.012],[1.5,0.9,-0.012]].forEach(p=>{
+    g.add(mkMesh(new THREE.BoxGeometry(0.06,0.05,0.004),scorch).translateX(p[0]).translateY(p[1]).translateZ(p[2]));
+  });
+  // And back wall
+  [[0.4,0.7,CD+0.012],[1.2,0.5,CD+0.012],[0.9,1.0,CD+0.012]].forEach(p=>{
+    g.add(mkMesh(new THREE.BoxGeometry(0.06,0.05,0.004),scorch).translateX(p[0]).translateY(p[1]).translateZ(p[2]));
+  });
+
+  // ---- Arrow slits on front wall (between crenellations) ----
+  for(let i=0;i<5;i++){
+    const ax=0.35+i*(CW-0.7)/4;
+    // Front wall
+    g.add(mkMesh(new THREE.BoxGeometry(0.03,0.14,0.005),mkMat(0x111111)).translateX(ax).translateY(wallH*0.7).translateZ(-0.01));
+    // Glow behind the slit (defender's torchlight)
+    g.add(mkMesh(new THREE.BoxGeometry(0.02,0.08,0.003),mkMat(0xffaa44,{emissive:0xff8822,emissiveIntensity:1.0})).translateX(ax).translateY(wallH*0.7).translateZ(-0.015));
+    // Back wall
+    g.add(mkMesh(new THREE.BoxGeometry(0.03,0.14,0.005),mkMat(0x111111)).translateX(ax).translateY(wallH*0.7).translateZ(CD+0.01));
+    g.add(mkMesh(new THREE.BoxGeometry(0.02,0.08,0.003),mkMat(0xffaa44,{emissive:0xff8822,emissiveIntensity:1.0})).translateX(ax).translateY(wallH*0.7).translateZ(CD+0.015));
+  }
+
+  // ---- Well in the courtyard ----
+  const wellX=CW/2-facing*0.3;
+  const wellZ=CD*0.25;
+  g.add(mkMesh(new THREE.CylinderGeometry(0.15,0.18,0.12,10),stone).translateX(wellX).translateY(0.06).translateZ(wellZ));
+  g.add(mkMesh(new THREE.CylinderGeometry(0.13,0.13,0.03,10),mkMat(0x0a1a2a)).translateX(wellX).translateY(0.13).translateZ(wellZ));
+  // Well posts
+  [-1,1].forEach(s=>{
+    g.add(mkMesh(new THREE.BoxGeometry(0.025,0.3,0.025),torchWood).translateX(wellX+s*0.15).translateY(0.26).translateZ(wellZ));
+  });
+  // Well crossbeam
+  g.add(mkMesh(new THREE.BoxGeometry(0.35,0.025,0.025),torchWood).translateX(wellX).translateY(0.4).translateZ(wellZ));
+  // Bucket
+  g.add(mkMesh(new THREE.CylinderGeometry(0.04,0.045,0.06,6),mkMat(0x4a2a0a)).translateX(wellX).translateY(0.22).translateZ(wellZ));
+  g.add(mkMesh(new THREE.CylinderGeometry(0.002,0.002,0.16,3),iron).translateX(wellX).translateY(0.3).translateZ(wellZ));
+
+  // ---- Supply crates stacked against a wall ----
+  [[0.2,0.12,CD*0.15],[0.2,0.12,CD*0.15+0.15],[0.32,0.12,CD*0.15+0.07]].forEach(p=>{
+    g.add(mkMesh(new THREE.BoxGeometry(0.12,0.12,0.12),mkMat(0x5a3a1a,{roughness:0.85})).translateX(p[0]).translateY(p[1]).translateZ(p[2]));
+    // Crate slats (2 dark horizontal lines)
+    g.add(mkMesh(new THREE.BoxGeometry(0.125,0.008,0.125),mkMat(0x3a2008)).translateX(p[0]).translateY(p[1]+0.025).translateZ(p[2]));
+  });
+  // Hay bale next to crates
+  g.add(mkMesh(new THREE.CylinderGeometry(0.1,0.1,0.14,8),mkMat(0xd4b060,{roughness:0.95})).translateX(0.4).translateY(0.1).translateZ(CD*0.18).rotateZ(Math.PI/2));
+  // Rope wrap on hay
+  g.add(mkMesh(new THREE.TorusGeometry(0.1,0.005,3,10),mkMat(0x8a6030)).translateX(0.4).translateY(0.1).translateZ(CD*0.18));
+
+  // ---- Small training dummy ----
+  const tdX=CW/2+facing*0.4;
+  const tdZ=CD*0.75;
+  g.add(mkMesh(new THREE.CylinderGeometry(0.02,0.03,0.3,5),torchWood).translateX(tdX).translateY(0.15).translateZ(tdZ));
+  g.add(mkMesh(new THREE.BoxGeometry(0.08,0.2,0.05),mkMat(0x8a7040,{roughness:0.9})).translateX(tdX).translateY(0.42).translateZ(tdZ));
+  g.add(mkMesh(new THREE.SphereGeometry(0.045,6,5),mkMat(0xd4b060)).translateX(tdX).translateY(0.56).translateZ(tdZ));
+  // Arrow stuck in dummy
+  g.add(mkMesh(new THREE.CylinderGeometry(0.004,0.004,0.09,4),torchWood).translateX(tdX+0.04).translateY(0.44).translateZ(tdZ+0.02).rotateZ(Math.PI/2));
+
+  // ---- Brazier in the courtyard near the keep ----
+  const brX=CW/2-facing*0.35;
+  const brZ=CD*0.55;
+  g.add(mkMesh(new THREE.CylinderGeometry(0.1,0.08,0.1,8),iron).translateX(brX).translateY(0.3).translateZ(brZ));
+  g.add(mkMesh(new THREE.CylinderGeometry(0.09,0.05,0.02,8),iron).translateX(brX).translateY(0.36).translateZ(brZ));
+  // Tripod legs
+  for(let lg=0;lg<3;lg++){
+    const ang=lg*Math.PI*2/3;
+    g.add(mkMesh(new THREE.CylinderGeometry(0.01,0.01,0.3,4),iron)
+      .translateX(brX+Math.cos(ang)*0.08).translateY(0.16).translateZ(brZ+Math.sin(ang)*0.08)
+      .rotateZ(Math.cos(ang)*0.2).rotateX(Math.sin(ang)*0.2));
+  }
+  // Brazier fire
+  g.add(mkMesh(new THREE.SphereGeometry(0.08,8,6),torchFire).translateX(brX).translateY(0.4).translateZ(brZ));
+  g.add(mkMesh(new THREE.ConeGeometry(0.07,0.2,8),torchGlow).translateX(brX).translateY(0.5).translateZ(brZ));
+  g.add(mkMesh(new THREE.SphereGeometry(0.04,6,5),mkMat(0xffffcc,{emissive:0xffee88,emissiveIntensity:3.2,transparent:true,opacity:0.95})).translateX(brX).translateY(0.42).translateZ(brZ));
+
+  // ---- Decorative stone crest above the gate ----
+  g.add(mkMesh(new THREE.BoxGeometry(0.08,0.18,0.4),stoneLight).translateX(gateX).translateY(1.3).translateZ(gateZ));
+  g.add(mkMesh(new THREE.BoxGeometry(0.1,0.04,0.42),dark).translateX(gateX).translateY(1.42).translateZ(gateZ));
+  // Crest inscription lines
+  [-0.1,-0.03,0.04,0.11].forEach(dz=>{
+    g.add(mkMesh(new THREE.BoxGeometry(0.005,0.01,0.06),gold).translateX(gateX+facing*0.045).translateY(1.3).translateZ(gateZ+dz));
+  });
+
+  // ---- Rivets around the gate arch ----
+  for(let ri=0;ri<9;ri++){
+    const a=Math.PI*(ri/8);
+    g.add(mkMesh(new THREE.SphereGeometry(0.01,4,3),ironLight)
+      .translateX(gateX).translateY(0.5+Math.sin(a)*0.55).translateZ(gateZ+Math.cos(a)*0.42));
+  }
+
   // Position group so center is at origin
   g.position.set(-CW/2,0,-CD/2);
   const wrapper=new THREE.Group();wrapper.add(g);
