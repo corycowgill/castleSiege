@@ -2205,19 +2205,29 @@ function createBattlefieldDecals(){
   // The playfield in world space maps roughly to x ∈ [-20, 20], z ∈ [-9, 9].
   // Most combat happens in the central band where enemy paths cross.
 
-  // v3.14: the central road strip (|z| < ROAD_Z) is reserved for enemy
-  // marching — no decals there, otherwise the path looks cluttered and
-  // hard to read. All scattered decals below honor this keep-out.
-  const ROAD_Z=1.2;
+  // v3.14b: the central road strip is reserved for enemy marching.
+  // Enemies walk across rows 6-11, which in world space is z ∈ [-2.5, 2.5].
+  // We use ROAD_Z=3.0 as the keep-out threshold and sample decals
+  // strictly outside that strip via offRoadZ() — no more "bounce" logic
+  // that could still land decals inside the road.
+  const ROAD_Z=3.0;
+  // Returns a z coordinate guaranteed to be outside the road strip, in
+  // the range [-maxAbs, -ROAD_Z-margin] ∪ [ROAD_Z+margin, maxAbs].
+  // `margin` is added on top of ROAD_Z to account for each decal's
+  // own footprint (so a 0.5-radius splat at z=ROAD_Z+0.3 still lands
+  // with its footprint edge just outside the road).
+  const offRoadZ=(maxAbs,margin)=>{
+    const lo=ROAD_Z+(margin||0);
+    const hi=Math.max(lo+0.1,maxAbs);
+    const side=rr()<0.5?-1:1;
+    return side*(lo+rr()*(hi-lo));
+  };
 
-  // ---- Blood splatter spots scattered in combat zones ----
-  // More concentrated in the center where melee happens.
+  // ---- Blood splatter spots on the shoulders of the battlefield ----
   const bloodMat=new THREE.MeshStandardMaterial({color:0x6a0a0a,roughness:0.9,emissive:0x220404,emissiveIntensity:0.3});
   for(let i=0;i<24;i++){
     const bx=rrange(-15,15);
-    let bz=rrange(-5,5);
-    if(Math.abs(bz)<ROAD_Z)bz=(bz<0?-ROAD_Z:ROAD_Z)-rrange(-0.4,0.4)*Math.sign(bz);
-    if(Math.abs(bz)<ROAD_Z)continue;
+    const bz=offRoadZ(6,0.5); // margin 0.5 to keep splat edges off the road
     const bs=0.15+rr()*0.15;
     const splat=new THREE.Mesh(new THREE.SphereGeometry(bs,6,4),bloodMat);
     splat.scale.set(1,0.04,1+rr()*0.6);
@@ -2226,14 +2236,13 @@ function createBattlefieldDecals(){
     scene.add(splat);
   }
 
-  // ---- Impact craters (dark circles from past bombard hits) ----
+  // ---- Impact craters on the shoulders ----
   const craterMat=new THREE.MeshStandardMaterial({color:0x2a1a10,roughness:0.95,flatShading:true});
   const craterRim=new THREE.MeshStandardMaterial({color:0x5a4028,roughness:0.95});
   for(let i=0;i<8;i++){
     const cx=rrange(-17,17);
-    let cz=rrange(-6,6);
-    if(Math.abs(cz)<ROAD_Z+0.4)cz=(cz<0?-1:1)*(ROAD_Z+0.4+rr()*3);
     const cs=0.35+rr()*0.2;
+    const cz=offRoadZ(7,cs+0.2); // margin = crater radius so the rim stays off the road
     // Crater body
     const crater=new THREE.Mesh(new THREE.CylinderGeometry(cs,cs*0.7,0.02,12),craterMat);
     crater.position.set(cx,0.013,cz);
@@ -2255,9 +2264,8 @@ function createBattlefieldDecals(){
   const mudEdgeMat=new THREE.MeshStandardMaterial({color:0x3a2a18,roughness:0.95});
   for(let i=0;i<10;i++){
     const mx=rrange(-17,17);
-    let mz=rrange(-5,5);
-    if(Math.abs(mz)<ROAD_Z+0.3)mz=(mz<0?-1:1)*(ROAD_Z+0.3+rr()*3);
     const mr=0.25+rr()*0.15;
+    const mz=offRoadZ(6,mr*1.3+0.1);
     // Mud edge (darker ring)
     const edge=new THREE.Mesh(new THREE.CylinderGeometry(mr*1.2,mr*1.3,0.012,10),mudEdgeMat);
     edge.position.set(mx,0.019,mz);
@@ -2273,8 +2281,7 @@ function createBattlefieldDecals(){
   const boneDark=new THREE.MeshStandardMaterial({color:0xaaaa88,roughness:0.6});
   for(let i=0;i<18;i++){
     const bx=rrange(-17,17);
-    let bz=rrange(-7,7);
-    if(Math.abs(bz)<ROAD_Z)bz=(bz<0?-1:1)*(ROAD_Z+rr()*5);
+    const bz=offRoadZ(7.5,0.25);
     // Femur
     const bone=new THREE.Mesh(new THREE.CylinderGeometry(0.025,0.02,0.18,5),boneMat);
     bone.position.set(bx,0.03,bz);
@@ -2291,8 +2298,7 @@ function createBattlefieldDecals(){
   // Skull fragments (smaller, 6 scattered)
   for(let i=0;i<6;i++){
     const sx=rrange(-16,16);
-    let sz=rrange(-6,6);
-    if(Math.abs(sz)<ROAD_Z)sz=(sz<0?-1:1)*(ROAD_Z+rr()*4);
+    const sz=offRoadZ(6.5,0.2);
     const skull=new THREE.Mesh(new THREE.SphereGeometry(0.06,7,6),boneMat);
     skull.position.set(sx,0.06,sz);
     skull.scale.set(1,0.85,1.1);
@@ -2311,8 +2317,7 @@ function createBattlefieldDecals(){
   const handleWood=new THREE.MeshStandardMaterial({color:0x4a2a10,roughness:0.85});
   for(let i=0;i<6;i++){
     const wx=rrange(-15,15);
-    let wz=rrange(-5,5);
-    if(Math.abs(wz)<ROAD_Z+0.5)wz=(wz<0?-1:1)*(ROAD_Z+0.5+rr()*3);
+    const wz=offRoadZ(5.5,0.5); // spears tilt — keep them well off the road
     // Spear shaft angled up out of the ground
     const shaft=new THREE.Mesh(new THREE.CylinderGeometry(0.018,0.018,0.6,5),handleWood);
     shaft.position.set(wx,0.3,wz);
@@ -2327,8 +2332,7 @@ function createBattlefieldDecals(){
   // Broken shields lying on the ground (3 scattered)
   for(let i=0;i<4;i++){
     const sx=rrange(-14,14);
-    let sz=rrange(-5,5);
-    if(Math.abs(sz)<ROAD_Z+0.3)sz=(sz<0?-1:1)*(ROAD_Z+0.3+rr()*3);
+    const sz=offRoadZ(5.5,0.3);
     const shield=new THREE.Mesh(new THREE.SphereGeometry(0.18,6,4,0,Math.PI*2,0,Math.PI*0.5),rustyIron);
     shield.position.set(sx,0.04,sz);
     shield.rotation.x=Math.PI/2;
@@ -2348,7 +2352,7 @@ function createBattlefieldDecals(){
   for(const side of[-1,1]){
     for(let i=0;i<8;i++){
       const cbx=-19.5+i*0.5;
-      const cbz=side*(ROAD_Z+0.1+rr()*0.3);
+      const cbz=side*(ROAD_Z+0.35+rr()*0.4);
       const cb=new THREE.Mesh(new THREE.BoxGeometry(0.3+rr()*0.1,0.02,0.3+rr()*0.1),
         rr()>0.5?cobbleMat:cobbleDark);
       cb.position.set(cbx,0.016,cbz);
@@ -2357,7 +2361,7 @@ function createBattlefieldDecals(){
     }
     for(let i=0;i<8;i++){
       const cbx=19.5-i*0.5;
-      const cbz=side*(ROAD_Z+0.1+rr()*0.3);
+      const cbz=side*(ROAD_Z+0.35+rr()*0.4);
       const cb=new THREE.Mesh(new THREE.BoxGeometry(0.3+rr()*0.1,0.02,0.3+rr()*0.1),
         rr()>0.5?cobbleMat:cobbleDark);
       cb.position.set(cbx,0.016,cbz);
@@ -2371,9 +2375,7 @@ function createBattlefieldDecals(){
   const tallGrass2=new THREE.MeshStandardMaterial({color:0x4a7a38,roughness:0.9});
   for(let i=0;i<30;i++){
     const gx=rrange(-18,18);
-    const gz=rrange(-8,8);
-    // Skip central path area
-    if(Math.abs(gz)<1)continue;
+    const gz=offRoadZ(8,0.2);
     const tuft=new THREE.Group();
     for(let b=0;b<3;b++){
       const blade=new THREE.Mesh(new THREE.BoxGeometry(0.03,0.15,0.008),
@@ -2391,8 +2393,7 @@ function createBattlefieldDecals(){
   const emberMat=new THREE.MeshStandardMaterial({color:0x1a0a04,roughness:0.95});
   for(let i=0;i<12;i++){
     const ex=rrange(-17,17);
-    let ez=rrange(-6,6);
-    if(Math.abs(ez)<ROAD_Z+0.3)ez=(ez<0?-1:1)*(ROAD_Z+0.3+rr()*3);
+    const ez=offRoadZ(6,0.4);
     const ep=new THREE.Mesh(new THREE.SphereGeometry(0.12+rr()*0.08,6,4),emberMat);
     ep.scale.set(1,0.04,1+rr()*0.5);
     ep.position.set(ex,0.015,ez);
@@ -2410,8 +2411,7 @@ function createBattlefieldDecals(){
   const smStone2=new THREE.MeshStandardMaterial({color:0x7a7a6a,flatShading:true});
   for(let i=0;i<40;i++){
     const sx=rrange(-18,18);
-    let sz=rrange(-8,8);
-    if(Math.abs(sz)<ROAD_Z)sz=(sz<0?-1:1)*(ROAD_Z+rr()*6);
+    const sz=offRoadZ(8,0.1);
     const stone=new THREE.Mesh(new THREE.DodecahedronGeometry(0.04+rr()*0.04,0),
       rr()>0.5?smStone:smStone2);
     stone.position.set(sx,0.04,sz);
