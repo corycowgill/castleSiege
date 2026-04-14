@@ -561,6 +561,19 @@ const ENEMY_DATA=[
   {id:'darkKnight',name:'D.Knight',cost:16,hp:60,spd:1.8,dmg:30,reward:25,color:'#555568',armor:0.5},
   {id:'archer',name:'Archer',cost:12,hp:40,spd:2.0,dmg:23,reward:20,color:'#8b6914',armor:0},
 ];
+// v3.14: boss-class enemies. Single-purchase (cost*1, not cost*10),
+// much higher HP/damage/reward, visually much larger. Balanced
+// against the ~4-tower-midgame budget: each boss takes 20-40 seconds
+// of sustained fire to bring down with a moderate defense, and the
+// reward is ~10x a goblin so killing one pays real dividends.
+//   Troll  — slow brute with huge HP and crushing melee damage.
+//   Dragon — fast attacker, moderate HP, powerful hits.
+//   Lich   — slow caster, heavy armor, steady threat.
+const BOSS_DATA=[
+  {id:'troll', name:'Troll', cost:200,hp:800,spd:0.8,dmg:150,reward:150,color:'#4a6a2a',armor:0.30},
+  {id:'dragon',name:'Dragon',cost:250,hp:500,spd:2.2,dmg:110,reward:180,color:'#a02020',armor:0.20},
+  {id:'lich',  name:'Lich',  cost:300,hp:700,spd:1.0,dmg:90, reward:220,color:'#553388',armor:0.55},
+];
 const WALL_COST=30,BARRICADE_COST=15;
 const SPECIAL_DATA=[
   {id:'meteor',name:'Meteor',desc:'Area damage (100)',radius:3,dmg:100},
@@ -573,6 +586,7 @@ const BUILD_OPTS=[
   {cat:'build',id:'wall',name:'Wall',cost:WALL_COST},
   {cat:'build',id:'barricade',name:'Barricade',cost:BARRICADE_COST},
   ...ENEMY_DATA.map(e=>({cat:'enemy',id:e.id,name:e.name,cost:e.cost})),
+  ...BOSS_DATA.map(b=>({cat:'boss',id:b.id,name:b.name,cost:b.cost})),
 ];
 const SPEC_ICONS=['\u2604','\u26A1','\u2744','\u2764'];
 
@@ -741,12 +755,12 @@ const __nearbySplash=[];
 
 const players=[null,
   {castleHP:CASTLE_HP,maxHP:CASTLE_HP,credits:START_CREDITS,cursor:{c:10,r:9},
-   selectedIdx:0,enemyQueue:{goblin:0,orc:0,darkKnight:0,archer:0},
+   selectedIdx:0,enemyQueue:{goblin:0,orc:0,darkKnight:0,archer:0,troll:0,dragon:0,lich:0},
    specials:3,selectedSpecial:0,ready:false,side:'left',
    buildMin:2,buildMax:19,castleCols:[0,1],castleRows:[5,12],
    stickTimer:0,usingSpecial:false,kills:0,totalDmgDealt:0},
   {castleHP:CASTLE_HP,maxHP:CASTLE_HP,credits:START_CREDITS,cursor:{c:30,r:9},
-   selectedIdx:0,enemyQueue:{goblin:0,orc:0,darkKnight:0,archer:0},
+   selectedIdx:0,enemyQueue:{goblin:0,orc:0,darkKnight:0,archer:0,troll:0,dragon:0,lich:0},
    specials:3,selectedSpecial:0,ready:false,side:'right',
    buildMin:20,buildMax:37,castleCols:[38,39],castleRows:[5,12],
    stickTimer:0,usingSpecial:false,kills:0,totalDmgDealt:0},
@@ -2191,40 +2205,19 @@ function createBattlefieldDecals(){
   // The playfield in world space maps roughly to x ∈ [-20, 20], z ∈ [-9, 9].
   // Most combat happens in the central band where enemy paths cross.
 
-  // ---- Worn dirt path down the center of the battlefield ----
-  // Two parallel streaks of darker grass showing where enemies march
-  // back and forth across the middle rows.
-  const dirtMat=new THREE.MeshStandardMaterial({color:0x6a4a28,roughness:0.98,flatShading:true});
-  const dirtDark=new THREE.MeshStandardMaterial({color:0x4a3018,roughness:0.98});
-  for(let i=0;i<38;i++){
-    const px=-19+i*1+rrange(-0.2,0.2);
-    const pz=rrange(-0.4,0.4);
-    const sx=0.9+rr()*0.4, sz=0.35+rr()*0.2;
-    const patch=new THREE.Mesh(new THREE.BoxGeometry(sx,0.01,sz), rr()>0.5?dirtMat:dirtDark);
-    patch.position.set(px,0.015,pz);
-    patch.rotation.y=rrange(-0.1,0.1);
-    patch.receiveShadow=false;
-    scene.add(patch);
-  }
-
-  // ---- Footprint trail (small dark elongated ovals) ----
-  const footMat=new THREE.MeshStandardMaterial({color:0x3a2a18,roughness:0.95});
-  for(let i=0;i<50;i++){
-    const fx=rrange(-19,19);
-    const fz=rrange(-3,3);
-    const fp=new THREE.Mesh(new THREE.SphereGeometry(0.1,6,4),footMat);
-    fp.scale.set(1.4,0.05,0.7);
-    fp.position.set(fx,0.016,fz);
-    fp.rotation.y=rrange(0,Math.PI);
-    scene.add(fp);
-  }
+  // v3.14: the central road strip (|z| < ROAD_Z) is reserved for enemy
+  // marching — no decals there, otherwise the path looks cluttered and
+  // hard to read. All scattered decals below honor this keep-out.
+  const ROAD_Z=1.2;
 
   // ---- Blood splatter spots scattered in combat zones ----
   // More concentrated in the center where melee happens.
   const bloodMat=new THREE.MeshStandardMaterial({color:0x6a0a0a,roughness:0.9,emissive:0x220404,emissiveIntensity:0.3});
   for(let i=0;i<24;i++){
     const bx=rrange(-15,15);
-    const bz=rrange(-5,5);
+    let bz=rrange(-5,5);
+    if(Math.abs(bz)<ROAD_Z)bz=(bz<0?-ROAD_Z:ROAD_Z)-rrange(-0.4,0.4)*Math.sign(bz);
+    if(Math.abs(bz)<ROAD_Z)continue;
     const bs=0.15+rr()*0.15;
     const splat=new THREE.Mesh(new THREE.SphereGeometry(bs,6,4),bloodMat);
     splat.scale.set(1,0.04,1+rr()*0.6);
@@ -2238,7 +2231,8 @@ function createBattlefieldDecals(){
   const craterRim=new THREE.MeshStandardMaterial({color:0x5a4028,roughness:0.95});
   for(let i=0;i<8;i++){
     const cx=rrange(-17,17);
-    const cz=rrange(-6,6);
+    let cz=rrange(-6,6);
+    if(Math.abs(cz)<ROAD_Z+0.4)cz=(cz<0?-1:1)*(ROAD_Z+0.4+rr()*3);
     const cs=0.35+rr()*0.2;
     // Crater body
     const crater=new THREE.Mesh(new THREE.CylinderGeometry(cs,cs*0.7,0.02,12),craterMat);
@@ -2261,7 +2255,8 @@ function createBattlefieldDecals(){
   const mudEdgeMat=new THREE.MeshStandardMaterial({color:0x3a2a18,roughness:0.95});
   for(let i=0;i<10;i++){
     const mx=rrange(-17,17);
-    const mz=rrange(-5,5);
+    let mz=rrange(-5,5);
+    if(Math.abs(mz)<ROAD_Z+0.3)mz=(mz<0?-1:1)*(ROAD_Z+0.3+rr()*3);
     const mr=0.25+rr()*0.15;
     // Mud edge (darker ring)
     const edge=new THREE.Mesh(new THREE.CylinderGeometry(mr*1.2,mr*1.3,0.012,10),mudEdgeMat);
@@ -2278,7 +2273,8 @@ function createBattlefieldDecals(){
   const boneDark=new THREE.MeshStandardMaterial({color:0xaaaa88,roughness:0.6});
   for(let i=0;i<18;i++){
     const bx=rrange(-17,17);
-    const bz=rrange(-7,7);
+    let bz=rrange(-7,7);
+    if(Math.abs(bz)<ROAD_Z)bz=(bz<0?-1:1)*(ROAD_Z+rr()*5);
     // Femur
     const bone=new THREE.Mesh(new THREE.CylinderGeometry(0.025,0.02,0.18,5),boneMat);
     bone.position.set(bx,0.03,bz);
@@ -2295,7 +2291,8 @@ function createBattlefieldDecals(){
   // Skull fragments (smaller, 6 scattered)
   for(let i=0;i<6;i++){
     const sx=rrange(-16,16);
-    const sz=rrange(-6,6);
+    let sz=rrange(-6,6);
+    if(Math.abs(sz)<ROAD_Z)sz=(sz<0?-1:1)*(ROAD_Z+rr()*4);
     const skull=new THREE.Mesh(new THREE.SphereGeometry(0.06,7,6),boneMat);
     skull.position.set(sx,0.06,sz);
     skull.scale.set(1,0.85,1.1);
@@ -2314,7 +2311,8 @@ function createBattlefieldDecals(){
   const handleWood=new THREE.MeshStandardMaterial({color:0x4a2a10,roughness:0.85});
   for(let i=0;i<6;i++){
     const wx=rrange(-15,15);
-    const wz=rrange(-5,5);
+    let wz=rrange(-5,5);
+    if(Math.abs(wz)<ROAD_Z+0.5)wz=(wz<0?-1:1)*(ROAD_Z+0.5+rr()*3);
     // Spear shaft angled up out of the ground
     const shaft=new THREE.Mesh(new THREE.CylinderGeometry(0.018,0.018,0.6,5),handleWood);
     shaft.position.set(wx,0.3,wz);
@@ -2329,7 +2327,8 @@ function createBattlefieldDecals(){
   // Broken shields lying on the ground (3 scattered)
   for(let i=0;i<4;i++){
     const sx=rrange(-14,14);
-    const sz=rrange(-5,5);
+    let sz=rrange(-5,5);
+    if(Math.abs(sz)<ROAD_Z+0.3)sz=(sz<0?-1:1)*(ROAD_Z+0.3+rr()*3);
     const shield=new THREE.Mesh(new THREE.SphereGeometry(0.18,6,4,0,Math.PI*2,0,Math.PI*0.5),rustyIron);
     shield.position.set(sx,0.04,sz);
     shield.rotation.x=Math.PI/2;
@@ -2341,28 +2340,30 @@ function createBattlefieldDecals(){
     scene.add(boss);
   }
 
-  // ---- Cobblestone path near castle gates (stepping stones of dark stone) ----
+  // ---- Cobblestones lining the shoulders of the road near castle gates ----
+  // Placed on both sides of the central path (|z| > ROAD_Z) for a
+  // dressed-up approach without cluttering the march lane itself.
   const cobbleMat=new THREE.MeshStandardMaterial({color:0x6a6a6a,roughness:0.9,flatShading:true});
   const cobbleDark=new THREE.MeshStandardMaterial({color:0x4a4a4a,roughness:0.95});
-  // Near left (P1) castle
-  for(let i=0;i<12;i++){
-    const cbx=-19.5+i*0.4;
-    const cbz=rrange(-0.7,0.7);
-    const cb=new THREE.Mesh(new THREE.BoxGeometry(0.3+rr()*0.1,0.02,0.3+rr()*0.1),
-      rr()>0.5?cobbleMat:cobbleDark);
-    cb.position.set(cbx,0.016,cbz);
-    cb.rotation.y=rrange(-0.3,0.3);
-    scene.add(cb);
-  }
-  // Near right (P2) castle
-  for(let i=0;i<12;i++){
-    const cbx=19.5-i*0.4;
-    const cbz=rrange(-0.7,0.7);
-    const cb=new THREE.Mesh(new THREE.BoxGeometry(0.3+rr()*0.1,0.02,0.3+rr()*0.1),
-      rr()>0.5?cobbleMat:cobbleDark);
-    cb.position.set(cbx,0.016,cbz);
-    cb.rotation.y=rrange(-0.3,0.3);
-    scene.add(cb);
+  for(const side of[-1,1]){
+    for(let i=0;i<8;i++){
+      const cbx=-19.5+i*0.5;
+      const cbz=side*(ROAD_Z+0.1+rr()*0.3);
+      const cb=new THREE.Mesh(new THREE.BoxGeometry(0.3+rr()*0.1,0.02,0.3+rr()*0.1),
+        rr()>0.5?cobbleMat:cobbleDark);
+      cb.position.set(cbx,0.016,cbz);
+      cb.rotation.y=rrange(-0.3,0.3);
+      scene.add(cb);
+    }
+    for(let i=0;i<8;i++){
+      const cbx=19.5-i*0.5;
+      const cbz=side*(ROAD_Z+0.1+rr()*0.3);
+      const cb=new THREE.Mesh(new THREE.BoxGeometry(0.3+rr()*0.1,0.02,0.3+rr()*0.1),
+        rr()>0.5?cobbleMat:cobbleDark);
+      cb.position.set(cbx,0.016,cbz);
+      cb.rotation.y=rrange(-0.3,0.3);
+      scene.add(cb);
+    }
   }
 
   // ---- Grass tufts for color variation (taller patches) ----
@@ -2390,7 +2391,8 @@ function createBattlefieldDecals(){
   const emberMat=new THREE.MeshStandardMaterial({color:0x1a0a04,roughness:0.95});
   for(let i=0;i<12;i++){
     const ex=rrange(-17,17);
-    const ez=rrange(-6,6);
+    let ez=rrange(-6,6);
+    if(Math.abs(ez)<ROAD_Z+0.3)ez=(ez<0?-1:1)*(ROAD_Z+0.3+rr()*3);
     const ep=new THREE.Mesh(new THREE.SphereGeometry(0.12+rr()*0.08,6,4),emberMat);
     ep.scale.set(1,0.04,1+rr()*0.5);
     ep.position.set(ex,0.015,ez);
@@ -2408,7 +2410,8 @@ function createBattlefieldDecals(){
   const smStone2=new THREE.MeshStandardMaterial({color:0x7a7a6a,flatShading:true});
   for(let i=0;i<40;i++){
     const sx=rrange(-18,18);
-    const sz=rrange(-8,8);
+    let sz=rrange(-8,8);
+    if(Math.abs(sz)<ROAD_Z)sz=(sz<0?-1:1)*(ROAD_Z+rr()*6);
     const stone=new THREE.Mesh(new THREE.DodecahedronGeometry(0.04+rr()*0.04,0),
       rr()>0.5?smStone:smStone2);
     stone.position.set(sx,0.04,sz);
@@ -2522,7 +2525,10 @@ function initHUD(){
       const div=document.createElement('div');
       div.className='build-opt clickable '+(pid==='p1'?'p1-opt':'p2-opt');
       div.dataset.idx=i;
-      div.innerHTML=`<span class="opt-name">${opt.name}</span><span class="opt-cost">$${opt.cost}${opt.cat==='enemy'?'x10':''}</span>`;
+      // v3.14: bosses are single-unit purchases at full cost; mark them
+      // so the button reads differently from '10 for $X' regular enemies.
+      const costSuffix=opt.cat==='enemy'?'x10':(opt.cat==='boss'?' BOSS':'');
+      div.innerHTML=`<span class="opt-name">${opt.name}</span><span class="opt-cost">$${opt.cost}${costSuffix}</span>`;
       div.addEventListener('click',()=>{
         const t=panelTarget(pid);
         players[t].selectedIdx=i;
@@ -2700,6 +2706,15 @@ function tryPlace(player,pNum){
     if(player.credits>=cost){player.credits-=cost;player.enemyQueue[opt.id]=(player.enemyQueue[opt.id]||0)+10;sndBuild()}
     return;
   }
+  // v3.14: boss purchases are single units at full cost, not x10.
+  if(opt.cat==='boss'){
+    if(player.credits>=opt.cost){
+      player.credits-=opt.cost;
+      player.enemyQueue[opt.id]=(player.enemyQueue[opt.id]||0)+1;
+      sndBuild();
+    }
+    return;
+  }
   if(!canPlace(c,r,pNum))return;if(player.credits<opt.cost)return;
   player.credits-=opt.cost;
   if(opt.cat==='tower'){
@@ -2787,7 +2802,11 @@ function useSpecial(player,pNum){
 }
 
 function spawnEnemy(type,spawnCol,spawnRow,owner){
-  const d=ENEMY_DATA.find(e=>e.id===type);const blocker=owner===1?2:1;
+  // v3.14: bosses live in BOSS_DATA; regulars in ENEMY_DATA. Look up
+  // either and stamp out an entity record with the same shape.
+  const d=ENEMY_DATA.find(e=>e.id===type)||BOSS_DATA.find(b=>b.id===type);
+  if(!d)return;
+  const blocker=owner===1?2:1;
   let goals=[];
   if(owner===1){for(let r=6;r<=11;r++){goals.push({c:38,r});goals.push({c:39,r})}}
   else{for(let r=6;r<=11;r++){goals.push({c:0,r});goals.push({c:1,r})}}
@@ -2830,10 +2849,20 @@ function startWave(){
     for(let i=0;i<c1;i++)spawnQueue1.push(eid);
     for(let i=0;i<c2;i++)spawnQueue2.push(eid);
   }
+  // v3.14: bosses come only from the player's queue, never baseline.
+  // They're purchased, not generated. Appended to the END of the
+  // spawn queue after shuffling regulars so bosses arrive last —
+  // gives them a dramatic late-wave entrance.
   for(let i=spawnQueue1.length-1;i>0;i--){const j=Math.random()*i|0;[spawnQueue1[i],spawnQueue1[j]]=[spawnQueue1[j],spawnQueue1[i]]}
   for(let i=spawnQueue2.length-1;i>0;i--){const j=Math.random()*i|0;[spawnQueue2[i],spawnQueue2[j]]=[spawnQueue2[j],spawnQueue2[i]]}
-  players[1].enemyQueue={goblin:0,orc:0,darkKnight:0,archer:0};
-  players[2].enemyQueue={goblin:0,orc:0,darkKnight:0,archer:0};
+  for(const bid of['troll','dragon','lich']){
+    const b1=(players[1].enemyQueue[bid]||0);
+    const b2=(players[2].enemyQueue[bid]||0);
+    for(let i=0;i<b1;i++)spawnQueue1.push(bid);
+    for(let i=0;i<b2;i++)spawnQueue2.push(bid);
+  }
+  players[1].enemyQueue={goblin:0,orc:0,darkKnight:0,archer:0,troll:0,dragon:0,lich:0};
+  players[2].enemyQueue={goblin:0,orc:0,darkKnight:0,archer:0,troll:0,dragon:0,lich:0};
   players[1].ready=false;players[2].ready=false;
   showScreen('game');
 }
@@ -3153,10 +3182,10 @@ function restartGame(){
   initGrid();waveNum=0;
   players[1].castleHP=CASTLE_HP;players[1].maxHP=CASTLE_HP;players[1].credits=START_CREDITS;
   players[1].specials=3;players[1].ready=false;players[1].selectedIdx=0;players[1].kills=0;players[1].totalDmgDealt=0;
-  players[1].enemyQueue={goblin:0,orc:0,darkKnight:0,archer:0};players[1].cursor={c:10,r:9};
+  players[1].enemyQueue={goblin:0,orc:0,darkKnight:0,archer:0,troll:0,dragon:0,lich:0};players[1].cursor={c:10,r:9};
   players[2].castleHP=CASTLE_HP;players[2].maxHP=CASTLE_HP;players[2].credits=START_CREDITS;
   players[2].specials=3;players[2].ready=false;players[2].selectedIdx=0;players[2].kills=0;players[2].totalDmgDealt=0;
-  players[2].enemyQueue={goblin:0,orc:0,darkKnight:0,archer:0};players[2].cursor={c:30,r:9};
+  players[2].enemyQueue={goblin:0,orc:0,darkKnight:0,archer:0,troll:0,dragon:0,lich:0};players[2].cursor={c:30,r:9};
   stopMusic();startMusic();gameState='build';buildTimer=BUILD_TIME;
   aiBuildTimer=0;aiSpecialTimer=0;
   showScreen('game');
