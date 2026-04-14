@@ -270,6 +270,19 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0604}
 .spec-btn.p2-spec:hover{background:linear-gradient(180deg,rgba(230,90,130,.2),rgba(140,30,60,.15));border-color:var(--p2)}
 .spec-btn.disabled{opacity:.3;pointer-events:none;filter:grayscale(.6)}
 .spec-label{color:inherit}
+/* v3.16: boss buttons live on the specials row but are single-purchase
+   (cat:'boss') not specials. Styled with a gold "elite" accent so
+   they visually read as distinct from the specials. */
+.boss-btn{display:flex;align-items:center;gap:3px;padding:3px 8px;margin-left:2px;
+  background:linear-gradient(180deg,rgba(212,176,74,.18),rgba(80,40,10,.5));
+  border:1px solid #d4b04a;border-radius:0;
+  box-shadow:inset 0 0 0 1px var(--wood-d),inset 0 -3px 8px rgba(0,0,0,.4),0 0 4px rgba(212,176,74,.3);
+  transition:all .15s;font-family:'Cinzel',serif;font-size:clamp(8px,.85vw,10px);font-weight:700;
+  letter-spacing:.3px;text-transform:uppercase;color:#ffd97a;cursor:pointer;pointer-events:auto}
+.boss-btn:hover{background:linear-gradient(180deg,rgba(255,212,100,.3),rgba(120,60,10,.6));
+  border-color:#ffd97a;box-shadow:0 0 8px rgba(255,212,100,.5),inset 0 0 0 1px var(--wood-d),inset 0 -3px 8px rgba(0,0,0,.4)}
+.boss-btn.disabled{opacity:.35;pointer-events:none;filter:grayscale(.5)}
+.boss-btn .boss-cost{color:#ffd97a;opacity:.85;margin-left:2px}
 .p2-ready-btn{font-family:'Cinzel',serif;font-weight:900;color:var(--gold-b);font-size:clamp(9px,1vw,12px);
   background:linear-gradient(180deg,#5a3a18,#2a1808);
   border:2px solid var(--gold);padding:3px 14px;margin-left:auto;pointer-events:auto;
@@ -411,7 +424,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0604}
     </div>
     <div style="margin-top:16px;display:flex;justify-content:space-between;align-items:center;font-family:'Cinzel',monospace;font-size:11px;opacity:0.85">
       <span style="color:#555">Three.js &bull; Procedural</span>
-      <span style="color:#ffd700;font-weight:bold;letter-spacing:1px">v3.15 &bull; Build 2026-04-14</span>
+      <span style="color:#ffd700;font-weight:bold;letter-spacing:1px">v3.16 &bull; Build 2026-04-14</span>
     </div>
   </div>
 </div>
@@ -2376,12 +2389,16 @@ function initHUD(){
   ['p1','p2'].forEach(pid=>{
     const container=document.getElementById(pid+'-build-opts');
     BUILD_OPTS.forEach((opt,i)=>{
+      // v3.16: bosses live in the specials row, not the build row
+      // (too many buttons otherwise — they overlapped). Skip here;
+      // the boss buttons are appended below.
+      if(opt.cat==='boss')return;
       const div=document.createElement('div');
       div.className='build-opt clickable '+(pid==='p1'?'p1-opt':'p2-opt');
       div.dataset.idx=i;
       // v3.14: bosses are single-unit purchases at full cost; mark them
       // so the button reads differently from '10 for $X' regular enemies.
-      const costSuffix=opt.cat==='enemy'?'x10':(opt.cat==='boss'?' BOSS':'');
+      const costSuffix=opt.cat==='enemy'?'x10':'';
       div.innerHTML=`<span class="opt-name">${opt.name}</span><span class="opt-cost">$${opt.cost}${costSuffix}</span>`;
       div.addEventListener('click',()=>{
         const t=panelTarget(pid);
@@ -2399,6 +2416,31 @@ function initHUD(){
         const t=panelTarget(pid);
         players[t].selectedSpecial=i;
         if(gameState==='combat')useSpecial(players[t],t);
+      });
+      specContainer.appendChild(div);
+    });
+    // v3.16: append boss buttons directly after the specials in the
+    // same row. Single click = instant purchase (unlike build opts
+    // which require positioning a cursor first). Boss purchases go
+    // through tryPlace via cat:'boss' branch which ignores cursor.
+    BUILD_OPTS.forEach((opt,i)=>{
+      if(opt.cat!=='boss')return;
+      const div=document.createElement('div');
+      div.className='boss-btn clickable';
+      div.dataset.idx=i;
+      div.dataset.bossId=opt.id;
+      div.dataset.cost=opt.cost;
+      div.innerHTML=`<span>${opt.name.toUpperCase()}</span><span class="boss-cost">$${opt.cost}</span>`;
+      div.addEventListener('click',()=>{
+        const t=panelTarget(pid);
+        const player=players[t];
+        // Save/restore selectedIdx so the build-opts highlight
+        // doesn't move. tryPlace's cat:'boss' branch only reads
+        // opt via selectedIdx — no cursor/grid interaction.
+        const prev=player.selectedIdx;
+        player.selectedIdx=i;
+        tryPlace(player,t);
+        player.selectedIdx=prev;
       });
       specContainer.appendChild(div);
     });
@@ -2471,6 +2513,10 @@ function updateHUD(){
       p2buildOptEls:document.querySelectorAll('#p2-build-opts .build-opt'),
       p1specEls:document.querySelectorAll('#p1-specials .spec-btn'),
       p2specEls:document.querySelectorAll('#p2-specials .spec-btn'),
+      // v3.16: boss buttons live in the specials container but use
+      // the .boss-btn class, so they're targeted separately.
+      p1bossEls:document.querySelectorAll('#p1-specials .boss-btn'),
+      p2bossEls:document.querySelectorAll('#p2-specials .boss-btn'),
     };
   }
   const h=__hud;
@@ -2507,10 +2553,18 @@ function updateHUD(){
     h.weTimer.textContent=`Next wave in ${Math.ceil(waveEndTimer)}s`;
   }
 
-  // Build option highlighting (uses cached NodeLists)
+  // Build option highlighting (uses cached NodeLists + dataset.idx so
+  // it stays correct even if some BUILD_OPTS entries are skipped —
+  // v3.16 skips boss entries from this row)
   const p1si=p1.selectedIdx, p2si=p2.selectedIdx;
-  for(let i=0;i<h.p1buildOptEls.length;i++) h.p1buildOptEls[i].classList.toggle('p1s',i===p1si);
-  for(let i=0;i<h.p2buildOptEls.length;i++) h.p2buildOptEls[i].classList.toggle('p2s',i===p2si);
+  for(let i=0;i<h.p1buildOptEls.length;i++){
+    const el=h.p1buildOptEls[i];
+    el.classList.toggle('p1s',(+el.dataset.idx)===p1si);
+  }
+  for(let i=0;i<h.p2buildOptEls.length;i++){
+    const el=h.p2buildOptEls[i];
+    el.classList.toggle('p2s',(+el.dataset.idx)===p2si);
+  }
   const p1ss=p1.selectedSpecial, p2ss=p2.selectedSpecial;
   const p1noSpec=p1.specials<=0, p2noSpec=p2.specials<=0;
   for(let i=0;i<h.p1specEls.length;i++){
@@ -2522,6 +2576,20 @@ function updateHUD(){
     const el=h.p2specEls[i];
     el.classList.toggle('p2s',i===p2ss);
     el.classList.toggle('disabled',p2noSpec);
+  }
+  // v3.16: boss button disabled state based on affordability + phase.
+  // Bosses can only be purchased during the build phase. Cost is
+  // read from the data attribute set at creation (no per-frame parse).
+  const inBuild=gameState==='build';
+  for(let i=0;i<h.p1bossEls.length;i++){
+    const el=h.p1bossEls[i];
+    const cost=+el.dataset.cost;
+    el.classList.toggle('disabled',!inBuild||p1.credits<cost);
+  }
+  for(let i=0;i<h.p2bossEls.length;i++){
+    const el=h.p2bossEls[i];
+    const cost=+el.dataset.cost;
+    el.classList.toggle('disabled',!inBuild||p2.credits<cost);
   }
 
   // Ready overlays
@@ -2542,7 +2610,10 @@ function updateHUD(){
       h.btnP2ready.style.display='';
       h.btnP2ready.textContent='READY (R)';
       // Highlight P1's selection on P2 panel too
-      for(let i=0;i<h.p2buildOptEls.length;i++) h.p2buildOptEls[i].classList.toggle('p2s',i===p1si);
+      for(let i=0;i<h.p2buildOptEls.length;i++){
+        const el=h.p2buildOptEls[i];
+        el.classList.toggle('p2s',(+el.dataset.idx)===p1si);
+      }
       for(let i=0;i<h.p2specEls.length;i++){
         const el=h.p2specEls[i];
         el.classList.toggle('p2s',i===p1ss);
