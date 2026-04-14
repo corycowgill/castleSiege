@@ -424,7 +424,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0604}
     </div>
     <div style="margin-top:16px;display:flex;justify-content:space-between;align-items:center;font-family:'Cinzel',monospace;font-size:11px;opacity:0.85">
       <span style="color:#555">Three.js &bull; Procedural</span>
-      <span style="color:#ffd700;font-weight:bold;letter-spacing:1px">v3.17 &bull; Build 2026-04-14</span>
+      <span style="color:#ffd700;font-weight:bold;letter-spacing:1px">v3.18 &bull; Build 2026-04-14</span>
     </div>
   </div>
 </div>
@@ -1067,23 +1067,30 @@ function applyTimeOfDay(tod){
   if(__skyDome) __skyDome.material.color.setHex(__lerpHex(a.sky,b.sky,seg));
 
   // v3.10: night-sky visibility. Stars and moon fade in as the scene
-  // darkens (sun intensity drops below ~0.8).
+  // v3.18: raised threshold from 0.05 to 0.38. At darkness=0.22
+  // (wave 3 of 10) stars were becoming faintly visible as a cluster
+  // in the sky — read as a "white orb in the middle of the map" by
+  // players. Now they only fade in once the scene is unambiguously
+  // night (darkness >= 0.38, which corresponds to wave 4+ dusk).
+  const SKY_NIGHT_THRESH=0.38;
   const darkness=Math.max(0,Math.min(1,(0.9-__sunLight.intensity)/0.9));
+  // Remap the visible range so opacity ramps from 0 at threshold to 1 at full dark.
+  const nightK=Math.max(0,(darkness-SKY_NIGHT_THRESH)/(1-SKY_NIGHT_THRESH));
   if(__stars){
-    __stars.material.opacity=darkness*0.9;
-    __stars.visible=darkness>0.05;
+    __stars.material.opacity=nightK*0.9;
+    __stars.visible=nightK>0;
   }
   if(__moon){
     // Each child mesh of the moon group has its own material with
     // opacity; scale them together. Main body goes to 1.0, splotches
     // to 0.75, glow to 0.35.
     const kids=__moon.children;
-    if(kids[0]) kids[0].material.opacity=darkness*1.0;
-    if(kids[1]) kids[1].material.opacity=darkness*0.75;
-    if(kids[2]) kids[2].material.opacity=darkness*0.75;
-    if(kids[3]) kids[3].material.opacity=darkness*0.75;
-    if(kids[4]) kids[4].material.opacity=darkness*0.35;
-    __moon.visible=darkness>0.05;
+    if(kids[0]) kids[0].material.opacity=nightK*1.0;
+    if(kids[1]) kids[1].material.opacity=nightK*0.75;
+    if(kids[2]) kids[2].material.opacity=nightK*0.75;
+    if(kids[3]) kids[3].material.opacity=nightK*0.75;
+    if(kids[4]) kids[4].material.opacity=nightK*0.35;
+    __moon.visible=nightK>0;
   }
 }
 // Map a wave number to a point in the 24-hour cycle. 5 waves cycle
@@ -3230,13 +3237,25 @@ function __canonicalizeEnemyMaterials(mesh){
 }
 
 function __cacheEnemyMeshRefs(mesh){
-  const limbs=[]; // {grp, type:0=leftLeg,1=rightLeg,2=leftArm,3=rightArm}
+  // v3.18: expanded limb-type vocabulary to drive boss auxiliary
+  // animations (dragon tail sway, dragon head bob, troll head bob,
+  // lich staff sway, weapons, etc).
+  //   0 leftLeg   : rotation.x swings forward with walk
+  //   1 rightLeg  : rotation.x swings back with walk (opposite leg)
+  //   2 leftArm   : rotation.x swings back (counter-phase to left leg)
+  //   3 rightArm  : rotation.x swings forward
+  //   4 head      : rotation.x nods gently with walk (half amplitude)
+  //   5 tail      : rotation.y sways side-to-side with walk
+  //   6 weapon    : rotation.x swings with walk (combat bounce)
+  //   7 neck      : rotation.x bobs with walk (for dragon neck lift)
+  const limbs=[];
   const tintMats=[]; // materials with stored _origColor
   const seenMats=new Set(); // so canonicalized materials appear once
   mesh.traverse(c=>{
     if(c.isGroup&&c.userData.limb){
       const l=c.userData.limb;
-      const t=l==='leftLeg'?0:l==='rightLeg'?1:l==='leftArm'?2:l==='rightArm'?3:-1;
+      const t=l==='leftLeg'?0:l==='rightLeg'?1:l==='leftArm'?2:l==='rightArm'?3
+             :l==='head'?4:l==='tail'?5:l==='weapon'?6:l==='neck'?7:-1;
       if(t>=0)limbs.push({grp:c,type:t});
     }
     if(c.isMesh&&c.material){
@@ -3494,6 +3513,12 @@ function syncEnemies(){
     const legSwing=inCombat?0.6:0.4;
     const armSwing=inCombat?0.5:0.3;
     const s=Math.sin(animSpeed);
+    // v3.18: secondary motion drivers for boss parts.
+    // A slower sine with phase offset gives head bob + tail sway a
+    // different rhythm from legs, so the boss looks organic rather
+    // than marching like a metronome.
+    const s2=Math.sin(animSpeed*0.55+0.7); // slower, offset phase
+    const s3=Math.sin(animSpeed*0.9+1.4);
     const limbs=mesh.userData.limbs;
     if(limbs){
       for(let i=0;i<limbs.length;i++){
@@ -3503,6 +3528,11 @@ function syncEnemies(){
           case 1: L.grp.rotation.x=-s*legSwing; break;
           case 2: L.grp.rotation.x=-s*armSwing; break;
           case 3: L.grp.rotation.x= s*armSwing; break;
+          // v3.18 secondary motions (bosses):
+          case 4: L.grp.rotation.x=s2*0.18;                       break; // head nod
+          case 5: L.grp.rotation.y=s*0.35; L.grp.rotation.x=s2*0.08; break; // tail sway + vertical undulation
+          case 6: L.grp.rotation.x=s*0.25+(inCombat?s3*0.4:0);    break; // weapon swing (more violent in combat)
+          case 7: L.grp.rotation.x=s2*0.22-0.05;                  break; // neck bob (dragon)
         }
       }
     }

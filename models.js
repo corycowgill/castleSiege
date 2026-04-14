@@ -2369,33 +2369,46 @@ function createEnemyModel(type,owner){
       g.add(armGrp);
     });
 
-    // Head — wide flat with pronounced jaw
-    g.add(mkMesh(new THREE.SphereGeometry(0.17,10,8),skin).translateY(1.12));
+    // v3.18: Head wrapped in a pivot group so it bobs with walk.
+    // Pivot at the neck (~1.0 world-local), everything above it
+    // rotates together.
+    const trollHead=new THREE.Group();
+    trollHead.userData.limb='head';
+    trollHead.position.set(0,1.0,0);
+    // Head sphere
+    trollHead.add(mkMesh(new THREE.SphereGeometry(0.17,10,8),skin).translateY(0.12));
     // Flat jaw
-    g.add(mkMesh(new THREE.BoxGeometry(0.24,0.08,0.18),skin).translateY(1.03).translateZ(0.05));
+    trollHead.add(mkMesh(new THREE.BoxGeometry(0.24,0.08,0.18),skin).translateY(0.03).translateZ(0.05));
     // Brow ridge
-    g.add(mkMesh(new THREE.BoxGeometry(0.22,0.04,0.06),darkSkin).translateY(1.17).translateZ(0.14));
+    trollHead.add(mkMesh(new THREE.BoxGeometry(0.22,0.04,0.06),darkSkin).translateY(0.17).translateZ(0.14));
     // Tiny angry eyes
     [-1,1].forEach(s=>{
-      g.add(mkMesh(new THREE.SphereGeometry(0.018,5,4),eyeRed).translateX(s*0.06).translateY(1.13).translateZ(0.15));
+      trollHead.add(mkMesh(new THREE.SphereGeometry(0.018,5,4),eyeRed).translateX(s*0.06).translateY(0.13).translateZ(0.15));
     });
     // Huge upward tusks
     [-1,1].forEach(s=>{
       const tusk=mkMesh(new THREE.ConeGeometry(0.028,0.14,5),tuskMat);
-      tusk.position.set(s*0.07,1.04,0.14);
+      tusk.position.set(s*0.07,0.04,0.14);
       tusk.rotation.x=-0.2;
-      g.add(tusk);
+      trollHead.add(tusk);
     });
     // Nostrils (flat nose holes)
     [-0.02,0.02].forEach(x=>{
-      g.add(mkMesh(new THREE.SphereGeometry(0.01,4,3),darkSkin).translateX(x).translateY(1.08).translateZ(0.16));
+      trollHead.add(mkMesh(new THREE.SphereGeometry(0.01,4,3),darkSkin).translateX(x).translateY(0.08).translateZ(0.16));
     });
     // Mohawk tuft
     for(let i=0;i<4;i++){
-      g.add(mkMesh(new THREE.ConeGeometry(0.02,0.05+i*0.01,4),darkSkin).translateX((i-1.5)*0.02).translateY(1.26+i*0.005).translateZ(-0.02));
+      trollHead.add(mkMesh(new THREE.ConeGeometry(0.02,0.05+i*0.01,4),darkSkin).translateX((i-1.5)*0.02).translateY(0.26+i*0.005).translateZ(-0.02));
     }
+    g.add(trollHead);
 
-    // Spiked club / tree trunk weapon (held in right hand)
+    // v3.18: Club in a weapon pivot group that swings with walk and
+    // swings harder in combat. Pivot at the grip where the troll
+    // holds it.
+    const clubGrp=new THREE.Group();
+    clubGrp.userData.limb='weapon';
+    clubGrp.position.set(0.38,0.7,0.1);
+    clubGrp.rotation.z=0.6;
     const club=new THREE.Group();
     club.add(mkMesh(new THREE.CylinderGeometry(0.04,0.06,0.5,6),wood));
     // Club head (thick end)
@@ -2411,9 +2424,8 @@ function createEnemyModel(type,owner){
     [0.1,0.0,-0.15].forEach(y=>{
       club.add(mkMesh(new THREE.TorusGeometry(0.045,0.008,4,10),ironBand).translateY(y).rotateX(Math.PI/2));
     });
-    club.position.set(0.38,0.7,0.1);
-    club.rotation.z=0.6;
-    g.add(club);
+    clubGrp.add(club);
+    g.add(clubGrp);
 
   }else if(type==='dragon'){
     // --- DRAGON: fast wyvern, moderate HP, powerful hits ---
@@ -2468,37 +2480,47 @@ function createEnemyModel(type,owner){
       g.add(mkMesh(new THREE.ConeGeometry(0.03,ph,4),brightScale).translateY(0.62).translateZ(z).rotateX(-0.3));
     }
 
-    // Long neck (3 segments for flow) + head
-    [0.35,0.42,0.47,0.5].forEach((y,i)=>{
+    // v3.18: neck + head wrapped in a pivot group so they can bob
+    // with the walk cycle. Pivot at the base of the neck where it
+    // attaches to the body, so rotation animates the whole chain.
+    const neckGrp=new THREE.Group();
+    neckGrp.userData.limb='neck';
+    neckGrp.position.set(0,0.55,0.3); // base of neck at body junction
+    // Neck segments (now positioned RELATIVE to the neck pivot)
+    [0,0.07,0.12,0.15].forEach((y,i)=>{
       const seg=mkMesh(new THREE.SphereGeometry(0.09-i*0.012,8,6),scale);
-      seg.position.set(0,y+0.25,0.3+i*0.08);
+      seg.position.set(0,y+0.05,0.0+i*0.08);
       seg.scale.set(1,0.9,1.2);
-      g.add(seg);
+      neckGrp.add(seg);
     });
-    // Head
+    // Head sub-group (nods independently on top of the neck bob)
+    const headGrp=new THREE.Group();
+    headGrp.userData.limb='head';
+    headGrp.position.set(0,0.23,0.32);
     const head=mkMesh(new THREE.SphereGeometry(0.1,10,8),scale);
     head.scale.set(1,0.85,1.4);
-    head.position.set(0,0.78,0.62);
-    g.add(head);
+    headGrp.add(head);
     // Snout extension (jaw)
-    g.add(mkMesh(new THREE.ConeGeometry(0.07,0.16,6),scale).translateY(0.76).translateZ(0.78).rotateX(Math.PI/2));
+    headGrp.add(mkMesh(new THREE.ConeGeometry(0.07,0.16,6),scale).translateY(-0.02).translateZ(0.16).rotateX(Math.PI/2));
     // Open mouth with fire glow
-    g.add(mkMesh(new THREE.SphereGeometry(0.05,6,5),mkMat(0x1a0a0a)).translateY(0.76).translateZ(0.82));
-    g.add(mkMesh(new THREE.SphereGeometry(0.04,6,5),fireCore).translateY(0.77).translateZ(0.83));
+    headGrp.add(mkMesh(new THREE.SphereGeometry(0.05,6,5),mkMat(0x1a0a0a)).translateY(-0.02).translateZ(0.2));
+    headGrp.add(mkMesh(new THREE.SphereGeometry(0.04,6,5),fireCore).translateY(-0.01).translateZ(0.21));
     // Fire flame cone extending from mouth
-    g.add(mkMesh(new THREE.ConeGeometry(0.04,0.1,6),fireCore).translateY(0.78).translateZ(0.9).rotateX(Math.PI/2));
+    headGrp.add(mkMesh(new THREE.ConeGeometry(0.04,0.1,6),fireCore).translateY(0).translateZ(0.28).rotateX(Math.PI/2));
     // Horns on head (2 curving back)
     [-1,1].forEach(s=>{
       const h=mkMesh(new THREE.ConeGeometry(0.025,0.15,5),horn);
-      h.position.set(s*0.06,0.88,0.55);
+      h.position.set(s*0.06,0.1,-0.07);
       h.rotation.x=0.6;
       h.rotation.z=s*0.2;
-      g.add(h);
+      headGrp.add(h);
     });
     // Eyes
     [-1,1].forEach(s=>{
-      g.add(mkMesh(new THREE.SphereGeometry(0.02,5,4),eyeYellow).translateX(s*0.05).translateY(0.82).translateZ(0.66));
+      headGrp.add(mkMesh(new THREE.SphereGeometry(0.02,5,4),eyeYellow).translateX(s*0.05).translateY(0.04).translateZ(0.04));
     });
+    neckGrp.add(headGrp);
+    g.add(neckGrp);
 
     // Folded wings on the back
     [-1,1].forEach(s=>{
@@ -2526,24 +2548,31 @@ function createEnemyModel(type,owner){
       g.add(wingGrp);
     });
 
-    // Long segmented tail with spike tip
+    // v3.18: tail wrapped in a pivot group so it sways side-to-side
+    // with the walk cycle. Pivot is at the base of the tail where
+    // it joins the body.
+    const tailGrp=new THREE.Group();
+    tailGrp.userData.limb='tail';
+    tailGrp.position.set(0,0.42,-0.12);
     for(let i=0;i<6;i++){
       const seg=mkMesh(new THREE.SphereGeometry(0.08-i*0.008,7,5),scale);
-      seg.position.set(0,0.42-i*0.01,-0.12-i*0.13);
+      // Positions relative to tail pivot now — subtract the base.
+      seg.position.set(0,-i*0.01,-i*0.13);
       seg.scale.set(1,0.8,1.3);
-      g.add(seg);
+      tailGrp.add(seg);
       // Back ridge spike
       if(i<5){
-        g.add(mkMesh(new THREE.ConeGeometry(0.02,0.04,4),brightScale)
-          .translateY(0.5-i*0.01).translateZ(-0.12-i*0.13).rotateX(-0.3));
+        tailGrp.add(mkMesh(new THREE.ConeGeometry(0.02,0.04,4),brightScale)
+          .translateY(0.08-i*0.01).translateZ(-i*0.13).rotateX(-0.3));
       }
     }
     // Tail tip spike
-    g.add(mkMesh(new THREE.ConeGeometry(0.04,0.14,5),horn).translateY(0.38).translateZ(-0.95).rotateX(-Math.PI/2));
+    tailGrp.add(mkMesh(new THREE.ConeGeometry(0.04,0.14,5),horn).translateY(-0.04).translateZ(-0.83).rotateX(-Math.PI/2));
     // Tail side fins
     [-1,1].forEach(s=>{
-      g.add(mkMesh(new THREE.BoxGeometry(0.008,0.06,0.1),brightScale).translateX(s*0.03).translateY(0.38).translateZ(-0.88));
+      tailGrp.add(mkMesh(new THREE.BoxGeometry(0.008,0.06,0.1),brightScale).translateX(s*0.03).translateY(-0.04).translateZ(-0.76));
     });
+    g.add(tailGrp);
 
   }else if(type==='lich'){
     // --- LICH: tall skeletal sorcerer, heavy armor, ranged threat ---
@@ -2665,8 +2694,10 @@ function createEnemyModel(type,owner){
     // Hood point
     g.add(mkMesh(new THREE.ConeGeometry(0.04,0.08,5),robeDark).translateY(1.18));
 
-    // Staff held in right hand (floats slightly beside)
+    // v3.18: Staff in a weapon pivot group so it bobs/sways with
+    // the walk cycle (gentle since lich is a slow caster).
     const staff=new THREE.Group();
+    staff.userData.limb='weapon';
     // Shaft
     staff.add(mkMesh(new THREE.CylinderGeometry(0.015,0.018,1.0,6),staffWood));
     // Gold wrappings
