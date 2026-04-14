@@ -2270,6 +2270,439 @@ function createEnemyModel(type,owner){
       g.add(mkMesh(new THREE.BoxGeometry(0.004,0.08,0.003),dkGold).translateX(x).translateY(0.08).translateZ(0.042));
     });
 
+  }else if(type==='troll'){
+    // --- TROLL: massive brute, slow, huge HP, crushing melee ---
+    const skin=mkMat(0x4a6a2a);
+    const darkSkin=mkMat(0x2a4a18);
+    const muscle=mkMat(0x5a7a32,{roughness:0.7});
+    const cloth=mkMat(0x3a2a10,{roughness:0.9});
+    const wood=mkMat(0x3a2008,{roughness:0.9});
+    const ironBand=mkMat(0x3a3a3a,{metalness:0.55,roughness:0.4});
+    const bone=mkMat(0xddd0a8,{roughness:0.55});
+    const moss=mkMat(0x3a6a2a,{roughness:0.95});
+    const eyeRed=mkMat(0xff4400,{emissive:0xcc2200,emissiveIntensity:1.0});
+    const tuskMat=mkMat(0xeeeecc,{roughness:0.4});
+
+    // Thick legs with huge feet
+    [-0.14,0.14].forEach((x,idx)=>{
+      const legGrp=new THREE.Group();
+      legGrp.userData.limb=idx===0?'leftLeg':'rightLeg';
+      legGrp.position.set(x,0.26,0);
+      // Thigh (thicker)
+      legGrp.add(mkMesh(new THREE.CylinderGeometry(0.09,0.08,0.22,7),skin));
+      // Knee bulge
+      legGrp.add(mkMesh(new THREE.SphereGeometry(0.075,6,5),muscle).translateY(-0.12));
+      // Shin
+      legGrp.add(mkMesh(new THREE.CylinderGeometry(0.07,0.08,0.18,7),skin).translateY(-0.22));
+      // Huge foot (3-toed)
+      legGrp.add(mkMesh(new THREE.BoxGeometry(0.14,0.05,0.18),darkSkin).translateY(-0.33).translateZ(0.03));
+      // Toe claws
+      [-0.05,0,0.05].forEach(tx=>{
+        legGrp.add(mkMesh(new THREE.ConeGeometry(0.015,0.04,4),bone).translateX(tx).translateY(-0.34).translateZ(0.12).rotateX(Math.PI/2));
+      });
+      g.add(legGrp);
+    });
+
+    // Massive torso — chunky lathe shape
+    const trollTorso=[
+      new THREE.Vector2(0,0),new THREE.Vector2(0.22,0),
+      new THREE.Vector2(0.26,0.1),new THREE.Vector2(0.28,0.25),
+      new THREE.Vector2(0.25,0.4),new THREE.Vector2(0.2,0.5),
+      new THREE.Vector2(0,0.52),
+    ];
+    g.add(mkMesh(new THREE.LatheGeometry(trollTorso,10),skin).translateY(0.52));
+    // Pec muscles
+    [-1,1].forEach(s=>{
+      const pec=mkMesh(new THREE.SphereGeometry(0.1,7,6),muscle);
+      pec.scale.set(1,0.75,0.6);
+      pec.position.set(s*0.1,0.82,0.16);
+      g.add(pec);
+    });
+    // Big abdomen muscles (4-pack)
+    for(let r=0;r<2;r++)for(let c=-1;c<=1;c+=2){
+      g.add(mkMesh(new THREE.SphereGeometry(0.04,5,4),muscle).translateX(c*0.08).translateY(0.62-r*0.08).translateZ(0.19));
+    }
+    // Loincloth
+    g.add(mkMesh(new THREE.CylinderGeometry(0.22,0.25,0.18,8),cloth).translateY(0.5));
+    // Tattered strips
+    [-0.12,0,0.12].forEach(x=>{
+      g.add(mkMesh(new THREE.BoxGeometry(0.08,0.15,0.02),cloth).translateX(x).translateY(0.35).translateZ(0.22));
+    });
+    // Iron belt studs
+    for(let i=0;i<6;i++){
+      const a=i*Math.PI/3;
+      g.add(mkMesh(new THREE.SphereGeometry(0.015,4,3),ironBand).translateX(Math.cos(a)*0.24).translateY(0.52).translateZ(Math.sin(a)*0.24));
+    }
+
+    // Massive hunched shoulders
+    [-1,1].forEach(s=>{
+      g.add(mkMesh(new THREE.SphereGeometry(0.14,7,6),muscle).translateX(s*0.22).translateY(0.95).translateZ(-0.05));
+      // Moss on shoulders
+      g.add(mkMesh(new THREE.SphereGeometry(0.05,5,4),moss).translateX(s*0.22).translateY(1.02).translateZ(-0.08));
+    });
+
+    // Huge arms with limb groups
+    [-1,1].forEach((s,idx)=>{
+      const armGrp=new THREE.Group();
+      armGrp.userData.limb=idx===0?'leftArm':'rightArm';
+      armGrp.position.set(s*0.22,0.9,0);
+      // Upper arm (thick)
+      armGrp.add(mkMesh(new THREE.CylinderGeometry(0.08,0.09,0.22,7),skin));
+      // Bicep bulge
+      armGrp.add(mkMesh(new THREE.SphereGeometry(0.08,6,5),muscle).translateX(s*0.02).translateY(0.02).translateZ(0.04));
+      // Elbow
+      armGrp.add(mkMesh(new THREE.SphereGeometry(0.08,6,5),skin).translateY(-0.12));
+      // Forearm (massive, wider at fist)
+      const fa=mkMesh(new THREE.CylinderGeometry(0.08,0.11,0.28,7),skin);
+      fa.rotation.z=s*0.3;
+      fa.position.set(s*0.06,-0.25,0);
+      armGrp.add(fa);
+      // Giant fist
+      const fist=mkMesh(new THREE.SphereGeometry(0.13,7,6),skin);
+      fist.scale.set(1,0.9,1);
+      fist.position.set(s*0.12,-0.4,0);
+      armGrp.add(fist);
+      // Knuckle spikes
+      for(let k=0;k<4;k++){
+        armGrp.add(mkMesh(new THREE.ConeGeometry(0.018,0.04,4),bone).translateX(s*0.16).translateY(-0.42+(k-1.5)*0.02).translateZ(0.1).rotateZ(-s*Math.PI/2));
+      }
+      g.add(armGrp);
+    });
+
+    // Head — wide flat with pronounced jaw
+    g.add(mkMesh(new THREE.SphereGeometry(0.17,10,8),skin).translateY(1.12));
+    // Flat jaw
+    g.add(mkMesh(new THREE.BoxGeometry(0.24,0.08,0.18),skin).translateY(1.03).translateZ(0.05));
+    // Brow ridge
+    g.add(mkMesh(new THREE.BoxGeometry(0.22,0.04,0.06),darkSkin).translateY(1.17).translateZ(0.14));
+    // Tiny angry eyes
+    [-1,1].forEach(s=>{
+      g.add(mkMesh(new THREE.SphereGeometry(0.018,5,4),eyeRed).translateX(s*0.06).translateY(1.13).translateZ(0.15));
+    });
+    // Huge upward tusks
+    [-1,1].forEach(s=>{
+      const tusk=mkMesh(new THREE.ConeGeometry(0.028,0.14,5),tuskMat);
+      tusk.position.set(s*0.07,1.04,0.14);
+      tusk.rotation.x=-0.2;
+      g.add(tusk);
+    });
+    // Nostrils (flat nose holes)
+    [-0.02,0.02].forEach(x=>{
+      g.add(mkMesh(new THREE.SphereGeometry(0.01,4,3),darkSkin).translateX(x).translateY(1.08).translateZ(0.16));
+    });
+    // Mohawk tuft
+    for(let i=0;i<4;i++){
+      g.add(mkMesh(new THREE.ConeGeometry(0.02,0.05+i*0.01,4),darkSkin).translateX((i-1.5)*0.02).translateY(1.26+i*0.005).translateZ(-0.02));
+    }
+
+    // Spiked club / tree trunk weapon (held in right hand)
+    const club=new THREE.Group();
+    club.add(mkMesh(new THREE.CylinderGeometry(0.04,0.06,0.5,6),wood));
+    // Club head (thick end)
+    club.add(mkMesh(new THREE.SphereGeometry(0.1,7,6),wood).translateY(0.22));
+    // Spikes on club head
+    for(let i=0;i<8;i++){
+      const a=i*Math.PI/4;
+      club.add(mkMesh(new THREE.ConeGeometry(0.02,0.08,4),ironBand)
+        .translateX(Math.cos(a)*0.09).translateY(0.22).translateZ(Math.sin(a)*0.09)
+        .rotateZ(Math.cos(a)*Math.PI/2).rotateX(-Math.sin(a)*Math.PI/2));
+    }
+    // Iron bands wrapping the club
+    [0.1,0.0,-0.15].forEach(y=>{
+      club.add(mkMesh(new THREE.TorusGeometry(0.045,0.008,4,10),ironBand).translateY(y).rotateX(Math.PI/2));
+    });
+    club.position.set(0.38,0.7,0.1);
+    club.rotation.z=0.6;
+    g.add(club);
+
+  }else if(type==='dragon'){
+    // --- DRAGON: fast wyvern, moderate HP, powerful hits ---
+    const scale=mkMat(0xa02020,{roughness:0.6});
+    const darkScale=mkMat(0x701010,{roughness:0.65});
+    const brightScale=mkMat(0xc83030,{roughness:0.55});
+    const belly=mkMat(0xffcc66,{roughness:0.7});
+    const horn=mkMat(0x2a1a10,{roughness:0.5});
+    const claw=mkMat(0x1a1008,{roughness:0.4});
+    const eyeYellow=mkMat(0xffff44,{emissive:0xffaa00,emissiveIntensity:1.5});
+    const fireCore=mkMat(0xff6622,{emissive:0xff4400,emissiveIntensity:2.5,transparent:true,opacity:0.9});
+    const membrane=mkMat(0x601010,{roughness:0.8,transparent:true,opacity:0.85,side:THREE.DoubleSide});
+
+    // Powerful back legs (limb groups)
+    [-0.13,0.13].forEach((x,idx)=>{
+      const legGrp=new THREE.Group();
+      legGrp.userData.limb=idx===0?'leftLeg':'rightLeg';
+      legGrp.position.set(x,0.28,0);
+      // Thigh (bulky)
+      legGrp.add(mkMesh(new THREE.SphereGeometry(0.09,7,6),scale).translateY(-0.02));
+      // Shin (backward-angled wyvern style)
+      const shin=mkMesh(new THREE.CylinderGeometry(0.06,0.05,0.22,6),scale);
+      shin.rotation.x=0.4;
+      shin.position.set(0,-0.15,0.02);
+      legGrp.add(shin);
+      // Foot/talon
+      const foot=mkMesh(new THREE.BoxGeometry(0.12,0.04,0.16),darkScale);
+      foot.position.set(0,-0.28,0.08);
+      legGrp.add(foot);
+      // 3 talon claws
+      [-0.04,0,0.04].forEach(tx=>{
+        legGrp.add(mkMesh(new THREE.ConeGeometry(0.015,0.06,4),claw)
+          .translateX(tx).translateY(-0.3).translateZ(0.17).rotateX(Math.PI/2));
+      });
+      g.add(legGrp);
+    });
+
+    // Low-slung body (sphere scaled to be long and flat)
+    const body=mkMesh(new THREE.SphereGeometry(0.22,12,10),scale);
+    body.scale.set(1.2,0.85,1.8);
+    body.position.set(0,0.48,0.05);
+    g.add(body);
+    // Belly (lighter underside)
+    const belMesh=mkMesh(new THREE.SphereGeometry(0.18,10,8),belly);
+    belMesh.scale.set(1,0.5,1.6);
+    belMesh.position.set(0,0.4,0.05);
+    g.add(belMesh);
+    // Back scales (ridge of triangular plates along spine)
+    for(let i=0;i<7;i++){
+      const z=0.4-i*0.13;
+      const ph=0.07-Math.abs(i-3)*0.01;
+      g.add(mkMesh(new THREE.ConeGeometry(0.03,ph,4),brightScale).translateY(0.62).translateZ(z).rotateX(-0.3));
+    }
+
+    // Long neck (3 segments for flow) + head
+    [0.35,0.42,0.47,0.5].forEach((y,i)=>{
+      const seg=mkMesh(new THREE.SphereGeometry(0.09-i*0.012,8,6),scale);
+      seg.position.set(0,y+0.25,0.3+i*0.08);
+      seg.scale.set(1,0.9,1.2);
+      g.add(seg);
+    });
+    // Head
+    const head=mkMesh(new THREE.SphereGeometry(0.1,10,8),scale);
+    head.scale.set(1,0.85,1.4);
+    head.position.set(0,0.78,0.62);
+    g.add(head);
+    // Snout extension (jaw)
+    g.add(mkMesh(new THREE.ConeGeometry(0.07,0.16,6),scale).translateY(0.76).translateZ(0.78).rotateX(Math.PI/2));
+    // Open mouth with fire glow
+    g.add(mkMesh(new THREE.SphereGeometry(0.05,6,5),mkMat(0x1a0a0a)).translateY(0.76).translateZ(0.82));
+    g.add(mkMesh(new THREE.SphereGeometry(0.04,6,5),fireCore).translateY(0.77).translateZ(0.83));
+    // Fire flame cone extending from mouth
+    g.add(mkMesh(new THREE.ConeGeometry(0.04,0.1,6),fireCore).translateY(0.78).translateZ(0.9).rotateX(Math.PI/2));
+    // Horns on head (2 curving back)
+    [-1,1].forEach(s=>{
+      const h=mkMesh(new THREE.ConeGeometry(0.025,0.15,5),horn);
+      h.position.set(s*0.06,0.88,0.55);
+      h.rotation.x=0.6;
+      h.rotation.z=s*0.2;
+      g.add(h);
+    });
+    // Eyes
+    [-1,1].forEach(s=>{
+      g.add(mkMesh(new THREE.SphereGeometry(0.02,5,4),eyeYellow).translateX(s*0.05).translateY(0.82).translateZ(0.66));
+    });
+
+    // Folded wings on the back
+    [-1,1].forEach(s=>{
+      const wingGrp=new THREE.Group();
+      wingGrp.userData.limb=s<0?'leftArm':'rightArm';
+      wingGrp.position.set(s*0.18,0.58,0.1);
+      // Main wing bone
+      const bone=mkMesh(new THREE.CylinderGeometry(0.02,0.015,0.3,5),darkScale);
+      bone.rotation.z=s*0.8;
+      wingGrp.add(bone);
+      // Membrane panel (triangular)
+      const mem=mkMesh(new THREE.BoxGeometry(0.22,0.16,0.01),membrane);
+      mem.rotation.z=s*0.8;
+      mem.position.set(s*0.1,0.05,0);
+      wingGrp.add(mem);
+      // Secondary wing ribs
+      for(let i=0;i<3;i++){
+        const rib=mkMesh(new THREE.CylinderGeometry(0.008,0.008,0.14,4),darkScale);
+        rib.rotation.z=s*(0.8+i*0.15);
+        rib.position.set(s*(0.05+i*0.04),0,0);
+        wingGrp.add(rib);
+      }
+      // Wing claw (at top)
+      wingGrp.add(mkMesh(new THREE.ConeGeometry(0.015,0.05,4),claw).translateX(s*0.16).translateY(0.12).rotateZ(-s*0.5));
+      g.add(wingGrp);
+    });
+
+    // Long segmented tail with spike tip
+    for(let i=0;i<6;i++){
+      const seg=mkMesh(new THREE.SphereGeometry(0.08-i*0.008,7,5),scale);
+      seg.position.set(0,0.42-i*0.01,-0.12-i*0.13);
+      seg.scale.set(1,0.8,1.3);
+      g.add(seg);
+      // Back ridge spike
+      if(i<5){
+        g.add(mkMesh(new THREE.ConeGeometry(0.02,0.04,4),brightScale)
+          .translateY(0.5-i*0.01).translateZ(-0.12-i*0.13).rotateX(-0.3));
+      }
+    }
+    // Tail tip spike
+    g.add(mkMesh(new THREE.ConeGeometry(0.04,0.14,5),horn).translateY(0.38).translateZ(-0.95).rotateX(-Math.PI/2));
+    // Tail side fins
+    [-1,1].forEach(s=>{
+      g.add(mkMesh(new THREE.BoxGeometry(0.008,0.06,0.1),brightScale).translateX(s*0.03).translateY(0.38).translateZ(-0.88));
+    });
+
+  }else if(type==='lich'){
+    // --- LICH: tall skeletal sorcerer, heavy armor, ranged threat ---
+    const robeDark=mkMat(0x2a1a44,{roughness:0.85});
+    const robePurple=mkMat(0x553388,{roughness:0.8});
+    const robeTrim=mkMat(0xaa7722,{metalness:0.6,roughness:0.4});
+    const boneMat=mkMat(0xeeeecc,{roughness:0.5});
+    const boneDark=mkMat(0xaaaa88,{roughness:0.6});
+    const eyeGlow=mkMat(0x66ccff,{emissive:0x3388ff,emissiveIntensity:3.0});
+    const staffWood=mkMat(0x3a1a08,{roughness:0.8});
+    const crystalMat=mkMat(0xaaffff,{emissive:0x66ccff,emissiveIntensity:2.5,transparent:true,opacity:0.92});
+    const runeMat=mkMat(0xcc88ff,{emissive:0x9944cc,emissiveIntensity:1.6});
+
+    // Flowing robe base (tall tapered cylinder)
+    g.add(mkMesh(new THREE.CylinderGeometry(0.2,0.32,0.5,10),robeDark).translateY(0.25));
+    // Inner purple lining (slightly narrower, taller)
+    g.add(mkMesh(new THREE.CylinderGeometry(0.18,0.28,0.45,10),robePurple).translateY(0.27));
+    // Robe bottom fringe (tattered strips)
+    for(let i=0;i<12;i++){
+      const a=i*Math.PI/6;
+      g.add(mkMesh(new THREE.BoxGeometry(0.04,0.08+Math.random()*0.04,0.02),robeDark)
+        .translateX(Math.cos(a)*0.29).translateY(0.02).translateZ(Math.sin(a)*0.29));
+    }
+    // Gold trim at bottom
+    g.add(mkMesh(new THREE.TorusGeometry(0.31,0.008,4,14),robeTrim).translateY(0.04));
+    // Gold trim at waist
+    g.add(mkMesh(new THREE.TorusGeometry(0.22,0.01,4,14),robeTrim).translateY(0.52));
+
+    // Skeletal legs visible through the robe (limb groups, partially hidden)
+    [-0.07,0.07].forEach((x,idx)=>{
+      const legGrp=new THREE.Group();
+      legGrp.userData.limb=idx===0?'leftLeg':'rightLeg';
+      legGrp.position.set(x,0.1,0);
+      // Thin tibia peeking below robe
+      legGrp.add(mkMesh(new THREE.CylinderGeometry(0.018,0.02,0.12,5),boneMat).translateY(-0.03));
+      // Skeletal foot
+      legGrp.add(mkMesh(new THREE.BoxGeometry(0.06,0.025,0.08),boneDark).translateY(-0.11).translateZ(0.02));
+      g.add(legGrp);
+    });
+
+    // Upper body — ribcage showing between robe and hood
+    const ribCage=new THREE.Group();
+    ribCage.position.y=0.58;
+    // Spine column
+    ribCage.add(mkMesh(new THREE.CylinderGeometry(0.02,0.02,0.28,5),boneMat));
+    // 4 pairs of ribs
+    for(let i=0;i<4;i++){
+      const ry=0.1-i*0.06;
+      [-1,1].forEach(s=>{
+        const rib=mkMesh(new THREE.TorusGeometry(0.08-i*0.005,0.006,3,8,Math.PI),boneMat);
+        rib.rotation.x=Math.PI/2;
+        rib.rotation.z=s>0?0:Math.PI;
+        rib.position.set(0,ry,0);
+        ribCage.add(rib);
+      });
+    }
+    // Sternum
+    ribCage.add(mkMesh(new THREE.BoxGeometry(0.025,0.2,0.015),boneMat).translateZ(0.075));
+    g.add(ribCage);
+
+    // Robe shoulders (covering upper ribs)
+    g.add(mkMesh(new THREE.SphereGeometry(0.18,10,6,0,Math.PI*2,0,Math.PI*0.6),robeDark).translateY(0.72));
+    // Shoulder gold trim
+    g.add(mkMesh(new THREE.TorusGeometry(0.17,0.008,4,14),robeTrim).translateY(0.72));
+
+    // Skeletal arms with sleeves
+    [-1,1].forEach((s,idx)=>{
+      const armGrp=new THREE.Group();
+      armGrp.userData.limb=idx===0?'leftArm':'rightArm';
+      armGrp.position.set(s*0.19,0.72,0);
+      // Upper arm bone
+      armGrp.add(mkMesh(new THREE.CylinderGeometry(0.018,0.016,0.18,5),boneMat));
+      // Sleeve wrap (purple robe covering upper arm)
+      armGrp.add(mkMesh(new THREE.CylinderGeometry(0.035,0.04,0.16,6),robeDark));
+      // Elbow joint
+      armGrp.add(mkMesh(new THREE.SphereGeometry(0.025,5,4),boneMat).translateY(-0.1));
+      // Forearm (skeletal)
+      const fa=mkMesh(new THREE.CylinderGeometry(0.015,0.014,0.2,5),boneMat);
+      fa.rotation.z=s*0.2;
+      fa.position.set(s*0.03,-0.2,0);
+      armGrp.add(fa);
+      // Sleeve fringe
+      armGrp.add(mkMesh(new THREE.CylinderGeometry(0.045,0.035,0.04,6),robePurple).translateY(-0.1));
+      // Skeletal hand (claw fingers)
+      armGrp.add(mkMesh(new THREE.SphereGeometry(0.025,5,4),boneMat).translateX(s*0.06).translateY(-0.3));
+      // 3 finger bones as claws
+      for(let f=0;f<3;f++){
+        armGrp.add(mkMesh(new THREE.ConeGeometry(0.006,0.04,3),boneMat)
+          .translateX(s*0.08).translateY(-0.33).translateZ((f-1)*0.015).rotateZ(-s*Math.PI/3));
+      }
+      g.add(armGrp);
+    });
+
+    // Skull head
+    const skullHead=mkMesh(new THREE.SphereGeometry(0.14,10,8),boneMat);
+    skullHead.scale.set(1,0.95,1.05);
+    skullHead.position.y=0.98;
+    g.add(skullHead);
+    // Jaw
+    g.add(mkMesh(new THREE.BoxGeometry(0.16,0.05,0.1),boneDark).translateY(0.88).translateZ(0.04));
+    // Teeth row
+    for(let i=-3;i<=3;i++){
+      g.add(mkMesh(new THREE.ConeGeometry(0.005,0.015,3),boneMat).translateX(i*0.018).translateY(0.88).translateZ(0.09).rotateX(Math.PI));
+    }
+    // Hollow eye sockets with bright glowing eyes
+    [-1,1].forEach(s=>{
+      // Dark socket
+      g.add(mkMesh(new THREE.SphereGeometry(0.035,6,5),mkMat(0x080808)).translateX(s*0.045).translateY(1.0).translateZ(0.1));
+      // Bright inner glow
+      g.add(mkMesh(new THREE.SphereGeometry(0.022,6,5),eyeGlow).translateX(s*0.045).translateY(1.0).translateZ(0.11));
+    });
+    // Nose hole
+    g.add(mkMesh(new THREE.ConeGeometry(0.015,0.03,4),mkMat(0x080808)).translateY(0.95).translateZ(0.125).rotateX(Math.PI));
+
+    // Dark hood covering the back of the skull
+    g.add(mkMesh(new THREE.SphereGeometry(0.16,10,5,0,Math.PI*2,0,Math.PI*0.6),robeDark).translateY(1.02));
+    // Hood trim
+    g.add(mkMesh(new THREE.TorusGeometry(0.155,0.006,4,12),robeTrim).translateY(0.97).rotateX(0.3));
+    // Hood point
+    g.add(mkMesh(new THREE.ConeGeometry(0.04,0.08,5),robeDark).translateY(1.18));
+
+    // Staff held in right hand (floats slightly beside)
+    const staff=new THREE.Group();
+    // Shaft
+    staff.add(mkMesh(new THREE.CylinderGeometry(0.015,0.018,1.0,6),staffWood));
+    // Gold wrappings
+    [0.2,0.0,-0.2].forEach(y=>{
+      staff.add(mkMesh(new THREE.TorusGeometry(0.02,0.004,4,10),robeTrim).translateY(y).rotateX(Math.PI/2));
+    });
+    // Claw holder at top (3 prongs)
+    for(let i=0;i<3;i++){
+      const a=i*Math.PI*2/3;
+      staff.add(mkMesh(new THREE.BoxGeometry(0.008,0.07,0.008),robeTrim)
+        .translateX(Math.cos(a)*0.04).translateY(0.52).translateZ(Math.sin(a)*0.04)
+        .rotateX(Math.cos(a)*0.3).rotateZ(Math.sin(a)*0.3));
+    }
+    // Main crystal orb (large, glowing)
+    staff.add(mkMesh(new THREE.SphereGeometry(0.07,10,8),crystalMat).translateY(0.56));
+    // Inner bright core
+    staff.add(mkMesh(new THREE.SphereGeometry(0.035,8,6),mkMat(0xffffff,{emissive:0xaaddff,emissiveIntensity:3.5})).translateY(0.56));
+    // Runic symbols on the shaft
+    [0.1,-0.1,-0.3].forEach(y=>{
+      staff.add(mkMesh(new THREE.BoxGeometry(0.005,0.02,0.022),runeMat).translateY(y).translateZ(0.02));
+    });
+    staff.position.set(0.3,0.55,0);
+    staff.rotation.z=0.15;
+    g.add(staff);
+
+    // Floating runes orbiting the lich (3 emissive cubes in air)
+    for(let i=0;i<3;i++){
+      const a=i*Math.PI*2/3;
+      g.add(mkMesh(new THREE.BoxGeometry(0.025,0.025,0.025),runeMat)
+        .translateX(Math.cos(a)*0.3).translateY(0.65+i*0.08).translateZ(Math.sin(a)*0.3));
+    }
+
+    // Neck amulet
+    g.add(mkMesh(new THREE.TorusGeometry(0.1,0.008,4,14),robeTrim).translateY(0.76).rotateX(Math.PI/2));
+    g.add(mkMesh(new THREE.SphereGeometry(0.02,6,5),runeMat).translateY(0.7).translateZ(0.05));
+
   }else{
     // --- ARCHER: agile, elven, ranged with bow ---
     const skinTone=mkMat(0xc4956a);
@@ -2454,8 +2887,10 @@ function createEnemyModel(type,owner){
   // Direction set dynamically in syncEnemies based on movement
   // Default facing for initial spawn
   g.rotation.y=owner===1?-Math.PI/2:Math.PI/2;
-  // Scale up for visibility
-  g.scale.set(2.2,2.2,2.2);
+  // Scale up for visibility. v3.14: bosses get a larger scale (3.8x)
+  // so they tower over regular enemies (2.2x) — ~1.7x bigger silhouette.
+  const __bossScale=(type==='troll'||type==='dragon'||type==='lich')?3.8:2.2;
+  g.scale.set(__bossScale,__bossScale,__bossScale);
   return g;
 }
 // ==================== PROJECTILE MODELS ====================

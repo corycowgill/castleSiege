@@ -229,6 +229,50 @@ a:hover{text-decoration:underline}
         <div class="card-desc">Balanced unit. Good mix of speed and damage.</div>
       </div>
     </div>
+    <!-- v3.14: BOSS units. Single-purchase elites, 10-30x the power
+         of a regular enemy. Balanced around a 4-tower midgame budget. -->
+    <div class="card" data-model="enemy-troll">
+      <canvas width="400" height="280"></canvas>
+      <div class="card-info">
+        <div class="card-name">TROLL <span style="color:#d4b04a">BOSS</span></div>
+        <div class="card-cost">Cost: <span>$200</span></div>
+        <div class="stat-row">
+          <div class="stat"><b>HP</b> 800</div>
+          <div class="stat"><b>Speed</b> 0.8</div>
+          <div class="stat"><b>Dmg</b> 150</div>
+          <div class="stat"><b>Armor</b> 0.3</div>
+        </div>
+        <div class="card-desc">Massive brute. Absorbs sustained fire and crushes walls with enormous melee damage. Slow but unstoppable without serious defense.</div>
+      </div>
+    </div>
+    <div class="card" data-model="enemy-dragon">
+      <canvas width="400" height="280"></canvas>
+      <div class="card-info">
+        <div class="card-name">DRAGON <span style="color:#d4b04a">BOSS</span></div>
+        <div class="card-cost">Cost: <span>$250</span></div>
+        <div class="stat-row">
+          <div class="stat"><b>HP</b> 500</div>
+          <div class="stat"><b>Speed</b> 2.2</div>
+          <div class="stat"><b>Dmg</b> 110</div>
+          <div class="stat"><b>Armor</b> 0.2</div>
+        </div>
+        <div class="card-desc">Fast wyvern with a devastating bite. Moderate HP but high speed makes it hard to kill before it closes the gap.</div>
+      </div>
+    </div>
+    <div class="card" data-model="enemy-lich">
+      <canvas width="400" height="280"></canvas>
+      <div class="card-info">
+        <div class="card-name">LICH <span style="color:#d4b04a">BOSS</span></div>
+        <div class="card-cost">Cost: <span>$300</span></div>
+        <div class="stat-row">
+          <div class="stat"><b>HP</b> 700</div>
+          <div class="stat"><b>Speed</b> 1.0</div>
+          <div class="stat"><b>Dmg</b> 90</div>
+          <div class="stat"><b>Armor</b> 0.55</div>
+        </div>
+        <div class="card-desc">Undead sorcerer with heavy armor. Slow but nearly impossible to stop — resists over half of all incoming damage.</div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -335,13 +379,23 @@ function createViewer(canvas, modelType){
     model=createEnemyModel('darkKnight',owner);camDist=1.8;camY=0.5;
   }else if(modelType==='enemy-archer'){
     model=createEnemyModel('archer',owner);camDist=1.6;camY=0.5;
+  }else if(modelType==='enemy-troll'){
+    model=createEnemyModel('troll',owner);camDist=3.0;camY=0.9;
+  }else if(modelType==='enemy-dragon'){
+    model=createEnemyModel('dragon',owner);camDist=3.0;camY=0.7;
+  }else if(modelType==='enemy-lich'){
+    model=createEnemyModel('lich',owner);camDist=3.0;camY=0.9;
   }
 
   // For enemy models: models.js returns them at game scale 2.2 with a
   // sideways facing (for in-game spawn orientation). The guide wants
-  // them face-forward at preview scale 1.6, so override here.
+  // them face-forward at preview scale, so override here.
+  // v3.14: bosses get a bigger preview scale (2.4) so they feel
+  // properly imposing compared to regulars (1.6).
   if(model && modelType && modelType.indexOf('enemy-')===0){
-    model.scale.set(1.6,1.6,1.6);
+    const isBoss=modelType==='enemy-troll'||modelType==='enemy-dragon'||modelType==='enemy-lich';
+    const ps=isBoss?2.4:1.6;
+    model.scale.set(ps,ps,ps);
     model.rotation.set(0,0,0);
   }
 
