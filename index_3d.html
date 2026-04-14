@@ -424,7 +424,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0604}
     </div>
     <div style="margin-top:16px;display:flex;justify-content:space-between;align-items:center;font-family:'Cinzel',monospace;font-size:11px;opacity:0.85">
       <span style="color:#555">Three.js &bull; Procedural</span>
-      <span style="color:#ffd700;font-weight:bold;letter-spacing:1px">v3.16 &bull; Build 2026-04-14</span>
+      <span style="color:#ffd700;font-weight:bold;letter-spacing:1px">v3.17 &bull; Build 2026-04-14</span>
     </div>
   </div>
 </div>
@@ -589,10 +589,15 @@ const ENEMY_DATA=[
 //   Troll  — slow brute with huge HP and crushing melee damage.
 //   Dragon — fast attacker, moderate HP, powerful hits.
 //   Lich   — slow caster, heavy armor, steady threat.
+// v3.17: doubled boss damage. Previous values felt weak for a
+// $200-300 elite purchase — a troll hit was only 4% of castle HP.
+// Now a boss hit is a genuine "oh no" moment. Troll one-shots
+// regular enemies in melee, dragon breathes searing fire, lich
+// drops a heavy death curse.
 const BOSS_DATA=[
-  {id:'troll', name:'Troll', cost:200,hp:800,spd:0.8,dmg:150,reward:150,color:'#4a6a2a',armor:0.30},
-  {id:'dragon',name:'Dragon',cost:250,hp:500,spd:2.2,dmg:110,reward:180,color:'#a02020',armor:0.20},
-  {id:'lich',  name:'Lich',  cost:300,hp:700,spd:1.0,dmg:90, reward:220,color:'#553388',armor:0.55},
+  {id:'troll', name:'Troll', cost:200,hp:800,spd:0.8,dmg:300,reward:150,color:'#4a6a2a',armor:0.30},
+  {id:'dragon',name:'Dragon',cost:250,hp:500,spd:2.2,dmg:220,reward:180,color:'#a02020',armor:0.20},
+  {id:'lich',  name:'Lich',  cost:300,hp:700,spd:1.0,dmg:180,reward:220,color:'#553388',armor:0.55},
 ];
 const WALL_COST=30,BARRICADE_COST=15;
 const SPECIAL_DATA=[
