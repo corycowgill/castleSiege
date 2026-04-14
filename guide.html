@@ -397,6 +397,20 @@ function createViewer(canvas, modelType){
     const ps=isBoss?2.4:1.6;
     model.scale.set(ps,ps,ps);
     model.rotation.set(0,0,0);
+    // v3.18: cache limb groups on the model so the animation loop
+    // below can drive a walk cycle + secondary motion on bosses.
+    // Same limb type map as the main game (see __cacheEnemyMeshRefs
+    // in index_3d.html). Static scan, no per-frame traverse.
+    const limbs=[];
+    model.traverse(c=>{
+      if(c.isGroup && c.userData && c.userData.limb){
+        const l=c.userData.limb;
+        const t=l==='leftLeg'?0:l==='rightLeg'?1:l==='leftArm'?2:l==='rightArm'?3
+               :l==='head'?4:l==='tail'?5:l==='weapon'?6:l==='neck'?7:-1;
+        if(t>=0)limbs.push({grp:c,type:t});
+      }
+    });
+    model.userData.limbs=limbs;
   }
 
   if(model) scene.add(model);
@@ -522,6 +536,30 @@ function animate(time){
   viewers.forEach(v=>{
     if(v.canvas.offsetWidth===0) return; // hidden tab
     if(v.autoRotate) v.theta+=v.autoSpeed*dt;
+    // v3.18: drive walk cycle + boss secondary motion on enemy models
+    // so the field guide previews match the in-game animation quality.
+    const m=v.model;
+    if(m && m.userData && m.userData.limbs){
+      v.anim=(v.anim||0)+dt*3;
+      const a=v.anim;
+      const s=Math.sin(a);
+      const s2=Math.sin(a*0.55+0.7);
+      const s3=Math.sin(a*0.9+1.4);
+      const limbs=m.userData.limbs;
+      for(let i=0;i<limbs.length;i++){
+        const L=limbs[i];
+        switch(L.type){
+          case 0: L.grp.rotation.x= s*0.4; break;
+          case 1: L.grp.rotation.x=-s*0.4; break;
+          case 2: L.grp.rotation.x=-s*0.3; break;
+          case 3: L.grp.rotation.x= s*0.3; break;
+          case 4: L.grp.rotation.x=s2*0.18; break;
+          case 5: L.grp.rotation.y=s*0.35; L.grp.rotation.x=s2*0.08; break;
+          case 6: L.grp.rotation.x=s*0.25; break;
+          case 7: L.grp.rotation.x=s2*0.22-0.05; break;
+        }
+      }
+    }
     updateCamera(v);
     v.renderer.render(v.scene,v.camera);
   });
