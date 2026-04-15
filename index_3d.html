@@ -424,7 +424,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0604}
     </div>
     <div style="margin-top:16px;display:flex;justify-content:space-between;align-items:center;font-family:'Cinzel',monospace;font-size:11px;opacity:0.85">
       <span style="color:#555">Three.js &bull; Procedural</span>
-      <span style="color:#ffd700;font-weight:bold;letter-spacing:1px">v3.19 &bull; Build 2026-04-14</span>
+      <span style="color:#ffd700;font-weight:bold;letter-spacing:1px">v3.20 &bull; Build 2026-04-14</span>
     </div>
   </div>
 </div>
@@ -815,8 +815,9 @@ let screenShake=0;
 // v3.7: references to the lighting rig so applyTimeOfDay() can drive
 // them. Assigned inside initScene().
 let __sunLight=null, __hemi=null, __ambient=null, __fill=null, __skyDome=null;
-// v3.10: night sky + weather refs.
+// v3.10: night sky + weather refs. v3.20: moon removed entirely.
 let __stars=null, __moon=null, __rain=null;
+let __cloudMat=null, __cloudMat2=null; // v3.20: fade clouds at night
 let __weatherRain=false; // set per wave; rain mesh visibility + animation toggle
 // v3.13: cached HUD element references (populated on first updateHUD call).
 let __hud=null;
@@ -917,25 +918,13 @@ function initScene(container){
   __stars.matrixAutoUpdate=false;__stars.updateMatrixWorld(true);
   scene.add(__stars);
 
-  // Moon — pale sphere opposite the sun's noon position.
-  // Slightly cratered via two overlapping spheres of different tints.
-  const __moonGroup=new THREE.Group();
-  __moonGroup.add(new THREE.Mesh(
-    new THREE.SphereGeometry(2.8,20,16),
-    new THREE.MeshBasicMaterial({color:0xeef2ff,fog:false,transparent:true,opacity:0,depthWrite:false})
-  ));
-  // Darker splotches
-  const moonDark=new THREE.MeshBasicMaterial({color:0xaaaacc,fog:false,transparent:true,opacity:0,depthWrite:false});
-  __moonGroup.add(new THREE.Mesh(new THREE.SphereGeometry(0.5,8,6),moonDark).translateX(0.8).translateY(0.4).translateZ(2.75));
-  __moonGroup.add(new THREE.Mesh(new THREE.SphereGeometry(0.35,8,6),moonDark).translateX(-0.6).translateY(-0.2).translateZ(2.75));
-  __moonGroup.add(new THREE.Mesh(new THREE.SphereGeometry(0.28,8,6),moonDark).translateX(-0.1).translateY(0.9).translateZ(2.75));
-  // Faint outer glow
-  const moonGlow=new THREE.MeshBasicMaterial({color:0xccddff,fog:false,transparent:true,opacity:0,depthWrite:false,side:THREE.BackSide});
-  __moonGroup.add(new THREE.Mesh(new THREE.SphereGeometry(3.6,16,12),moonGlow));
-  __moonGroup.position.set(-38,48,45);
-  __moon=__moonGroup;
-  __moon.matrixAutoUpdate=false;__moon.updateMatrixWorld(true);
-  scene.add(__moon);
+  // v3.20: Moon removed entirely. Even with the raised visibility
+  // threshold, users reported a persistent "white orb in middle of
+  // map" at wave 4. The moon at (-38,48,45) shouldn't have been in
+  // the camera's view mathematically, but removing it is a
+  // guaranteed fix. Night waves now use stars + torch/castle
+  // emissive lighting for atmosphere — no disc in the sky.
+  __moon=null;
 
   // Rain — 400 thin vertical boxes streaking downward.
   // Visibility + animation toggled by __weatherRain.
@@ -1080,18 +1069,13 @@ function applyTimeOfDay(tod){
     __stars.material.opacity=nightK*0.9;
     __stars.visible=nightK>0;
   }
-  if(__moon){
-    // Each child mesh of the moon group has its own material with
-    // opacity; scale them together. Main body goes to 1.0, splotches
-    // to 0.75, glow to 0.35.
-    const kids=__moon.children;
-    if(kids[0]) kids[0].material.opacity=nightK*1.0;
-    if(kids[1]) kids[1].material.opacity=nightK*0.75;
-    if(kids[2]) kids[2].material.opacity=nightK*0.75;
-    if(kids[3]) kids[3].material.opacity=nightK*0.75;
-    if(kids[4]) kids[4].material.opacity=nightK*0.35;
-    __moon.visible=nightK>0;
-  }
+  // v3.20: Moon removed entirely (see initScene). No code needed here.
+  // v3.20: fade clouds as night falls — bright white clouds were
+  // reading as "orbs" against the dark sky. Base opacity is 0.85/0.6;
+  // scale linearly from full (daytime) to zero (midnight).
+  const cloudFade=1-nightK;
+  if(__cloudMat)  __cloudMat.opacity =0.85*cloudFade;
+  if(__cloudMat2) __cloudMat2.opacity=0.60*cloudFade;
 }
 // Map a wave number to a point in the 24-hour cycle. 5 waves cycle
 // through the whole day: wave 1 starts at noon (bright), wave 2 at
@@ -1464,8 +1448,14 @@ function createAtmosphere(){
   // PERF: shared cloud geometry and shared materials. Reduced from 14
   // clusters of up to 7 spheres each down to 8 clusters of 3. One single
   // addVfx callback drifts them all at once instead of one per cloud.
+  // v3.20: cloud materials exposed as module-level refs so
+  // applyTimeOfDay can fade them at night. Otherwise white clouds
+  // read as bright "orbs" against a dark sky — likely the actual
+  // cause of the wave-4 white-orb bug users were seeing.
   const cloudMat=new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:0.85,fog:false,depthWrite:false});
   const cloudMat2=new THREE.MeshBasicMaterial({color:0xeae8f0,transparent:true,opacity:0.6,fog:false,depthWrite:false});
+  __cloudMat=cloudMat;
+  __cloudMat2=cloudMat2;
   const cloudGeo=new THREE.SphereGeometry(2.0,8,6);
   const allClouds=[];
   for(let i=0;i<8;i++){
