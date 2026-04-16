@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="mobile-web-app-capable" content="yes">
@@ -220,14 +220,19 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0604}
   background:var(--panel);
   border-top:2px solid var(--gold-d);
   box-shadow:0 -1px 0 var(--wood-d),0 -3px 12px rgba(0,0,0,.7),inset 0 1px 0 var(--wood-d);
-  display:none;flex-direction:column}
+  display:none;flex-direction:column;
+  /* v3.21: push content above iOS home indicator / Siri bar.
+     env(safe-area-inset-bottom) resolves to ~34px on notched
+     iPhones and 0 on devices without a home indicator. Requires
+     viewport-fit=cover on the <meta viewport> tag. */
+  padding-bottom:env(safe-area-inset-bottom, 8px)}
 #hud-bottom::before{content:'';position:absolute;left:0;right:0;top:-4px;height:3px;
   background:linear-gradient(90deg,transparent,var(--gold-d) 20%,var(--gold) 50%,var(--gold-d) 80%,transparent);opacity:.5}
 .hud-bottom-hints{display:flex;height:17px;border-bottom:1px solid var(--wood-d)}
 .hint-half{flex:1;display:flex;align-items:center;justify-content:center}
 .hint-text{font-family:'IM Fell English',serif;font-style:italic;
   font-size:clamp(9px,.9vw,11px);color:var(--parch-d);letter-spacing:.5px}
-.hud-bottom-build{display:flex;height:40px}
+.hud-bottom-build{display:flex;height:44px}
 .build-half{flex:1;display:flex;align-items:center;padding:3px 4px;min-width:0}
 .build-left{border-right:1px solid var(--gold-d);box-shadow:1px 0 0 var(--wood-d)}
 .build-options{display:flex;gap:3px;width:100%;justify-content:center}
@@ -250,7 +255,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0604}
   border-color:var(--p1);box-shadow:0 0 10px var(--p1-glow),inset 0 0 0 1px var(--wood-d),inset 0 -4px 8px rgba(0,0,0,.4)}
 .build-opt.p2-opt:hover{background:linear-gradient(180deg,rgba(230,90,130,.2),rgba(140,30,60,.15));
   border-color:var(--p2);box-shadow:0 0 10px var(--p2-glow),inset 0 0 0 1px var(--wood-d),inset 0 -4px 8px rgba(0,0,0,.4)}
-.hud-bottom-specials{display:flex;height:34px;border-top:1px solid var(--wood-d);box-shadow:0 -1px 0 var(--gold-d)}
+.hud-bottom-specials{display:flex;height:38px;border-top:1px solid var(--wood-d);box-shadow:0 -1px 0 var(--gold-d)}
 .spec-half{flex:1;display:flex;align-items:center;padding:0 8px;min-width:0}
 .spec-left{justify-content:center;border-right:1px solid var(--gold-d);box-shadow:1px 0 0 var(--wood-d)}
 .spec-right{justify-content:center;gap:8px}
@@ -375,8 +380,14 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0604}
 
 @media(max-width:768px){
   #hud-bottom .hud-bottom-hints{display:none}
-  #hud-bottom{padding-bottom:4px}
-  .build-opt{min-width:clamp(36px,8vw,50px);padding:2px 3px}
+  /* v3.21: on mobile, use the larger of env(safe-area) or 12px so
+     boss/special buttons clear the iOS home indicator + Siri bar. */
+  #hud-bottom{padding-bottom:max(env(safe-area-inset-bottom, 12px), 12px)}
+  .hud-bottom-build{height:48px}
+  .hud-bottom-specials{height:42px}
+  .build-opt{min-width:clamp(36px,8vw,50px);padding:3px 4px}
+  .boss-btn{padding:4px 10px}
+  .spec-btn{padding:4px 10px}
 }
 </style>
 </head>
@@ -424,7 +435,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0604}
     </div>
     <div style="margin-top:16px;display:flex;justify-content:space-between;align-items:center;font-family:'Cinzel',monospace;font-size:11px;opacity:0.85">
       <span style="color:#555">Three.js &bull; Procedural</span>
-      <span style="color:#ffd700;font-weight:bold;letter-spacing:1px">v3.20 &bull; Build 2026-04-14</span>
+      <span style="color:#ffd700;font-weight:bold;letter-spacing:1px">v3.21 &bull; Build 2026-04-14</span>
     </div>
   </div>
 </div>
