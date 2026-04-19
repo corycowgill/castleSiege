@@ -444,7 +444,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0604}
     </div>
     <div style="margin-top:16px;display:flex;justify-content:space-between;align-items:center;font-family:'Cinzel',monospace;font-size:11px;opacity:0.85">
       <span style="color:#555">Three.js &bull; Procedural</span>
-      <span style="color:#ffd700;font-weight:bold;letter-spacing:1px">v3.21 &bull; Build 2026-04-14</span>
+      <span style="color:#ffd700;font-weight:bold;letter-spacing:1px">v3.22 &bull; Build 2026-04-14</span>
     </div>
   </div>
 </div>
@@ -817,7 +817,7 @@ const players=[null,
 let mouseClicked=false,mouseRightClicked=false,middleClicked=false,scrollDelta=0;
 let mouseX=0,mouseY=0;
 const keys={},keyPressed={};
-const gameKeys=new Set(['KeyW','KeyA','KeyS','KeyD','Space','KeyQ','KeyE','KeyR','KeyF','KeyZ','Tab','ArrowUp','ArrowDown','ArrowLeft','ArrowRight']);
+const gameKeys=new Set(['KeyW','KeyA','KeyS','KeyD','Space','KeyQ','KeyE','KeyR','KeyF','KeyZ','KeyT','Tab','ArrowUp','ArrowDown','ArrowLeft','ArrowRight']);
 window.addEventListener('keydown',(e)=>{if(!audioCtx)initAudio();if(gameKeys.has(e.code))e.preventDefault();if(!keys[e.code])keyPressed[e.code]=true;keys[e.code]=true});
 window.addEventListener('keyup',(e)=>{keys[e.code]=false});
 function consumeKey(code){if(keyPressed[code]){keyPressed[code]=false;return true}return false}
@@ -2554,14 +2554,22 @@ function updateHUD(){
 
   if(gameState==='build'){
     h.phaseInfo.textContent='BUILD PHASE';
-    h.phaseTimer.textContent=Math.ceil(buildTimer)+'s';
     h.phaseTimer.style.display='';
     h.armyCounts.style.display='flex';
     const eq1=p1.enemyQueue,eq2=p2.enemyQueue;
     h.p1army.textContent=`P1:G${eq1.goblin} O${eq1.orc} D${eq1.darkKnight} A${eq1.archer}`;
     h.p2army.textContent=`P2:G${eq2.goblin} O${eq2.orc} D${eq2.darkKnight} A${eq2.archer}`;
+    // v3.22: wave preview — show what's coming so the player can plan.
+    // Uses the same formula as startWave. Computed each frame but it's
+    // just arithmetic, not a hot loop.
+    const nw=waveNum+1;
+    const nb=6+nw*3;
+    const no=Math.max(0,nw-1)*2;
+    const ndk=Math.max(0,nw-3)*2;
+    const na=Math.max(0,nw-3)*2;
+    h.phaseTimer.textContent=`${Math.ceil(buildTimer)}s | Next: ${nb}G ${no>0?no+'O ':''}${ndk>0?ndk+'DK ':''}${na>0?na+'A':''}`;
   }else if(gameState==='combat'){
-    h.phaseInfo.textContent=`WAVE ${waveNum}/${MAX_WAVES}`;
+    h.phaseInfo.textContent=`WAVE ${waveNum}/${MAX_WAVES}${__combatSpeed>1?' \u25B6\u25B6':''}`;
     // PERF v3.13: inline alive counter avoids per-frame filter alloc.
     let aliveCount=0;
     for(let i=0;i<enemies.length;i++)if(enemies[i].alive)aliveCount++;
@@ -2662,13 +2670,45 @@ function tryPlace(player,pNum){
     }
     return;
   }
+  // v3.22: TOWER UPGRADE — if the cursor is on an existing tower
+  // owned by this player AND we're trying to place a tower, upgrade
+  // the existing tower instead. Max level 3. Each upgrade costs 60%
+  // of the tower's base cost and boosts damage +30%, range +10%,
+  // fire rate -15% (faster).
+  const cell=grid[r]&&grid[r][c];
+  if(cell&&cell.type==='tower'&&cell.owner===pNum&&opt.cat==='tower'){
+    const existingTower=towers.find(t=>t.col===c&&t.row===r);
+    if(!existingTower)return;
+    if(existingTower.level>=3)return; // already maxed
+    const td=TOWER_DATA.find(t=>t.id===existingTower.type);
+    const upgradeCost=Math.floor(td.cost*0.6);
+    if(player.credits<upgradeCost)return;
+    player.credits-=upgradeCost;
+    existingTower.level++;
+    // Recompute effective stats from base × level multipliers.
+    const lv=existingTower.level;
+    existingTower.dmg=Math.round(td.dmg*(1+0.3*(lv-1)));
+    existingTower.range=td.range*(1+0.1*(lv-1));
+    existingTower.rate=td.rate*(1-0.15*(lv-1));
+    // Visual: scale mesh slightly per level.
+    const mesh=towerMeshes.get(existingTower);
+    if(mesh){
+      const s=1+0.08*(lv-1);
+      mesh.scale.set(s,s,s);
+    }
+    sndBuild();
+    // Upgrade particles burst
+    const wp=tileToWorld(c,r);
+    emitParticles(wp.x,1.0,wp.z,0xffd700,12,60);
+    return;
+  }
   if(!canPlace(c,r,pNum))return;if(player.credits<opt.cost)return;
   player.credits-=opt.cost;
   if(opt.cat==='tower'){
     grid[r][c]={type:'tower',owner:pNum,towerType:opt.id};
     const td=TOWER_DATA.find(t=>t.id===opt.id);
     towers.push({type:opt.id,col:c,row:r,owner:pNum,range:td.range,dmg:td.dmg,rate:td.rate,projSpd:td.spd,
-      splash:td.splash,color:td.color,x:colToX(c),y:rowToY(r),cooldown:0,target:null,angle:0});
+      splash:td.splash,color:td.color,x:colToX(c),y:rowToY(r),cooldown:0,target:null,angle:0,level:1});
   }else if(opt.id==='wall'){grid[r][c]={type:'wall',owner:pNum,hp:150,maxHp:150}}
   else{grid[r][c]={type:'barricade',owner:pNum,hp:75,maxHp:75}}
   sndBuild();
@@ -2679,7 +2719,11 @@ function trySell(player,pNum){
   if(!cell||cell.type==='castle'||cell.owner!==pNum)return;
   let refund=0;
   if(cell.type==='tower'){
-    const td=TOWER_DATA.find(t=>t.id===cell.towerType);refund=Math.floor(td.cost/2);
+    const td=TOWER_DATA.find(t=>t.id===cell.towerType);
+    const twr=towers.find(t=>t.col===c&&t.row===r);
+    // v3.22: refund includes upgrade investment (60% of base per extra level)
+    const lvl=twr?twr.level||1:1;
+    refund=Math.floor(td.cost/2)+Math.floor(td.cost*0.6*(lvl-1)/2);
     const idx=towers.findIndex(t=>t.col===c&&t.row===r);if(idx>=0)towers.splice(idx,1);
   }else if(cell.type==='wall')refund=Math.floor(WALL_COST/2);
   else if(cell.type==='barricade')refund=Math.floor(BARRICADE_COST/2);
@@ -2824,7 +2868,7 @@ function startWave(){
 }
 
 function startBuild(){
-  gameState='build';buildTimer=BUILD_TIME;
+  gameState='build';buildTimer=BUILD_TIME;__combatSpeed=1;
   players[1].ready=false;players[2].ready=false;
   // v3.15: per-wave credit bonus 200 → 250 (since there are now 10 waves
   // and the enemy curve is tougher late).
@@ -2878,7 +2922,12 @@ function processInput(dt){
       if(consumeKey('Space'))tryPlace(p1,1);if(consumeKey('KeyE'))trySell(p1,1);
       if(consumeKey('KeyR'))p1.ready=true;if(consumeKey('KeyZ'))p1.selectedSpecial=(p1.selectedSpecial+1)%4;
     }
-    if(gameState==='combat'){if(consumeKey('KeyF'))useSpecial(p1,1);if(consumeKey('KeyZ'))p1.selectedSpecial=(p1.selectedSpecial+1)%4}
+    if(gameState==='combat'){
+      if(consumeKey('KeyF'))useSpecial(p1,1);
+      if(consumeKey('KeyZ'))p1.selectedSpecial=(p1.selectedSpecial+1)%4;
+      // v3.22: T toggles 2x combat speed
+      if(consumeKey('KeyT'))__combatSpeed=__combatSpeed===1?2:1;
+    }
     if(gameState==='gameover'&&consumeKey('Space'))restartGame();
   }
 
@@ -3937,12 +3986,16 @@ function updateTitle(){
 const SIM_DT=1/60;
 const MAX_SIM_STEPS=4; // cap catch-up to prevent spiral of death
 let __simAcc=0;
+// v3.22: 2x combat speed toggle. Press T during combat to fast-forward.
+let __combatSpeed=1;
 
 function gameLoop(){
   requestAnimationFrame(gameLoop);
   // Cap rawDt so simAcc can never accumulate more than MAX_SIM_STEPS
   // worth of sim time in a single frame (handles tab-switch gaps).
-  const rawDt=Math.min(clock.getDelta(),MAX_SIM_STEPS*SIM_DT);
+  // v3.22: 2x speed during combat — multiply raw delta so the sim
+  // accumulator fills twice as fast. Visual updates also run faster.
+  const rawDt=Math.min(clock.getDelta(),MAX_SIM_STEPS*SIM_DT)*__combatSpeed;
 
   if(gameState==='modeselect'){
     // Just render, waiting for button click
