@@ -444,7 +444,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0604}
     </div>
     <div style="margin-top:16px;display:flex;justify-content:space-between;align-items:center;font-family:'Cinzel',monospace;font-size:11px;opacity:0.85">
       <span style="color:#555">Three.js &bull; Procedural</span>
-      <span style="color:#ffd700;font-weight:bold;letter-spacing:1px">v3.22 &bull; Build 2026-04-14</span>
+      <span style="color:#ffd700;font-weight:bold;letter-spacing:1px">v3.23 &bull; Build 2026-04-14</span>
     </div>
   </div>
 </div>
@@ -2737,12 +2737,18 @@ function dealDamage(enemy,dmg){
   if(dmgCredits>0){killer.credits+=dmgCredits;killer.totalDmgDealt+=actual}
   const wp=pixelToWorld(enemy.x+rnd(-8,8),enemy.y-10);
   spawnDmgNumber(wp.x,0.5,wp.z,Math.round(actual)|0,'#ff4444');
+  // v3.23: hit flash — mark the enemy so syncEnemies can briefly
+  // tint it white on the next render frame. Stacks with slow tint.
+  enemy._hitFlash=0.12;
   if(enemy.hp<=0){
     enemy.alive=false;killer.credits+=enemy.reward;killer.kills++;
     const ep=pixelToWorld(enemy.x,enemy.y);
     emitParticles(ep.x,0.3,ep.z,parseInt(enemy.color.replace('#',''),16),20,120);
     emitParticles(ep.x,0.5,ep.z,0xffffff,5,40);
     sndHit();
+    // v3.23: gold "+$X" reward number floating up from the corpse
+    // so the player sees exactly what they earned from the kill.
+    spawnDmgNumber(ep.x+rnd(-0.2,0.2),0.8,ep.z,'+$'+enemy.reward,'#ffd700');
   }
 }
 
@@ -3077,7 +3083,7 @@ function updateCombat(dt){
     }
     t.target=best;if(best)t.angle=Math.atan2(best.y-t.y,best.x-t.x);
     if(best&&t.cooldown<=0){
-      t.cooldown=t.rate;
+      t.cooldown=t.rate;t._recoilT=0.15; // v3.23: trigger recoil kick
       const pType=t.type==='turret'?'proj_arrow':t.type==='magic'?'proj_magic':t.type==='catapult'?'proj_boulder':'proj_cannonball';
       projectiles.push({x:t.x,y:t.y,target:best,tx:best.x,ty:best.y,
         dmg:t.dmg,spd:t.projSpd*T,splash:t.splash,type:pType,owner:t.owner,alive:true});
@@ -3248,9 +3254,29 @@ function syncTowers(){
     // Rotate tower to face target (catapult/bombard especially)
     const mesh=towerMeshes.get(t);
     if(mesh&&t.target){
-      // t.angle is atan2(dy,dx) in pixel space — convert to 3D world rotation
-      // In 3D: x maps to x, y maps to z, so rotation around Y axis
       mesh.rotation.y=-t.angle+Math.PI/2;
+    }
+    // v3.23: recoil kick on fire. When the tower fires (cooldown just
+    // reset to full in updateCombat), set a brief recoilT. Each frame,
+    // offset the mesh position backward (opposite to aim direction) and
+    // spring back. Makes every shot feel punchy.
+    if(!mesh)continue;
+    if(t._recoilT===undefined)t._recoilT=0;
+    if(t._recoilT>0){
+      t._recoilT-=__lastRawDt;
+      if(t._recoilT<0)t._recoilT=0;
+      const rk=t._recoilT/0.15; // 1 at start → 0 at end
+      const recoilDist=0.08*rk; // max offset 0.08 world units
+      const ang=-t.angle; // direction tower is aiming in pixel space → world
+      const wp=tileToWorld(t.col,t.row);
+      // Kick backward (opposite to aim)
+      mesh.position.x=wp.x-Math.cos(ang)*recoilDist;
+      mesh.position.z=wp.z-Math.sin(ang)*recoilDist;
+    }else{
+      // Ensure position is at rest (no drift from rounding)
+      const wp=tileToWorld(t.col,t.row);
+      mesh.position.x=wp.x;
+      mesh.position.z=wp.z;
     }
   }
   // Remove stale
@@ -3263,6 +3289,8 @@ function syncTowers(){
 // `mesh.traverse` (which is the single biggest per-frame allocator in
 // syncEnemies). Called once when an enemy mesh is first created.
 const __SLOW_TINT=new THREE.Color(0x66ccff);
+const __HIT_WHITE=new THREE.Color(0xffffff); // v3.23: hit flash target color
+let __lastRawDt=0.016; // v3.23: exposed for syncEnemies hit-flash decay
 
 // PERF v3.0: canonicalize materials within a single enemy model. Each
 // createEnemyModel() call allocates ~10-20 unique MeshStandardMaterial
@@ -3595,22 +3623,33 @@ function syncEnemies(){
         }
       }
     }
-    // Slow tint — uses cached material list + _origColor. Fixes v2.5 bug
-    // where lerp(new Color(blue),0.3) permanently drifted toward blue.
+    // Slow tint + hit flash — uses cached material list + _origColor.
     const tintMats=mesh.userData.tintMats;
     if(tintMats){
-      if(e.slowTimer>0){
+      // v3.23: hit flash takes priority — brief white tint on damage.
+      // Decays per render frame (not per sim tick) for smooth fade.
+      const hitFlash=e._hitFlash||0;
+      if(hitFlash>0){
+        e._hitFlash-=__lastRawDt;
+        const hk=Math.min(1,hitFlash/0.12);
+        for(let i=0;i<tintMats.length;i++){
+          const m=tintMats[i];
+          m.color.copy(m._origColor).lerp(__HIT_WHITE,hk*0.7);
+        }
+        mesh.userData._wasTinted=true;
+      }else if(e.slowTimer>0){
         for(let i=0;i<tintMats.length;i++){
           const m=tintMats[i];
           m.color.copy(m._origColor).lerp(__SLOW_TINT,0.35);
         }
+        mesh.userData._wasTinted=true;
       }else if(mesh.userData._wasTinted){
         for(let i=0;i<tintMats.length;i++){
           const m=tintMats[i];
           m.color.copy(m._origColor);
         }
+        mesh.userData._wasTinted=false;
       }
-      mesh.userData._wasTinted=e.slowTimer>0;
     }
   }
   // Remove dead — walk the map directly, no Set allocation.
@@ -3996,6 +4035,7 @@ function gameLoop(){
   // v3.22: 2x speed during combat — multiply raw delta so the sim
   // accumulator fills twice as fast. Visual updates also run faster.
   const rawDt=Math.min(clock.getDelta(),MAX_SIM_STEPS*SIM_DT)*__combatSpeed;
+  __lastRawDt=rawDt; // v3.23: expose for syncEnemies hit-flash decay
 
   if(gameState==='modeselect'){
     // Just render, waiting for button click
