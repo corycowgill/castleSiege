@@ -444,7 +444,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0604}
     </div>
     <div style="margin-top:16px;display:flex;justify-content:space-between;align-items:center;font-family:'Cinzel',monospace;font-size:11px;opacity:0.85">
       <span style="color:#555">Three.js &bull; Procedural</span>
-      <span style="color:#ffd700;font-weight:bold;letter-spacing:1px">v3.23 &bull; Build 2026-04-14</span>
+      <span style="color:#ffd700;font-weight:bold;letter-spacing:1px">v3.24 &bull; Build 2026-04-14</span>
     </div>
   </div>
 </div>
@@ -2368,6 +2368,28 @@ function initCursors(){
 const towerMeshes=new Map(); // tower obj -> THREE.Group
 const buildingMeshes=new Map(); // `${r}_${c}` -> THREE.Group
 const enemyMeshes=new Map(); // enemy obj -> THREE.Group
+// v3.24: enemy HP bars — thin colored meshes floating above each
+// damaged enemy, sized proportional to remaining HP. Only created
+// when an enemy first takes damage, cleaned up on death/pool return.
+const __hpBars=new Map(); // enemy obj -> {bg, fg} meshes
+const __hpBarGeo=new THREE.PlaneGeometry(1,0.08);
+const __hpBarBgMat=new THREE.MeshBasicMaterial({color:0x111111,transparent:true,opacity:0.6,depthTest:false,depthWrite:false,side:THREE.DoubleSide});
+function __ensureHpBar(e){
+  if(__hpBars.has(e))return __hpBars.get(e);
+  const bg=new THREE.Mesh(__hpBarGeo,__hpBarBgMat);
+  const fg=new THREE.Mesh(__hpBarGeo,new THREE.MeshBasicMaterial({color:0x44cc44,depthTest:false,depthWrite:false,side:THREE.DoubleSide}));
+  bg.renderOrder=999;fg.renderOrder=1000;
+  scene.add(bg);scene.add(fg);
+  const bar={bg,fg};
+  __hpBars.set(e,bar);
+  return bar;
+}
+function __removeHpBar(e){
+  const bar=__hpBars.get(e);
+  if(!bar)return;
+  scene.remove(bar.bg);scene.remove(bar.fg);
+  __hpBars.delete(e);
+}
 const projMeshes=new Map(); // proj obj -> THREE.Group
 let castle1Mesh=null,castle2Mesh=null;
 
@@ -2965,7 +2987,22 @@ function processInput(dt){
 // ==================== GAME UPDATE ====================
 function updateBuild(dt){
   buildTimer-=dt;
-  if(buildTimer<=0||(players[1].ready&&players[2].ready))startWave();
+  if(buildTimer<=0||(players[1].ready&&players[2].ready)){
+    // v3.24: early-ready credit bonus — $3 per second of unused
+    // build time. Incentivizes fast decision-making. Only awarded
+    // when BOTH players ready up before the timer expires.
+    if(buildTimer>0){
+      const bonus=Math.floor(buildTimer*3);
+      if(bonus>0){
+        players[1].credits+=bonus;players[2].credits+=bonus;
+        const cw1=tileToWorld(1,9);
+        spawnDmgNumber(cw1.x,1.5,cw1.z,'+$'+bonus+' EARLY','#ffd700');
+        const cw2=tileToWorld(38,9);
+        spawnDmgNumber(cw2.x,1.5,cw2.z,'+$'+bonus+' EARLY','#ffd700');
+      }
+    }
+    startWave();
+  }
 }
 
 function updateCombat(dt){
@@ -3651,11 +3688,35 @@ function syncEnemies(){
         mesh.userData._wasTinted=false;
       }
     }
+    // v3.24: HP bar — only show when damaged (below max HP).
+    // Position above the enemy, scale fg bar width proportional to HP%.
+    if(e.hp<e.maxHp){
+      const bar=__ensureHpBar(e);
+      const wp2=pixelToWorld(e.x,e.y);
+      const isBoss=(e.type==='troll'||e.type==='dragon'||e.type==='lich');
+      const barY=isBoss?3.5:1.6;
+      const barW=isBoss?1.8:0.7;
+      bar.bg.position.set(wp2.x,barY,wp2.z);
+      bar.bg.scale.set(barW,1,1);
+      bar.bg.lookAt(camera.position);
+      const pct=Math.max(0,e.hp/e.maxHp);
+      bar.fg.position.set(wp2.x-(barW*(1-pct))/2,barY,wp2.z);
+      bar.fg.scale.set(barW*pct,1,1);
+      bar.fg.lookAt(camera.position);
+      // Color: green → yellow → red
+      const r=pct<0.5?1:1-(pct-0.5)*2;
+      const g=pct>0.5?1:pct*2;
+      bar.fg.material.color.setRGB(r,g,0.15);
+    }else{
+      // At full HP — remove bar if it exists (shouldn't normally but
+      // handles heal edge cases).
+      __removeHpBar(e);
+    }
   }
   // Remove dead — walk the map directly, no Set allocation.
   // PERF v3.0: return mesh to pool instead of disposing.
   for(const[e,mesh] of enemyMeshes){
-    if(!e.alive){releaseEnemyMesh(mesh);enemyMeshes.delete(e)}
+    if(!e.alive){releaseEnemyMesh(mesh);__removeHpBar(e);enemyMeshes.delete(e)}
   }
 }
 
@@ -3810,6 +3871,18 @@ function aiDoBuildAction(ai){
     if(affordable.length){
       const ed=affordable[Math.floor(Math.random()*affordable.length)];
       ai.selectedIdx=BUILD_OPTS.findIndex(o=>o.id===ed.id);
+      if(ai.selectedIdx>=0)tryPlace(ai,pNum);
+    }
+  }
+  // v3.24: AI occasionally buys a boss (15% chance when it has
+  // enough credits, starting from wave 3). Makes 1P mode more
+  // threatening in the mid-late game. Picks the most expensive
+  // boss it can afford for maximum impact.
+  if(waveNum>=3&&Math.random()<0.15){
+    const affordableBoss=BOSS_DATA.filter(b=>ai.credits>=b.cost);
+    if(affordableBoss.length){
+      const boss=affordableBoss[affordableBoss.length-1]; // most expensive
+      ai.selectedIdx=BUILD_OPTS.findIndex(o=>o.id===boss.id);
       if(ai.selectedIdx>=0)tryPlace(ai,pNum);
     }
   }
