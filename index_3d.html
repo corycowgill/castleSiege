@@ -444,7 +444,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0604}
     </div>
     <div style="margin-top:16px;display:flex;justify-content:space-between;align-items:center;font-family:'Cinzel',monospace;font-size:11px;opacity:0.85">
       <span style="color:#555">Three.js &bull; Procedural</span>
-      <span style="color:#ffd700;font-weight:bold;letter-spacing:1px">v3.24 &bull; Build 2026-04-14</span>
+      <span style="color:#ffd700;font-weight:bold;letter-spacing:1px">v3.25 &bull; Build 2026-04-14</span>
     </div>
   </div>
 </div>
@@ -536,7 +536,11 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0604}
 <div id="wave-end-ov" class="hud-overlay">
   <div class="overlay-box">
     <h2 id="we-title" class="gold">WAVE 1 COMPLETE!</h2>
-    <div class="wave-info"><p>+200 Credits | 3 Specials Recharged</p><p id="we-timer">Next wave in 3s</p></div>
+    <div class="wave-info">
+      <p>+250 Credits | 3 Specials Recharged</p>
+      <p id="we-stats" style="font-size:clamp(10px,1.1vw,13px);color:#bbb;margin-top:4px"></p>
+      <p id="we-timer">Next wave in 3s</p>
+    </div>
   </div>
 </div>
 
@@ -544,9 +548,21 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0604}
 <div id="gameover-ov" class="hud-overlay">
   <div class="overlay-box" style="min-width:400px">
     <h2 id="go-title" class="gold">PLAYER 1 WINS!</h2>
+    <p id="go-score" style="font-family:'Cinzel',serif;font-size:clamp(14px,1.6vw,20px);color:#ffd700;margin:6px 0 2px;letter-spacing:2px"></p>
+    <p id="go-best" style="font-size:clamp(10px,1vw,13px);color:#888;margin-bottom:8px"></p>
     <div class="go-stats">
-      <div class="stat-col"><h3 class="p1c">Player 1</h3><p>Castle: <span id="go-p1-hp">0</span> HP</p><p>Kills: <span id="go-p1-kills">0</span></p><p>Damage: <span id="go-p1-dmg">0</span></p></div>
-      <div class="stat-col"><h3 class="p2c">Player 2</h3><p>Castle: <span id="go-p2-hp">0</span> HP</p><p>Kills: <span id="go-p2-kills">0</span></p><p>Damage: <span id="go-p2-dmg">0</span></p></div>
+      <div class="stat-col"><h3 class="p1c">Player 1</h3>
+        <p>Castle: <span id="go-p1-hp">0</span> HP</p>
+        <p>Kills: <span id="go-p1-kills">0</span></p>
+        <p>Damage: <span id="go-p1-dmg">0</span></p>
+        <p>Waves: <span id="go-p1-waves">0</span></p>
+      </div>
+      <div class="stat-col"><h3 class="p2c">Player 2</h3>
+        <p>Castle: <span id="go-p2-hp">0</span> HP</p>
+        <p>Kills: <span id="go-p2-kills">0</span></p>
+        <p>Damage: <span id="go-p2-dmg">0</span></p>
+        <p>Waves: <span id="go-p2-waves">0</span></p>
+      </div>
     </div>
     <p class="restart-prompt blink">Press [A] / [Space] / Click to play again</p>
   </div>
@@ -746,6 +762,8 @@ let isMobile=('ontouchstart' in window)||(navigator.maxTouchPoints>0);
 
 // ==================== GAME STATE ====================
 let gameState='modeselect';
+// v3.25: wave-start stat snapshots for per-wave recap
+let __waveStartKills1=0,__waveStartKills2=0,__waveStartDmg1=0,__waveStartDmg2=0;
 let waveNum=0,buildTimer=0,waveEndTimer=0;
 let spawnQueue1=[],spawnQueue2=[],spawnTimer=0;
 const enemies=[],towers=[],projectiles=[];
@@ -2603,6 +2621,15 @@ function updateHUD(){
     h.armyCounts.style.display='none';
     h.weTitle.textContent=`WAVE ${waveNum} COMPLETE!`;
     h.weTimer.textContent=`Next wave in ${Math.ceil(waveEndTimer)}s`;
+    // v3.25: per-wave recap stats
+    if(!h.weStats)h.weStats=document.getElementById('we-stats');
+    if(h.weStats){
+      const wk1=p1.kills-(__waveStartKills1||0);
+      const wk2=p2.kills-(__waveStartKills2||0);
+      const wd1=Math.round(p1.totalDmgDealt-(__waveStartDmg1||0));
+      const wd2=Math.round(p2.totalDmgDealt-(__waveStartDmg2||0));
+      h.weStats.textContent=`P1: ${wk1} kills, ${wd1} dmg | P2: ${wk2} kills, ${wd2} dmg`;
+    }
   }
 
   // Build option highlighting (uses cached NodeLists + dataset.idx so
@@ -2839,6 +2866,9 @@ function spawnEnemy(type,spawnCol,spawnRow,owner){
 
 function startWave(){
   waveNum++;gameState='combat';sndWaveStart();
+  // v3.25: snapshot kills/damage at wave start for per-wave recap
+  __waveStartKills1=players[1].kills;__waveStartKills2=players[2].kills;
+  __waveStartDmg1=players[1].totalDmgDealt;__waveStartDmg2=players[2].totalDmgDealt;
   // v3.7: advance the time-of-day with each wave (noon → dusk →
   // midnight → dawn → noon across MAX_WAVES waves).
   applyTimeOfDay(timeOfDayForWave(waveNum));
@@ -2980,7 +3010,12 @@ function processInput(dt){
     if(mouseRightClicked)trySell(mousePlayer,mousePNum);
     if(middleClicked)mousePlayer.ready=true;
   }
-  if(gameState==='combat'&&mouseRightClicked)useSpecial(mousePlayer,mousePNum);
+  // v3.25: sell works during combat too (right-click on mouse, E on
+  // keyboard). Allows tactical repositioning mid-wave.
+  if(gameState==='combat'){
+    if(mouseRightClicked)useSpecial(mousePlayer,mousePNum);
+    if(consumeKey('KeyE'))trySell(players[1],1);
+  }
   if(gameState==='gameover'&&(mouseClicked))restartGame();
 }
 
@@ -3219,6 +3254,26 @@ function showGameOver(){
   document.getElementById('go-p2-kills').textContent=players[2].kills;
   document.getElementById('go-p1-dmg').textContent=Math.round(players[1].totalDmgDealt);
   document.getElementById('go-p2-dmg').textContent=Math.round(players[2].totalDmgDealt);
+  // v3.25: waves survived + score
+  document.getElementById('go-p1-waves').textContent=waveNum;
+  document.getElementById('go-p2-waves').textContent=waveNum;
+  // Score formula: waves×1000 + kills×50 + damage/10 + castleHP remaining
+  const p1=players[1];
+  const score=waveNum*1000+p1.kills*50+Math.round(p1.totalDmgDealt/10)+Math.max(0,Math.ceil(p1.castleHP));
+  document.getElementById('go-score').textContent=`SCORE: ${score}`;
+  // Persist best score in localStorage
+  try{
+    const key='castleSiege_bestScore';
+    const best=parseInt(localStorage.getItem(key)||'0',10);
+    if(score>best){
+      localStorage.setItem(key,String(score));
+      document.getElementById('go-best').textContent=`\u2605 NEW BEST! (prev: ${best})`;
+    }else{
+      document.getElementById('go-best').textContent=`Best: ${best}`;
+    }
+  }catch(e){
+    document.getElementById('go-best').textContent='';
+  }
   showScreen('gameover');
 }
 
@@ -3845,16 +3900,27 @@ function aiDoBuildAction(ai){
   const roll=Math.random();
 
   if(roll<0.45&&ai.credits>=100){
-    // Place a tower
-    const affordable=TOWER_DATA.filter(t=>ai.credits>=t.cost);
-    if(affordable.length){
-      const td=affordable[Math.floor(Math.random()*affordable.length)];
-      // Find a good spot - prefer rows near center (7-10) in AI territory
-      const spot=aiFindBuildSpot(pNum);
-      if(spot){
-        ai.cursor.c=spot.c;ai.cursor.r=spot.r;
-        ai.selectedIdx=BUILD_OPTS.findIndex(o=>o.id===td.id);
-        if(ai.selectedIdx>=0)tryPlace(ai,pNum);
+    // v3.25: AI tries to upgrade an existing tower 40% of the time
+    // before building a new one. Uses the v3.22 upgrade mechanic.
+    const myTowers=towers.filter(t=>t.owner===pNum&&(t.level||1)<3);
+    if(myTowers.length&&Math.random()<0.4){
+      const upg=myTowers[Math.floor(Math.random()*myTowers.length)];
+      ai.cursor.c=upg.col;ai.cursor.r=upg.row;
+      // Select ANY tower type in BUILD_OPTS — tryPlace's upgrade
+      // branch checks ownership, not the selected tower type.
+      ai.selectedIdx=BUILD_OPTS.findIndex(o=>o.cat==='tower');
+      if(ai.selectedIdx>=0)tryPlace(ai,pNum);
+    }else{
+      // Place a new tower
+      const affordable=TOWER_DATA.filter(t=>ai.credits>=t.cost);
+      if(affordable.length){
+        const td=affordable[Math.floor(Math.random()*affordable.length)];
+        const spot=aiFindBuildSpot(pNum);
+        if(spot){
+          ai.cursor.c=spot.c;ai.cursor.r=spot.r;
+          ai.selectedIdx=BUILD_OPTS.findIndex(o=>o.id===td.id);
+          if(ai.selectedIdx>=0)tryPlace(ai,pNum);
+        }
       }
     }
   }else if(roll<0.65&&ai.credits>=30){
