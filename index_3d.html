@@ -444,7 +444,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0604}
     </div>
     <div style="margin-top:16px;display:flex;justify-content:space-between;align-items:center;font-family:'Cinzel',monospace;font-size:11px;opacity:0.85">
       <span style="color:#555">Three.js &bull; Procedural</span>
-      <span style="color:#ffd700;font-weight:bold;letter-spacing:1px">v3.25 &bull; Build 2026-04-14</span>
+      <span style="color:#ffd700;font-weight:bold;letter-spacing:1px">v3.26 &bull; Build 2026-04-14</span>
     </div>
   </div>
 </div>
@@ -3689,8 +3689,10 @@ function syncEnemies(){
     const anim=e._anim;
     const inCombat=e.combatTarget&&e.combatTarget.alive;
     const animSpeed=inCombat?anim*2.5:anim;
-    const legSwing=inCombat?0.6:0.4;
-    const armSwing=inCombat?0.5:0.3;
+    // v3.26: bosses use bigger leg/arm swings for more dramatic walk.
+    const isBoss=e.type==='troll'||e.type==='dragon'||e.type==='lich';
+    const legSwing=inCombat?0.6:(isBoss?0.55:0.4);
+    const armSwing=inCombat?0.5:(isBoss?0.45:0.3);
     const s=Math.sin(animSpeed);
     // v3.18: secondary motion drivers for boss parts.
     // A slower sine with phase offset gives head bob + tail sway a
@@ -3708,10 +3710,11 @@ function syncEnemies(){
           case 2: L.grp.rotation.x=-s*armSwing; break;
           case 3: L.grp.rotation.x= s*armSwing; break;
           // v3.18 secondary motions (bosses):
-          case 4: L.grp.rotation.x=s2*0.18;                       break; // head nod
-          case 5: L.grp.rotation.y=s*0.35; L.grp.rotation.x=s2*0.08; break; // tail sway + vertical undulation
-          case 6: L.grp.rotation.x=s*0.25+(inCombat?s3*0.4:0);    break; // weapon swing (more violent in combat)
-          case 7: L.grp.rotation.x=s2*0.22-0.05;                  break; // neck bob (dragon)
+          // v3.26: increased amplitudes for more dramatic boss motion.
+          case 4: L.grp.rotation.x=s2*0.28;                       break; // head nod (bigger)
+          case 5: L.grp.rotation.y=s*0.5; L.grp.rotation.x=s2*0.15; break; // tail sway (wider + more undulation)
+          case 6: L.grp.rotation.x=s*0.35+(inCombat?s3*0.65:0);   break; // weapon swing (much more violent in combat)
+          case 7: L.grp.rotation.x=s2*0.32-0.08;                  break; // neck bob (more dramatic reach)
         }
       }
     }

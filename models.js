@@ -2503,6 +2503,29 @@ function createEnemyModel(type,owner){
       clubGrp.add(mkMesh(new THREE.SphereGeometry(0.015,5,4),bloodDrool).translateX(p[0]).translateY(p[1]).translateZ(p[2]));
     });
 
+    // ============ v3.26 TROLL ANIMATION GRAPHICS UPGRADE ============
+    // Glowing red war-paint eye markings (emissive, visible at night)
+    [-1,1].forEach(s=>{
+      trollHead.add(mkMesh(new THREE.BoxGeometry(0.05,0.008,0.005),warPaint).translateX(s*0.06).translateY(0.17).translateZ(0.16));
+    });
+    // Throbbing chest veins (green-dark lines radiating from center)
+    [[0.05,0.85,0.17,0.4],[-0.05,0.78,0.16,-0.3],[0.08,0.72,0.15,0.2],[-0.08,0.9,0.14,-0.5]].forEach(p=>{
+      g.add(mkMesh(new THREE.BoxGeometry(0.005,0.08,0.004),mkMat(0x1a3a0a)).translateX(p[0]).translateY(p[1]).translateZ(p[2]).rotateZ(p[3]));
+    });
+    // Bone armor plate on left shoulder (over fur)
+    g.add(mkMesh(new THREE.SphereGeometry(0.08,6,4,0,Math.PI*2,0,Math.PI*0.5),bone).translateX(-0.22).translateY(1.08).translateZ(-0.04));
+    // Shoulder plate rivets
+    for(let i=0;i<4;i++){
+      const a=i*Math.PI/2;
+      g.add(mkMesh(new THREE.SphereGeometry(0.01,4,3),ironBand).translateX(-0.22+Math.cos(a)*0.06).translateY(1.08).translateZ(-0.04+Math.sin(a)*0.06));
+    }
+    // Stomp dust cloud effect (static puffs at feet)
+    [-0.14,0.14].forEach(x=>{
+      g.add(mkMesh(new THREE.SphereGeometry(0.08,6,5),
+        mkMat(0x8a7a5a,{transparent:true,opacity:0.25,depthWrite:false}))
+        .translateX(x).translateY(0.04).translateZ(0.04));
+    });
+
   }else if(type==='dragon'){
     // --- DRAGON: fast wyvern, moderate HP, powerful hits ---
     const scale=mkMat(0xa02020,{roughness:0.6});
@@ -2724,6 +2747,29 @@ function createEnemyModel(type,owner){
       tailGrp.add(mkMesh(new THREE.BoxGeometry(0.005,0.05,0.08),brightScale).translateX(s*0.05).translateY(-0.02).translateZ(-0.39));
     });
 
+    // ============ v3.26 DRAGON ANIMATION GRAPHICS UPGRADE ============
+    // Bigger fire breath (visible from far away — main visual signature)
+    headGrp.add(mkMesh(new THREE.ConeGeometry(0.06,0.18,8),fireCore).translateY(0.02).translateZ(0.35).rotateX(Math.PI/2));
+    headGrp.add(mkMesh(new THREE.SphereGeometry(0.08,8,6),
+      mkMat(0xff8822,{emissive:0xff6600,emissiveIntensity:2.0,transparent:true,opacity:0.6,depthWrite:false}))
+      .translateY(0.04).translateZ(0.4));
+    // Heat shimmer sphere around the head
+    headGrp.add(mkMesh(new THREE.SphereGeometry(0.2,8,6),
+      mkMat(0xff4400,{emissive:0xff2200,emissiveIntensity:0.8,transparent:true,opacity:0.15,depthWrite:false})));
+    // Bigger back ridge spikes (body, not neck — more menacing silhouette)
+    for(let i=0;i<5;i++){
+      const z=0.35-i*0.14;
+      g.add(mkMesh(new THREE.ConeGeometry(0.04,0.12,4),brightScale).translateY(0.66).translateZ(z).rotateX(-0.35));
+    }
+    // Claw glow on feet (emissive tips)
+    [-0.13,0.13].forEach(x=>{
+      [-0.04,0,0.04].forEach(tx=>{
+        g.add(mkMesh(new THREE.SphereGeometry(0.01,4,3),
+          mkMat(0xff6622,{emissive:0xff4400,emissiveIntensity:1.5}))
+          .translateX(x+tx).translateY(0.01).translateZ(0.25));
+      });
+    });
+
   }else if(type==='lich'){
     // --- LICH: tall skeletal sorcerer, heavy armor, ranged threat ---
     const robeDark=mkMat(0x2a1a44,{roughness:0.85});
@@ -2816,33 +2862,45 @@ function createEnemyModel(type,owner){
       g.add(armGrp);
     });
 
-    // Skull head
+    // v3.26: Skull + hood wrapped in a head Group for nodding animation.
+    // Pivot at the neck junction (~0.88 y) so the whole head+hood rocks.
+    const lichHead=new THREE.Group();
+    lichHead.userData.limb='head';
+    lichHead.position.set(0,0.88,0);
+    // Skull
     const skullHead=mkMesh(new THREE.SphereGeometry(0.14,10,8),boneMat);
     skullHead.scale.set(1,0.95,1.05);
-    skullHead.position.y=0.98;
-    g.add(skullHead);
+    skullHead.position.y=0.1;
+    lichHead.add(skullHead);
     // Jaw
-    g.add(mkMesh(new THREE.BoxGeometry(0.16,0.05,0.1),boneDark).translateY(0.88).translateZ(0.04));
+    lichHead.add(mkMesh(new THREE.BoxGeometry(0.16,0.05,0.1),boneDark).translateY(0).translateZ(0.04));
     // Teeth row
     for(let i=-3;i<=3;i++){
-      g.add(mkMesh(new THREE.ConeGeometry(0.005,0.015,3),boneMat).translateX(i*0.018).translateY(0.88).translateZ(0.09).rotateX(Math.PI));
+      lichHead.add(mkMesh(new THREE.ConeGeometry(0.005,0.015,3),boneMat).translateX(i*0.018).translateY(0).translateZ(0.09).rotateX(Math.PI));
     }
     // Hollow eye sockets with bright glowing eyes
     [-1,1].forEach(s=>{
-      // Dark socket
-      g.add(mkMesh(new THREE.SphereGeometry(0.035,6,5),mkMat(0x080808)).translateX(s*0.045).translateY(1.0).translateZ(0.1));
-      // Bright inner glow
-      g.add(mkMesh(new THREE.SphereGeometry(0.022,6,5),eyeGlow).translateX(s*0.045).translateY(1.0).translateZ(0.11));
+      lichHead.add(mkMesh(new THREE.SphereGeometry(0.035,6,5),mkMat(0x080808)).translateX(s*0.045).translateY(0.12).translateZ(0.1));
+      // v3.26: bigger brighter eye glow (was 0.022 radius)
+      lichHead.add(mkMesh(new THREE.SphereGeometry(0.028,6,5),eyeGlow).translateX(s*0.045).translateY(0.12).translateZ(0.11));
+      // Outer eye glow aura
+      lichHead.add(mkMesh(new THREE.SphereGeometry(0.04,6,5),
+        mkMat(0x88ccff,{emissive:0x4488ff,emissiveIntensity:1.5,transparent:true,opacity:0.4,depthWrite:false}))
+        .translateX(s*0.045).translateY(0.12).translateZ(0.105));
     });
     // Nose hole
-    g.add(mkMesh(new THREE.ConeGeometry(0.015,0.03,4),mkMat(0x080808)).translateY(0.95).translateZ(0.125).rotateX(Math.PI));
-
+    lichHead.add(mkMesh(new THREE.ConeGeometry(0.015,0.03,4),mkMat(0x080808)).translateY(0.07).translateZ(0.125).rotateX(Math.PI));
     // Dark hood covering the back of the skull
-    g.add(mkMesh(new THREE.SphereGeometry(0.16,10,5,0,Math.PI*2,0,Math.PI*0.6),robeDark).translateY(1.02));
+    lichHead.add(mkMesh(new THREE.SphereGeometry(0.16,10,5,0,Math.PI*2,0,Math.PI*0.6),robeDark).translateY(0.14));
     // Hood trim
-    g.add(mkMesh(new THREE.TorusGeometry(0.155,0.006,4,12),robeTrim).translateY(0.97).rotateX(0.3));
+    lichHead.add(mkMesh(new THREE.TorusGeometry(0.155,0.006,4,12),robeTrim).translateY(0.09).rotateX(0.3));
     // Hood point
-    g.add(mkMesh(new THREE.ConeGeometry(0.04,0.08,5),robeDark).translateY(1.18));
+    lichHead.add(mkMesh(new THREE.ConeGeometry(0.04,0.08,5),robeDark).translateY(0.3));
+    // v3.26: skull cracks (dark lines across the cranium)
+    [[0.04,0.12,-0.3],[-0.03,0.15,0.4],[0.06,0.08,0.2]].forEach(p=>{
+      lichHead.add(mkMesh(new THREE.BoxGeometry(0.004,0.06,0.004),boneDark).translateX(p[0]).translateY(0.1).translateZ(p[1]).rotateZ(p[2]));
+    });
+    g.add(lichHead);
 
     // v3.18: Staff in a weapon pivot group so it bobs/sways with
     // the walk cycle (gentle since lich is a slow caster).
@@ -2965,6 +3023,34 @@ function createEnemyModel(type,owner){
       staff.add(mkMesh(new THREE.BoxGeometry(0.003,0.012,0.02),runeMat).translateY(y).translateZ(0.021));
       staff.add(mkMesh(new THREE.BoxGeometry(0.003,0.012,0.02),runeMat).translateY(y).translateZ(-0.021));
     });
+
+    // ============ v3.26 LICH ANIMATION GRAPHICS UPGRADE ============
+    // Bigger staff crystal glow aura (visible from far away)
+    staff.add(mkMesh(new THREE.SphereGeometry(0.1,10,8),
+      mkMat(0x88ddff,{emissive:0x44aaff,emissiveIntensity:1.8,transparent:true,opacity:0.3,depthWrite:false}))
+      .translateY(0.56));
+    // Ethereal mist trail around the robe hem (4 translucent wisps)
+    for(let i=0;i<6;i++){
+      const a=(i/6)*Math.PI*2;
+      g.add(mkMesh(new THREE.SphereGeometry(0.06,5,4),
+        mkMat(0x553388,{transparent:true,opacity:0.2+Math.random()*0.1,depthWrite:false}))
+        .translateX(Math.cos(a)*0.3).translateY(0.08).translateZ(Math.sin(a)*0.3));
+    }
+    // Brighter rune circle on the ground beneath the lich
+    g.add(mkMesh(new THREE.TorusGeometry(0.35,0.01,4,20),
+      mkMat(0xcc88ff,{emissive:0x9944cc,emissiveIntensity:2.0,transparent:true,opacity:0.6}))
+      .translateY(0.02).rotateX(Math.PI/2));
+    // Inner rune circle
+    g.add(mkMesh(new THREE.TorusGeometry(0.25,0.008,4,16),
+      mkMat(0xee99ff,{emissive:0xcc66ff,emissiveIntensity:1.5,transparent:true,opacity:0.45}))
+      .translateY(0.025).rotateX(Math.PI/2));
+    // Soul wisp particles (6 small bright spheres orbiting at chest level)
+    for(let i=0;i<6;i++){
+      const a=i*Math.PI/3+0.3;
+      g.add(mkMesh(new THREE.SphereGeometry(0.015,5,4),
+        mkMat(0xaaddff,{emissive:0x66aaff,emissiveIntensity:3.0}))
+        .translateX(Math.cos(a)*0.28).translateY(0.55+i*0.03).translateZ(Math.sin(a)*0.28));
+    }
 
   }else{
     // --- ARCHER: agile, elven, ranged with bow ---
