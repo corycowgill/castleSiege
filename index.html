@@ -3327,13 +3327,14 @@ window.game = new Phaser.Game(config);
 
 // Welcome screen handler
 const welcomeEl=document.getElementById('welcome-screen');
-function dismissWelcome(){
+function dismissWelcome(e){
+  e.stopPropagation();
   welcomeEl.style.display='none';
   if(!audioCtx)initAudio();
   titleMusic.currentTime=0;titleMusic.play().catch(()=>{});
 }
-welcomeEl.addEventListener('click',dismissWelcome);
-welcomeEl.addEventListener('touchstart',(e)=>{e.preventDefault();dismissWelcome();},{passive:false});
+welcomeEl.addEventListener('mousedown',(e)=>dismissWelcome(e));
+welcomeEl.addEventListener('touchstart',(e)=>{e.preventDefault();dismissWelcome(e);},{passive:false});
 </script>
 </body>
 </html>

@@ -4266,7 +4266,8 @@ function init(){
   initParticles();
   initCursors();
   initHUD();
-  showScreen('modeselect');
+  // Hide everything behind welcome screen initially
+  showScreen('none');
 
   // Mode select buttons
   function select1P(){
@@ -4293,6 +4294,8 @@ function init(){
       document.getElementById('hint-right').textContent='Mouse:Aim Scroll:Cycle LClick:Place RClick:Sell F:Special';
     }
     gameState='title';showScreen('title');
+    mouseClicked=false;mouseRightClicked=false;middleClicked=false;
+    titleMusic.currentTime=0;titleMusic.play().catch(()=>{});
   }
   function select2P(){
     if(!audioCtx)initAudio();
@@ -4300,6 +4303,8 @@ function init(){
     registerCanvasTouchListeners();
     document.getElementById('title-sub-text').textContent='2-Player Tower Defense - 3D Edition';
     gameState='title';showScreen('title');
+    mouseClicked=false;mouseRightClicked=false;middleClicked=false;
+    titleMusic.currentTime=0;titleMusic.play().catch(()=>{});
   }
   // Make select functions globally accessible for inline onclick fallback
   window._select1P=select1P;
@@ -4341,18 +4346,17 @@ function init(){
   // Init touch controls
   initTouchControls();
 
-  // Welcome screen — click to dismiss and start title music
+  // Welcome screen — click to dismiss and show mode select
   const welcomeEl=document.getElementById('welcome-screen');
-  welcomeEl.addEventListener('click',()=>{
+  function dismissWelcome(){
     welcomeEl.style.display='none';
     if(!audioCtx)initAudio();
-    titleMusic.currentTime=0;titleMusic.play().catch(()=>{});
-  });
+    gameState='modeselect';showScreen('modeselect');
+  }
+  welcomeEl.addEventListener('click',dismissWelcome);
   welcomeEl.addEventListener('touchstart',(e)=>{
     e.preventDefault();
-    welcomeEl.style.display='none';
-    if(!audioCtx)initAudio();
-    titleMusic.currentTime=0;titleMusic.play().catch(()=>{});
+    dismissWelcome();
   },{passive:false});
 
   gameLoop();
