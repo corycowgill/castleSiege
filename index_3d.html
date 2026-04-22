@@ -414,6 +414,44 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0604}
 
 <div id="hud-root">
 
+<!-- WELCOME SCREEN -->
+<div id="welcome-screen" style="position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;cursor:pointer;
+  background:radial-gradient(ellipse at 50% 35%,rgba(56,36,14,.4) 0%,rgba(6,3,1,.98) 65%),
+  repeating-linear-gradient(0deg,rgba(0,0,0,.15) 0 1px,transparent 1px 4px),
+  linear-gradient(180deg,#0a0604,#000)">
+  <div style="text-align:center;max-width:800px;width:90%;padding:50px 44px 40px;position:relative;
+    background:var(--panel);border:3px double var(--gold-d);
+    box-shadow:inset 0 0 100px rgba(230,191,86,.06),inset 0 0 0 1px var(--wood-d),0 0 80px rgba(0,0,0,.95),0 0 0 1px var(--wood-d)">
+    <div style="position:absolute;inset:7px;border:1px solid var(--gold-d);opacity:.5;pointer-events:none"></div>
+    <div style="position:absolute;top:-9px;left:50%;transform:translateX(-50%);width:100px;height:18px;
+      background:radial-gradient(ellipse at center,var(--gold) 0%,var(--gold-d) 40%,transparent 70%);opacity:.8;pointer-events:none"></div>
+    <p style="font-family:'Cinzel',serif;font-weight:700;font-size:clamp(11px,1.3vw,14px);
+      color:var(--parch-d);letter-spacing:6px;text-transform:uppercase;margin-bottom:12px">Hear Ye, Hear Ye</p>
+    <h1 style="font-family:'Cinzel',serif;font-weight:900;font-size:clamp(44px,8vw,90px);
+      color:var(--gold-b);letter-spacing:10px;margin-bottom:8px;line-height:1;
+      text-shadow:-2px -2px 0 #1a0a00,2px -2px 0 #1a0a00,-2px 2px 0 #1a0a00,2px 2px 0 #1a0a00,
+      0 0 30px rgba(230,191,86,.7),0 0 60px rgba(230,191,86,.3),0 6px 12px #000">CASTLE SIEGE</h1>
+    <div style="width:60%;margin:14px auto;height:2px;background:linear-gradient(90deg,transparent,var(--gold-d),var(--gold),var(--gold-d),transparent)"></div>
+    <p style="font-family:'IM Fell English',serif;font-style:italic;font-size:clamp(14px,2vw,20px);
+      color:var(--parch);line-height:1.7;margin-bottom:8px;max-width:600px;margin-left:auto;margin-right:auto">
+      The realm stands upon the edge of ruin. Dark forces gather beyond the walls,
+      and only the bravest commanders shall hold the line. Steel your nerves, marshal your towers,
+      and let no enemy breach these hallowed gates.</p>
+    <p style="font-family:'IM Fell English',serif;font-style:italic;font-size:clamp(12px,1.5vw,16px);
+      color:var(--parch-d);margin-bottom:28px">The kingdom awaits your command.</p>
+    <div style="display:inline-block;padding:14px 44px;border:2px solid var(--gold);position:relative;
+      background:linear-gradient(180deg,rgba(230,191,86,.15) 0%,rgba(74,52,16,.3) 100%);
+      box-shadow:0 0 20px rgba(230,191,86,.25),inset 0 0 20px rgba(230,191,86,.08);
+      animation:torch 2.2s ease-in-out infinite">
+      <span style="font-family:'Cinzel',serif;font-weight:900;font-size:clamp(16px,2.2vw,24px);
+        color:var(--gold-b);letter-spacing:5px;text-transform:uppercase;
+        text-shadow:0 0 14px rgba(230,191,86,.6)">ANSWER THE CALL TO ARMS</span>
+    </div>
+    <p style="font-family:'IM Fell English',serif;font-size:clamp(10px,1.1vw,13px);
+      color:var(--parch-d);margin-top:18px;opacity:.7;letter-spacing:1px">Click anywhere to enter</p>
+  </div>
+</div>
+
 <!-- TITLE SCREEN -->
 <div id="title-screen" class="hud-screen">
   <div class="title-content">
@@ -683,8 +721,11 @@ function sndMelee(){playSound(300+Math.random()*200,0.08,'sawtooth',0.04)}
 let musicPlaying=false;
 const bgMusic=new Audio('Where_the_Anvil_Falls.mp3');
 bgMusic.loop=true;bgMusic.volume=0.5;
+const titleMusic=new Audio('Banners_of_the_Iron_Hold.mp3');
+titleMusic.loop=true;titleMusic.volume=0.5;
 function startMusic(){
   if(musicPlaying)return;musicPlaying=true;
+  titleMusic.pause();
   bgMusic.currentTime=0;bgMusic.play().catch(()=>{});
 }
 function stopMusic(){musicPlaying=false;bgMusic.pause();}
@@ -4299,6 +4340,20 @@ function init(){
 
   // Init touch controls
   initTouchControls();
+
+  // Welcome screen — click to dismiss and start title music
+  const welcomeEl=document.getElementById('welcome-screen');
+  welcomeEl.addEventListener('click',()=>{
+    welcomeEl.style.display='none';
+    if(!audioCtx)initAudio();
+    titleMusic.currentTime=0;titleMusic.play().catch(()=>{});
+  });
+  welcomeEl.addEventListener('touchstart',(e)=>{
+    e.preventDefault();
+    welcomeEl.style.display='none';
+    if(!audioCtx)initAudio();
+    titleMusic.currentTime=0;titleMusic.play().catch(()=>{});
+  },{passive:false});
 
   gameLoop();
 }
