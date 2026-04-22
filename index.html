@@ -176,46 +176,14 @@ function sndWallHit(){playSound(120,0.2,'sawtooth',0.1);playSound(80,0.15,'squar
 function sndMelee(){playSound(300+Math.random()*200,0.08,'sawtooth',0.04)}
 
 // --- MUSIC SYSTEM ---
-let musicPlaying=false,musicId=null;
-function schedNote(freq,time,dur,wave,vol){
-  if(!audioCtx)return;
-  const o=audioCtx.createOscillator(),g=audioCtx.createGain();
-  o.type=wave;o.frequency.value=freq;
-  g.gain.setValueAtTime(vol,time);g.gain.exponentialRampToValueAtTime(0.001,time+dur);
-  o.connect(g);g.connect(audioCtx.destination);o.start(time);o.stop(time+dur+0.02);
-}
+let musicPlaying=false;
+const bgMusic=new Audio('Where_the_Anvil_Falls.mp3');
+bgMusic.loop=true;bgMusic.volume=0.5;
 function startMusic(){
-  if(!audioCtx||musicPlaying)return;musicPlaying=true;
-  const tempo=140,sixth=60/tempo/4,startT=audioCtx.currentTime+0.1;
-  let lastS=-1;
-  const S=[110,123.47,130.81,146.83,164.81,174.61,196,220,246.94,261.63,293.66,329.63,349.23,392,440,493.88,523.25];
-  const bass=[0,-1,0,-1,0,-1,0,-1,0,-1,0,-1,0,-1,0,-1,3,-1,3,-1,3,-1,3,-1,3,-1,3,-1,3,-1,3,-1,4,-1,4,-1,4,-1,4,-1,4,-1,4,-1,4,-1,4,-1,0,-1,0,-1,0,-1,0,-1,0,-1,0,-1,0,-1,0,-1,0,-1,0,-1,0,-1,0,-1,0,-1,0,-1,0,-1,2,-1,3,-1,3,-1,3,-1,3,-1,3,-1,3,-1,3,-1,4,-1,4,-1,4,-1,4,-1,6,-1,6,-1,6,-1,6,-1,6,-1,0,-1,0,-1,0,-1,0,-1,0,-1,0,-1,0,-1,0,-1];
-  const melody=[-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,7,-1,-1,-1,9,-1,-1,-1,10,-1,-1,-1,11,-1,-1,-1,11,-1,10,-1,9,-1,-1,-1,10,-1,-1,-1,7,-1,-1,-1,7,-1,-1,-1,9,-1,10,-1,11,-1,-1,-1,14,-1,-1,-1,14,-1,11,-1,10,-1,-1,-1,9,-1,10,-1,11,-1,9,-1,11,-1,-1,-1,13,-1,14,-1,11,-1,10,-1,9,-1,10,-1,7,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1];
-  const harm=[7,-1,-1,-1,-1,-1,-1,-1,7,-1,-1,-1,-1,-1,-1,-1,10,-1,-1,-1,-1,-1,-1,-1,10,-1,-1,-1,-1,-1,-1,-1,11,-1,-1,-1,-1,-1,-1,-1,11,-1,-1,-1,-1,-1,-1,-1,7,-1,-1,-1,-1,-1,-1,-1,7,-1,-1,-1,-1,-1,-1,-1,7,-1,-1,-1,9,-1,-1,-1,7,-1,-1,-1,9,-1,-1,-1,10,-1,-1,-1,-1,-1,-1,-1,10,-1,-1,-1,11,-1,-1,-1,11,-1,-1,-1,13,-1,-1,-1,11,-1,-1,-1,13,-1,-1,-1,7,-1,-1,-1,-1,-1,-1,-1,7,-1,-1,-1,-1,-1,-1,-1];
-  const arp=[-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,14,11,9,7,14,11,9,7,14,11,9,7,14,11,9,7,10,14,10,7,10,14,10,7,10,14,10,7,10,14,10,7,11,14,11,9,11,14,11,9,13,11,9,7,13,11,9,7,14,11,7,4,14,11,7,4,14,11,7,-1,-1,-1,-1,-1];
-  const total=128;
-  musicId=setInterval(()=>{
-    if(!musicPlaying)return;
-    const now=audioCtx.currentTime,look=0.15;
-    const s0=Math.floor((now-startT)/sixth),s1=Math.floor((now-startT+look)/sixth);
-    for(let s=Math.max(s0,lastS+1);s<=s1;s++){
-      const t=startT+s*sixth,step=((s%total)+total)%total;
-      if(step%16===0||step%16===8){schedNote(55,t,0.15,'sine',0.2);schedNote(110,t,0.05,'sine',0.12)}
-      if(step%16===4||step%16===12){schedNote(180,t,0.08,'triangle',0.08);schedNote(4000+Math.random()*3000,t,0.06,'square',0.025)}
-      if(step%2===0)schedNote(8000+Math.random()*3000,t,0.02,'square',0.015);
-      if(step>=64&&step%2===1)schedNote(10000,t,0.015,'square',0.008);
-      if(step%32===0){schedNote(40,t,0.4,'sine',0.22);schedNote(80,t,0.25,'sine',0.12)}
-      if(step%16===14)schedNote(100,t,0.1,'sine',0.1);
-      if(step%16===15)schedNote(130,t,0.1,'sine',0.1);
-      if(bass[step]>=0)schedNote(S[bass[step]]/2,t,sixth*1.8,'sawtooth',0.08);
-      if(melody[step]>=0)schedNote(S[melody[step]],t,sixth*3.5,'square',0.055);
-      if(harm[step]>=0){schedNote(S[harm[step]],t,sixth*7,'triangle',0.028);schedNote(S[harm[step]]*1.5,t,sixth*7,'triangle',0.02)}
-      if(arp[step]>=0)schedNote(S[arp[step]]*2,t,sixth*0.8,'square',0.025);
-    }
-    lastS=s1;
-  },25);
+  if(musicPlaying)return;musicPlaying=true;
+  bgMusic.currentTime=0;bgMusic.play().catch(()=>{});
 }
-function stopMusic(){musicPlaying=false;if(musicId){clearInterval(musicId);musicId=null}}
+function stopMusic(){musicPlaying=false;bgMusic.pause();}
 
 // --- GRID & PATHFINDING ---
 let grid=[];
