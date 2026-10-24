@@ -494,6 +494,25 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
 #settings-ov{position:fixed;inset:0;z-index:420;display:none;align-items:center;justify-content:center;pointer-events:auto;
   background:rgba(4,3,3,.72);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);animation:fadeIn .2s both}
 .settings-panel{width:min(460px,92vw)}
+/* v3.45: honours */
+#honours-ov{position:fixed;inset:0;z-index:420;display:none;align-items:center;justify-content:center;pointer-events:auto;
+  background:rgba(4,3,3,.72);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);animation:fadeIn .2s both}
+.hon-panel{width:min(940px,94vw);max-height:92vh;display:flex;flex-direction:column}
+.hon-prog{display:flex;align-items:center;gap:12px;margin:2px 0 12px;font-size:13px;color:var(--parch-d);font-style:italic}
+.hon-track{flex:1;height:5px;border-radius:3px;background:rgba(0,0,0,.45);overflow:hidden}.hon-track i{display:block;height:100%;width:0;background:linear-gradient(90deg,#c9993f,#f6dc8e);transition:width .6s var(--ease-out)}
+#hon-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;overflow-y:auto;padding:2px;margin-bottom:14px;text-align:left}
+.hon{display:flex;gap:10px;align-items:flex-start;padding:9px 10px;border:1px solid rgba(255,220,150,.1);border-radius:4px;background:rgba(0,0,0,.25);opacity:.55;filter:grayscale(1)}
+.hon .ico{flex:none;width:26px;height:26px;padding:5px;border-radius:50%;border:1px solid rgba(255,220,150,.25);color:#9f927a;fill:none;stroke:currentColor;stroke-width:1.8}
+.hon .hn{font-family:var(--f-display);font-weight:700;letter-spacing:.06em;color:#e8d8b0;font-size:13px}
+.hon .hd{font-size:12px;color:#b8aa8a;line-height:1.3;margin-top:1px}.hon .ht{font-size:10.5px;color:#9f927a;margin-top:3px;font-style:italic}
+.hon.got{opacity:1;filter:none;border-color:rgba(255,215,110,.4);background:linear-gradient(180deg,rgba(120,84,30,.28),rgba(30,20,8,.35))}
+.hon.got .ico{color:#ffd76a;border-color:#e0b860;box-shadow:0 0 12px rgba(255,200,90,.35)}
+#go-hon{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:6px;margin:8px 0 0;font-size:12px}
+#go-hon:empty{display:none}
+#go-hon .mk{font-family:var(--f-display);letter-spacing:.2em;font-size:.8em;color:var(--parch-d);text-transform:uppercase}
+#go-hon .hb{display:inline-flex;align-items:center;gap:5px;padding:3px 9px 3px 6px;border:1px solid rgba(255,215,110,.45);border-radius:12px;color:#ffd76a;font-family:var(--f-display);letter-spacing:.05em;background:rgba(80,56,20,.35)}
+#go-hon .hb .ico{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2}
+@media(max-height:500px){#hon-grid{grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:5px}.hon{padding:6px 8px}.hon .hd{font-size:11px}.hon-panel{padding:14px 18px}.hon-panel h2{font-size:22px;margin:2px 0}}
 .set-row{all:unset;box-sizing:border-box;display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;margin:2px 0;cursor:pointer;
   border:1px solid transparent;font-family:var(--f-display);font-weight:700;font-size:clamp(11px,1.1vw,14px);letter-spacing:.14em;text-transform:uppercase;color:var(--parch);transition:background .2s,border-color .2s}
 .set-row:hover,.set-row.focus{background:rgba(217,178,95,.1);border-color:var(--line)}
@@ -627,14 +646,27 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
         <span class="mi-idx">III</span><span class="mi-label">How to Play</span><span class="mi-sub">Reference</span></button>
       <button class="menu-item" id="btn-menu-settings" data-desc="Volume, graphics quality, screen shake and damage numbers.">
         <span class="mi-idx">IV</span><span class="mi-label">Settings</span><span class="mi-sub">Options</span></button>
+      <button class="menu-item" id="btn-menu-honours" data-desc="Sixteen feats of war to earn across Campaign, Endless and Versus.">
+        <span class="mi-idx">V</span><span class="mi-label">Honours</span><span class="mi-sub" id="btn-menu-hon-sub">0 / 16</span></button>
       <a class="menu-item" id="btn-menu-guide" href="guide.html" data-desc="Inspect every tower, soldier and boss in the illustrated field guide.">
-        <span class="mi-idx">V</span><span class="mi-label">Field Guide</span><span class="mi-sub">Bestiary</span></a>
+        <span class="mi-idx">VI</span><span class="mi-label">Field Guide</span><span class="mi-sub">Bestiary</span></a>
     </nav>
     <p class="menu-desc" id="menu-desc">Hold your keep against a scheming AI warlord across ten waves, from noon to the final dawn.</p>
   </div>
   <div class="menu-foot">
     <div class="foot-hints"><span><span class="key">&uarr;</span><span class="key">&darr;</span> Navigate</span><span><span class="key">Enter</span> Select</span><span><span class="key round">A</span> Confirm</span></div>
-    <div class="foot-ver">Castle Siege <b>v3.44</b> &bull; Build 2026-10-24</div>
+    <div class="foot-ver">Castle Siege <b>v3.45</b> &bull; Build 2026-10-24</div>
+  </div>
+</div>
+
+<!-- HONOURS (v3.45) -->
+<div id="honours-ov">
+  <div class="pause-panel hon-panel panel frame">
+    <div class="kicker">Feats of War</div>
+    <h2>Honours</h2>
+    <div class="hon-prog"><span id="hon-count"></span><div class="hon-track"><i id="hon-bar"></i></div></div>
+    <div id="hon-grid"></div>
+    <button class="btn primary" id="btn-hon-done">Done <span class="key">Esc</span></button>
   </div>
 </div>
 
@@ -836,6 +868,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
     <h2 id="go-title">Victory</h2>
     <p id="go-sub">The enemy keep lies in ruin.</p>
     <div class="go-score-row"><span id="go-score">0</span><span id="go-best"></span></div>
+    <div id="go-hon"></div>
     <div class="go-stats panel frame">
       <div class="go-head"><span class="p1c" id="go-p1-name">Player 1</span><span class="p2c" id="go-p2-name">Player 2</span></div>
       <div id="go-cmp"></div>
@@ -3272,7 +3305,7 @@ function tryPlace(player,pNum){
     if(player.credits>=opt.cost){
       player.credits-=opt.cost;
       player.enemyQueue[opt.id]=(player.enemyQueue[opt.id]||0)+1;
-      sndBuild();uiToast(pNum,`${opt.name} joins the next wave`,'gold',OPT_ICON[opt.id]);
+      sndBuild();uiToast(pNum,`${opt.name} joins the next wave`,'gold',OPT_ICON[opt.id]);if(pNum===1)uiHonoursEvent('boss');
     }else uiToast(pNum,`Need $${opt.cost-player.credits} more gold`,'bad','coin');
     return;
   }
@@ -3567,7 +3600,7 @@ function startBuild(){
       if(interest>0){const cw=tileToWorld(pn===1?1:38,9);spawnDmgNumber(cw.x,1.8,cw.z,'+$'+interest+' INTEREST','#ffd700')}
     }
   }
-  showScreen('game');
+  showScreen('game');uiHonoursEvent('build');
   uiBuildBanner();
 }
 
@@ -4010,7 +4043,7 @@ function restartGame(){
   players[2].castleHP=CASTLE_HP;players[2].maxHP=CASTLE_HP;players[2].credits=START_CREDITS;
   players[2].specials=3;players[2].ready=false;players[2].selectedIdx=0;players[2].kills=0;players[2].totalDmgDealt=0;
   players[2].enemyQueue={goblin:0,orc:0,darkKnight:0,archer:0,troll:0,dragon:0,lich:0};players[2].cursor={c:30,r:9};
-  applyDifficultyStart();uiTutorialReset();
+  applyDifficultyStart();uiTutorialReset();uiHonoursReset();
   stopMusic(0.3);startMusic();gameState='build';buildTimer=BUILD_TIME;
   aiBuildTimer=0;aiSpecialTimer=0;
   document.getElementById('pause-ov').style.display='none';
@@ -5376,7 +5409,7 @@ function updateTitle(){
     __lobbyLaunching=true;uiSfx('select');
     setTimeout(()=>uiFade(()=>{
       __lobbyLaunching=false;
-      startMusic();gameState='build';buildTimer=BUILD_TIME;applyTimeOfDay(0);applyDifficultyStart();uiTutorialReset();
+      startMusic();gameState='build';buildTimer=BUILD_TIME;applyTimeOfDay(0);applyDifficultyStart();uiTutorialReset();uiHonoursReset();
       players[1].ready=false;players[2].ready=false;showScreen('game');uiBuildBanner();
     }),450);
   }
@@ -5473,7 +5506,7 @@ function gameLoop(){
   }
 
   updateHUD();
-  uiTutorialTick(rawDt);uiInspectTick();
+  uiTutorialTick(rawDt);uiInspectTick();uiHonoursTick(rawDt);
 
   // Screen shake effect (visual only — uses raw render dt)
   if(screenShake>0&&camera){

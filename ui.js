@@ -119,6 +119,15 @@ function uiNavActivate(){const cur=__nav.items[__nav.idx];if(cur){uiSfx('select'
 // Keyboard + gamepad driver; call once per frame while a nav list is live.
 let __navPadPrev={};
 function uiNavPoll(){
+  if(typeof __honOpen!=='undefined'&&__honOpen){
+    if(consumeKey('Escape')||consumeKey('Enter')||consumeKey('Space')){uiCloseHonours();return}
+    const hg=document.getElementById('hon-grid'),sc=d=>hg&&hg.scrollBy({top:d*90,behavior:'smooth'});
+    if(consumeKey('ArrowUp')||consumeKey('KeyW'))sc(-1);if(consumeKey('ArrowDown')||consumeKey('KeyS'))sc(1);
+    const gp=getGamepad();
+    if(gp){const b=i=>gp.buttons[i]&&gp.buttons[i].pressed&&!__navPadPrev[i];if(b(0)||b(1))uiCloseHonours();if(b(12))sc(-1);if(b(13))sc(1);
+      const np={};for(let i=0;i<gp.buttons.length;i++)np[i]=gp.buttons[i].pressed;__navPadPrev=np}
+    return;
+  }
   if(__settingsOpen){
     // settings: up/down choose, left/right adjust, Enter cycles, Esc closes
     if(consumeKey('Escape')){uiCloseSettings();return}
@@ -340,6 +349,9 @@ function uiGameOver(winner,score,best,isNewBest,ex){ex=ex||{};
   // v3.41: each side's most valuable tower (by kills, then damage)
   const mvp=pn=>{let b=null;for(const t of towers)if(t.owner===pn&&(!b||(t.kills||0)>(b.kills||0)||((t.kills||0)===(b.kills||0)&&(t.dmgDone||0)>(b.dmgDone||0))))b=t;return b&&(b.kills||b.dmgDone)?b:null};
   const mv=(t,side)=>t?`<div class="mv ${side}"><span class="mk">MVP tower</span><span class="mn">${TOWER_DATA.find(d=>d.id===t.type).name} \u00B7 Lv${t.level||1}</span><span class="ms">${t.kills||0} kills \u00B7 ${Math.round(t.dmgDone||0).toLocaleString()} dmg</span></div>`:`<div class="mv ${side}"></div>`;
+  uiHonoursGameOver(winner);
+  const hon=document.getElementById('go-hon');
+  if(hon)hon.innerHTML=__honBattle.length?`<span class="mk">Honours earned</span> `+__honBattle.map(id=>{const h=HONOURS.find(x=>x.id===id);return `<span class="hb">${uiIcon(h.icon)}${h.name}</span>`}).join(''):'';
   const m1=mvp(1),m2=mvp(2);
   document.getElementById('go-mvp').innerHTML=(m1||m2)?mv(m1,'l')+mv(m2,'r'):'';
   setTimeout(()=>{
@@ -560,4 +572,90 @@ document.addEventListener('DOMContentLoaded',()=>{
   for(const pn of [1,2]){const el=document.getElementById('insp-'+pn);if(!el)continue;
     const go=e=>{if(!e.target.closest('.tgt'))return;e.preventDefault();e.stopPropagation();cycleTargetMode(players[pn],pn)};
     el.addEventListener('pointerdown',go);}
+});
+
+// ==================== HONOURS (v3.45) ====================
+// Local achievements for Player 1 / the Blue Crown. Unlocks persist in
+// localStorage (castleSiege_honours = {id: unlock time}). State-based
+// goals are polled twice a second during a battle; wins and records are
+// awarded from the game-over screen via uiHonoursGameOver().
+const HONOURS=[
+  {id:'firstwave',name:'First Light',desc:'Survive your first wave.',icon:'check'},
+  {id:'mason',name:'Stonemason',desc:'Hold 12 walls or barricades at once.',icon:'wall'},
+  {id:'master',name:'Master Builder',desc:'Raise a tower to level 3.',icon:'up'},
+  {id:'arsenal',name:'Full Arsenal',desc:'Field all four tower types at once.',icon:'turret'},
+  {id:'veteran',name:'Veteran Tower',desc:'One tower scores 100 kills.',icon:'target'},
+  {id:'boss',name:'Hired Monster',desc:'Send a boss into battle.',icon:'troll'},
+  {id:'rain',name:'Rain of Ruin',desc:'Cast all three specials in a single wave.',icon:'meteor'},
+  {id:'chest',name:'War Chest',desc:'Begin a build phase with $2,000 banked.',icon:'coin'},
+  {id:'easy',name:'Squire’s Crown',desc:'Win a Campaign on Easy.',icon:'emblem'},
+  {id:'normal',name:'Knight’s Crown',desc:'Win a Campaign on Normal.',icon:'emblem'},
+  {id:'hard',name:'Warlord Slayer',desc:'Win a Campaign on Hard.',icon:'emblem'},
+  {id:'flawless',name:'Untouched',desc:'Win a Campaign with your keep at full health.',icon:'heal'},
+  {id:'breaker',name:'Keepbreaker',desc:'Bring the enemy keep to ruin.',icon:'bombard'},
+  {id:'night',name:'The Long Night',desc:'Reach wave 15 in Endless.',icon:'freeze'},
+  {id:'eternal',name:'The Siege Eternal',desc:'Reach wave 25 in Endless.',icon:'lich'},
+  {id:'duel',name:'Duelist',desc:'Finish a Versus match.',icon:'lightning'},
+];
+let __hon=(()=>{try{return JSON.parse(localStorage.getItem('castleSiege_honours')||'{}')||{}}catch(e){return{}}})();
+let __honBattle=[],__honT=0,__honOpen=false;
+function uiHonourCount(){return HONOURS.filter(h=>__hon[h.id]).length}
+function uiHonour(id){
+  if(__hon[id])return false;const h=HONOURS.find(x=>x.id===id);if(!h)return false;
+  __hon[id]=Date.now();try{localStorage.setItem('castleSiege_honours',JSON.stringify(__hon))}catch(e){}
+  __honBattle.push(id);
+  uiCallout(`Honour earned · <b>${h.name}</b>`,'#ffd76a',h.icon);uiSfx('select');
+  uiSyncHonoursMenu();return true;
+}
+function uiHonoursReset(){__honBattle=[];__honT=0}
+function uiHonoursTick(dt){
+  if(!(gameState==='build'||gameState==='combat'||gameState==='waveEnd'))return;
+  __honT+=dt;if(__honT<0.5)return;__honT=0;
+  const p1=players[1],mine=towers.filter(t=>t.owner===1);
+  let walls=0;for(const row of grid)for(const c of row)if(c&&c.owner===1&&(c.type==='wall'||c.type==='barricade'))walls++;
+  if(walls>=12)uiHonour('mason');
+  if(mine.some(t=>(t.level||1)>=3))uiHonour('master');
+  if(new Set(mine.map(t=>t.type)).size>=4)uiHonour('arsenal');
+  if(mine.some(t=>(t.kills||0)>=100))uiHonour('veteran');
+  if(gameState==='combat'&&p1.specials===0)uiHonour('rain');
+  if(gameState==='waveEnd'&&waveNum>=1)uiHonour('firstwave');
+  if(isEndless()&&waveNum>=15)uiHonour('night');
+  if(isEndless()&&waveNum>=25)uiHonour('eternal');
+}
+// called from startBuild (after income) and tryPlace (boss purchase)
+function uiHonoursEvent(kind){
+  if(kind==='build'&&waveNum>0&&players[1].credits>=2000)uiHonour('chest');
+  if(kind==='boss')uiHonour('boss');
+}
+function uiHonoursGameOver(winner){
+  const p1=players[1],p2=players[2];
+  if(waveNum>=1&&p1.castleHP>0)uiHonour('firstwave');
+  if(gameMode==='2p'){uiHonour('duel');return}
+  if(p2.castleHP<=0)uiHonour('breaker');
+  if(winner===1){
+    uiHonour(difficulty);
+    if(p1.castleHP>=p1.maxHP)uiHonour('flawless');
+  }
+}
+function uiSyncHonoursMenu(){const s=document.getElementById('btn-menu-hon-sub');if(s)s.textContent=`${uiHonourCount()} / ${HONOURS.length}`}
+function uiRenderHonours(){
+  const g=document.getElementById('hon-grid');if(!g)return;
+  g.innerHTML=HONOURS.map(h=>{const t=__hon[h.id];
+    return `<div class="hon ${t?'got':''}">${uiIcon(h.icon)}<div><div class="hn">${h.name}</div><div class="hd">${h.desc}</div>${t?`<div class="ht">${new Date(t).toLocaleDateString()}</div>`:''}</div></div>`}).join('');
+  document.getElementById('hon-count').textContent=`${uiHonourCount()} of ${HONOURS.length} earned`;
+  document.getElementById('hon-bar').style.width=(uiHonourCount()/HONOURS.length*100)+'%';
+}
+function uiOpenHonours(){
+  __honOpen=true;uiRenderHonours();document.getElementById('honours-ov').style.display='flex';
+  uiNavSet('#btn-hon-done');uiSfx('select');
+}
+function uiCloseHonours(){
+  if(!__honOpen)return;__honOpen=false;document.getElementById('honours-ov').style.display='none';uiSfx('back');
+  uiNavSet('#main-menu .menu-item',document.getElementById('menu-desc'));
+}
+function uiHonoursOpen(){return __honOpen}
+document.addEventListener('DOMContentLoaded',()=>{
+  const b=document.getElementById('btn-menu-honours');if(b)b.addEventListener('click',uiOpenHonours);
+  const d=document.getElementById('btn-hon-done');if(d)d.addEventListener('click',uiCloseHonours);
+  uiSyncHonoursMenu();
 });
