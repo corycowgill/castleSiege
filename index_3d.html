@@ -14,6 +14,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Cinzel+Decorative:wght@700;900&family=IM+Fell+English:ital@0;1&family=MedievalSharp&display=swap" rel="stylesheet">
 <script src="three.min.js"></script>
 <script src="models.js"></script>
+<script src="art.js"></script>
 <script src="vfx.js"></script>
 <script src="post.js"></script>
 <script src="icons.js"></script>
@@ -561,7 +562,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
   </div>
   <div class="menu-foot">
     <div class="foot-hints"><span><span class="key">&uarr;</span><span class="key">&darr;</span> Navigate</span><span><span class="key">Enter</span> Select</span><span><span class="key round">A</span> Confirm</span></div>
-    <div class="foot-ver">Castle Siege <b>v3.32</b> &bull; Build 2026-10-24</div>
+    <div class="foot-ver">Castle Siege <b>v3.33</b> &bull; Build 2026-10-24</div>
   </div>
 </div>
 
@@ -3922,13 +3923,25 @@ function __setTowerPips(mesh,lv){
   if(lv>=3){const sg=new THREE.Mesh(__pipSigilGeo,__pipSigilMat);sg.position.y=0.03;g.add(sg)}
   mesh.add(g);mesh.userData.pips=g;
 }
+// v3.33: one place that builds + prepares a tower mesh (new or upgraded).
+function __buildTowerMesh(t){
+  const mesh=createTower(t.type,t.owner,t.level||1);
+  setModelRim(mesh,t.owner===1?0xa8ccff:0xffb0b8,0.34);
+  __canonicalizeEnemyMaterials(mesh);
+  __mergeEnemyModel(mesh);
+  __freezeMergedMeshes(mesh);
+  // cache animated parts tagged by art.js
+  const bows=[];
+  mesh.traverse(c=>{const l=c.userData&&c.userData.limb;if(l==='aim'){mesh.userData.aim=c;c.userData.baseY=c.position.y}else if(l==='bowL'||l==='bowR')bows.push({g:c,sx:l==='bowL'?1:-1})});
+  if(bows.length)mesh.userData.bows=bows;
+  return mesh;
+}
 function syncTowers(){
   const activeTowers=new Set(towers);
   // Add new
   for(const t of towers){
     if(!towerMeshes.has(t)){
-      const mesh=createTower(t.type,t.owner);
-      setModelRim(mesh,t.owner===1?0xa8ccff:0xffb0b8,0.34);
+      const mesh=__buildTowerMesh(t);
       // v3.3: canonicalize + merge towers too. createTower now produces
       // ~60 sub-meshes per tower (doubled for v3.3 detail); the merge
       // pipeline collapses them to ~1 draw call per canonical material
@@ -3942,7 +3955,6 @@ function syncTowers(){
       // its merged Mesh children are at identity and never change
       // locally, so matrixAutoUpdate=false on them skips ~60 compose
       // steps per tower per frame.
-      __freezeMergedMeshes(mesh);
       const wp=tileToWorld(t.col,t.row);mesh.position.set(wp.x,0,wp.z);
       scene.add(mesh);towerMeshes.set(t,mesh);
       // v3.27: build animation — the tower rises out of a dust cloud.
@@ -3951,9 +3963,14 @@ function syncTowers(){
       spawnAuraPulse(wp.x,wp.z,0.9,t.owner===1?0x5588ff:0xff5577,0.45);
     }
     // Rotate tower to face target (catapult/bombard especially)
-    const mesh=towerMeshes.get(t);
+    let mesh=towerMeshes.get(t);
+    // v3.33: art towers have a distinct model per tier — swap it in.
+    if(mesh&&mesh.userData.artLevel&&mesh.userData.artLevel!==(t.level||1)){
+      const nm=__buildTowerMesh(t);nm.position.copy(mesh.position);
+      scene.remove(mesh);scene.add(nm);towerMeshes.set(t,nm);mesh=nm;
+    }
     if(mesh){
-      const lvS=1+0.08*((t.level||1)-1);
+      const lvS=mesh.userData.artLevel?1:1+0.08*((t.level||1)-1);
       let sx=lvS,sy=lvS;
       if(t._buildT<1){
         t._buildT=Math.min(1,t._buildT+__lastRawDt/0.4);
@@ -3965,10 +3982,19 @@ function syncTowers(){
         const pk=Math.sin(t._upT*Math.PI)*0.12;sx+=pk;sy+=pk;
       }
       mesh.scale.set(sx,Math.max(0.02,sy),sx);
-      if(t._pipLv!==(t.level||1)){t._pipLv=t.level||1;__setTowerPips(mesh,t._pipLv)}
+      if(!mesh.userData.artLevel&&t._pipLv!==(t.level||1)){t._pipLv=t.level||1;__setTowerPips(mesh,t._pipLv)}
     }
+    const aim=mesh&&mesh.userData.aim;
     if(mesh&&t.target){
-      mesh.rotation.y=-t.angle+Math.PI/2;
+      // art towers: only the weapon turns; the pedestal stays put
+      (aim||mesh).rotation.y=-t.angle+Math.PI/2;
+    }
+    if(aim&&mesh.userData.bows){
+      // bow limbs snap forward on release and ease back
+      const k=t._recoilT>0?t._recoilT/0.15:0;
+      for(const b of mesh.userData.bows)b.g.rotation.y=-b.sx*0.22*k;
+      aim.position.y=aim.userData.baseY;
+      if(k)aim.position.z=0;
     }
     // v3.23: recoil kick on fire. When the tower fires (cooldown just
     // reset to full in updateCombat), set a brief recoilT. Each frame,
@@ -3976,7 +4002,12 @@ function syncTowers(){
     // spring back. Makes every shot feel punchy.
     if(!mesh)continue;
     if(t._recoilT===undefined)t._recoilT=0;
-    if(t._recoilT>0){
+    if(t._recoilT>0&&aim){
+      // art tower: kick only the weapon back along its own axis
+      t._recoilT-=__lastRawDt;if(t._recoilT<0)t._recoilT=0;
+      const rk=t._recoilT/0.15;
+      aim.position.x=-Math.sin(aim.rotation.y)*0.06*rk;aim.position.z=-Math.cos(aim.rotation.y)*0.06*rk;
+    }else if(t._recoilT>0){
       t._recoilT-=__lastRawDt;
       if(t._recoilT<0)t._recoilT=0;
       const rk=t._recoilT/0.15; // 1 at start → 0 at end
@@ -4735,6 +4766,7 @@ function updatePathPreview(){
 // HP, smoke plus fire and embers below 33%.
 let __castleFxT=0;
 function updateCastleFx(dt){
+  if(typeof artCastleDamage==='function'){artCastleDamage(castle1Mesh,players[1].castleHP/players[1].maxHP);artCastleDamage(castle2Mesh,players[2].castleHP/players[2].maxHP)}
   __castleFxT-=dt;if(__castleFxT>0)return;__castleFxT=0.12;
   for(const pn of[1,2]){
     const pl=players[pn],pct=pl.castleHP/pl.maxHP;
@@ -5254,7 +5286,7 @@ function __warmShaders(){
   const tmp=[];
   for(const o of[1,2]){
     for(const t of['goblin','orc','darkKnight','archer','troll','dragon','lich']){const m=acquireEnemyMesh(t,o);m.position.set(0,-40,0);if(!m.parent)scene.add(m);m.visible=true;tmp.push(['e',m])}
-    for(const t of TOWER_DATA){const m=createTower(t.id,o);setModelRim(m,o===1?0xa8ccff:0xffb0b8,0.34);__canonicalizeEnemyMaterials(m);__mergeEnemyModel(m);m.position.set(0,-40,0);scene.add(m);tmp.push(['t',m])}
+    for(const t of TOWER_DATA)for(let lv=1;lv<=(artHasLevels(t.id)?3:1);lv++){const m=__buildTowerMesh({type:t.id,owner:o,level:lv});m.position.set(0,-40,0);scene.add(m);tmp.push(['t',m])}
     const w=createWall(o);__canonicalizeEnemyMaterials(w);__mergeEnemyModel(w);w.position.set(0,-40,0);scene.add(w);tmp.push(['t',w]);
   }
   try{__post.compile(scene,camera)}catch(e){console.warn('[warmup]',e)}
