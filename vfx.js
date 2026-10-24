@@ -548,3 +548,19 @@ function fxIceSpikes(x,z,radius){
     spikes.instanceMatrix.needsUpdate=true;mat.opacity=0.92*Math.min(1,(L-t)/0.4);return true},
     dispose(){scene.remove(spikes);mat.dispose();spikes.dispose&&spikes.dispose()}});
 }
+
+// v3.36: healing tether — a glowing beam from caster to target that
+// fades over ~0.5s. Shared unit-cylinder geometry, scaled per beam.
+const __tetherGeo=new THREE.CylinderGeometry(1,1,1,6,1,true);__tetherGeo.translate(0,0.5,0);
+const __tUp=new THREE.Vector3(0,1,0);
+function fxTether(x1,y1,z1,x2,y2,z2,color){
+  const dir=new THREE.Vector3(x2-x1,y2-y1,z2-z1),len=dir.length();if(len<0.01)return;
+  const mat=new THREE.MeshBasicMaterial({color,transparent:true,opacity:0.9,depthWrite:false,blending:THREE.AdditiveBlending});
+  const beam=new THREE.Mesh(__tetherGeo,mat);beam.position.set(x1,y1,z1);
+  beam.quaternion.setFromUnitVectors(__tUp,dir.normalize());beam.scale.set(0.035,len,0.035);scene.add(beam);
+  const core=new THREE.Mesh(__tetherGeo,mat);core.position.copy(beam.position);core.quaternion.copy(beam.quaternion);core.scale.set(0.012,len,0.012);scene.add(core);
+  spawnSmoke(x2,y2,z2,color,2,0.25,{additive:true,rise:0.6,spread:0.4,life:0.6,grow:0.6,alpha:0.8});
+  let t=0;
+  addVfx({update(dt){t+=dt;const k=t/0.55;if(k>=1)return false;mat.opacity=0.9*(1-k);beam.scale.x=beam.scale.z=0.035*(1+k*1.5);return true},
+    dispose(){scene.remove(beam);scene.remove(core);mat.dispose()}});
+}

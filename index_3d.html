@@ -562,7 +562,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
   </div>
   <div class="menu-foot">
     <div class="foot-hints"><span><span class="key">&uarr;</span><span class="key">&darr;</span> Navigate</span><span><span class="key">Enter</span> Select</span><span><span class="key round">A</span> Confirm</span></div>
-    <div class="foot-ver">Castle Siege <b>v3.35</b> &bull; Build 2026-10-24</div>
+    <div class="foot-ver">Castle Siege <b>v3.36</b> &bull; Build 2026-10-24</div>
   </div>
 </div>
 
@@ -3587,6 +3587,7 @@ function updateCombat(dt){
           a.hp=Math.min(a.maxHp,a.hp+a.maxHp*(a===e?bd.pct*0.25:bd.pct));
           const hp=pixelToWorld(a.x,a.y);
           emitParticles(hp.x,0.4,hp.z,0x66ff99,3,25);
+          if(a!==e){const lp=pixelToWorld(e.x,e.y);fxTether(lp.x,2.9,lp.z,hp.x,0.8,hp.z,0x8affb0)}
           healed++;
         }
         const lp=pixelToWorld(e.x,e.y);
@@ -3931,12 +3932,23 @@ function __setTowerPips(mesh,lv){
   mesh.add(g);mesh.userData.pips=g;
 }
 // v3.33: one place that builds + prepares a tower mesh (new or upgraded).
+// v3.36: built+merged towers are cached as templates per (type, owner,
+// level) and cloned (geometry/materials shared), so placing or upgrading
+// costs ~1ms instead of a ~45ms rebuild. Tower materials are never
+// mutated per instance, so sharing is safe.
+const __towerTpl=new Map();
 function __buildTowerMesh(t){
-  const mesh=createTower(t.type,t.owner,t.level||1);
-  setModelRim(mesh,t.owner===1?0xa8ccff:0xffb0b8,0.34);
-  __canonicalizeEnemyMaterials(mesh);
-  __mergeEnemyModel(mesh);
-  __freezeMergedMeshes(mesh);
+  const key=t.type+'|'+t.owner+'|'+(t.level||1);
+  let tpl=__towerTpl.get(key);
+  if(!tpl){
+    tpl=createTower(t.type,t.owner,t.level||1);
+    setModelRim(tpl,t.owner===1?0xa8ccff:0xffb0b8,0.34);
+    __canonicalizeEnemyMaterials(tpl);
+    __mergeEnemyModel(tpl);
+    __freezeMergedMeshes(tpl);
+    __towerTpl.set(key,tpl);
+  }
+  const mesh=tpl.clone(true);
   // cache animated parts tagged by art.js
   const bows=[];
   const anim=[];
@@ -4518,7 +4530,26 @@ function syncEnemies(){
           case 8: L.grp.rotation.y+=__lastRawDt*1.3;              break; // v3.34: orbiting skulls (lich)
         }
       }
+      // v3.36: action poses layered over the walk cycle (visual only,
+      // driven by the existing attack/aura timers).
+      if(!e.flying){
+        const atk=e._atkT>0?Math.sin(Math.min(1,1-e._atkT/0.25)*Math.PI):0;
+        // lich: raise the staff in the 0.45s before each heal pulse, lower it after
+        let casting=0;
+        if(e.type==='lich'){const c=e.auraCd,ev=LICH_AURA.every;const pre=c<0.45?(0.45-c)/0.45:0,post=c>ev-0.3?(c-(ev-0.3))/0.3:0;casting=Math.sin(Math.min(1,Math.max(pre,post))*Math.PI/2)}
+        const aiming=e.ranged&&e._aimAt&&e._aimAt.alive&&Math.hypot(e._aimAt.x-e.x,e._aimAt.y-e.y)<=e.ranged*T;
+        for(let i=0;i<limbs.length;i++){
+          const L=limbs[i];
+          if(aiming){
+            // archer: hold the bow out, draw with the other hand
+            if(L.type===2)L.grp.rotation.x=-1.35;else if(L.type===3)L.grp.rotation.x=-1.15+atk*0.35;
+          }else if(atk&&!e.ranged&&L.type===3)L.grp.rotation.x=-2.1*atk+0.4*(1-atk)*s; // overhead strike
+          if(casting){if(L.type===3)L.grp.rotation.x=-1.25*casting;else if(L.type===2)L.grp.rotation.x=-0.7*casting}
+        }
+      }
     }
+    // v3.36: flinch — snap back a little when struck, ease forward again.
+    if(!e.flying){const hf=Math.max(0,e._hitFlash||0)/0.12;mesh.rotation.x=-0.22*hf*hf}
     // Slow tint + hit flash — uses cached material list + _origColor.
     const tintMats=mesh.userData.tintMats;
     if(tintMats){
