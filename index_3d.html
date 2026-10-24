@@ -530,6 +530,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
 .insp .is{border-top:1px solid rgba(255,220,150,.14);margin-top:5px;padding-top:5px}
 .insp .if{display:flex;justify-content:space-between;gap:6px;margin-top:6px;font-size:11px;letter-spacing:.06em;text-transform:uppercase}
 .insp .if span{white-space:nowrap;font-family:var(--f-display);font-size:10px;padding:2px 6px;border:1px solid rgba(255,215,110,.35);border-radius:3px;color:#ffd76a}
+.insp .if span.full{color:#9fe07a;border-color:rgba(140,220,110,.4)}
 .insp .if span.poor{color:#ff8a7a;border-color:rgba(255,120,100,.35)}.insp .if span.max{color:#9fb0c8;border-color:rgba(160,180,210,.25)}.insp .if span.note{border:0;padding-left:0;color:#9f927a}
 .insp .hpb{height:5px;background:rgba(0,0,0,.45);border-radius:3px;overflow:hidden;margin:4px 0 2px}.insp .hpb i{display:block;height:100%;background:linear-gradient(90deg,#d8a63c,#f3d27a)}
 .insp.p2 .in{color:#ffd0c4}
@@ -633,7 +634,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
   </div>
   <div class="menu-foot">
     <div class="foot-hints"><span><span class="key">&uarr;</span><span class="key">&darr;</span> Navigate</span><span><span class="key">Enter</span> Select</span><span><span class="key round">A</span> Confirm</span></div>
-    <div class="foot-ver">Castle Siege <b>v3.42</b> &bull; Build 2026-10-24</div>
+    <div class="foot-ver">Castle Siege <b>v3.43</b> &bull; Build 2026-10-24</div>
   </div>
 </div>
 
@@ -3289,7 +3290,7 @@ function tryPlace(player,pNum){
     const upgradeCost=Math.floor(td.cost*0.6);
     if(player.credits<upgradeCost){uiToast(pNum,`Upgrade needs $${upgradeCost-player.credits} more gold`,'bad','coin');return}
     player.credits-=upgradeCost;
-    existingTower.level++;
+    existingTower.level++;existingTower.fresh=(existingTower.fresh||0)+upgradeCost;
     // Recompute effective stats from base × level multipliers.
     const lv=existingTower.level;
     existingTower.dmg=Math.round(td.dmg*(1+0.3*(lv-1)));
@@ -3306,6 +3307,15 @@ function tryPlace(player,pNum){
     spawnDmgNumber(wp.x,1.6,wp.z,'LV '+lv,'#ffd700');
     return;
   }
+  // v3.43: building a wall/barricade on your own damaged one repairs it.
+  if(cell&&cell.owner===pNum&&(cell.type==='wall'||cell.type==='barricade')&&opt.cat==='build'){
+    if(cell.hp>=cell.maxHp){uiToast(pNum,'Already at full strength','bad','wall');return}
+    const rc=wallRepairCost(cell);
+    if(player.credits<rc){uiToast(pNum,`Repair needs $${rc-player.credits} more gold`,'bad','coin');return}
+    player.credits-=rc;const gain=Math.ceil(cell.maxHp-cell.hp);cell.hp=cell.maxHp;sndBuild();
+    const wp=tileToWorld(c,r);emitParticles(wp.x,0.6,wp.z,0xd8c8a0,10,50);spawnDmgNumber(wp.x,1.1,wp.z,'+'+gain+' HP','#9fe07a');
+    __gridVer++;return;
+  }
   if(!canPlace(c,r,pNum)){
     // v3.28: say why the build failed instead of failing silently.
     const cl=grid[r]&&grid[r][c];
@@ -3318,13 +3328,25 @@ function tryPlace(player,pNum){
     grid[r][c]={type:'tower',owner:pNum,towerType:opt.id};
     const td=TOWER_DATA.find(t=>t.id===opt.id);
     towers.push({type:opt.id,col:c,row:r,owner:pNum,range:td.range,dmg:td.dmg,rate:td.rate,projSpd:td.spd,
-      splash:td.splash,color:td.color,x:colToX(c),y:rowToY(r),cooldown:0,target:null,angle:0,level:1});
-  }else if(opt.id==='wall'){grid[r][c]={type:'wall',owner:pNum,hp:150,maxHp:150}}
-  else{grid[r][c]={type:'barricade',owner:pNum,hp:75,maxHp:75}}
+      splash:td.splash,color:td.color,x:colToX(c),y:rowToY(r),cooldown:0,target:null,angle:0,level:1,fresh:td.cost});
+  }else if(opt.id==='wall'){grid[r][c]={type:'wall',owner:pNum,hp:150,maxHp:150,fresh:true}}
+  else{grid[r][c]={type:'barricade',owner:pNum,hp:75,maxHp:75,fresh:true}}
   markGridDirty();
   sndBuild();
 }
 
+// v3.43: anything built or upgraded during the current build phase sells
+// back at full price until the wave starts (misplaced taps cost nothing);
+// older investment still refunds half.
+function towerRefund(t){
+  const td=TOWER_DATA.find(d=>d.id===t.type),lv=t.level||1;
+  const half=Math.floor(td.cost/2)+Math.floor(td.cost*0.6*(lv-1)/2);
+  const spent=td.cost+Math.floor(td.cost*0.6)*(lv-1),fresh=gameState==='build'?(t.fresh||0):0;
+  return fresh>=spent?spent:Math.min(spent,half+Math.ceil(fresh/2));
+}
+function wallRefund(cell){const c=cell.type==='wall'?WALL_COST:BARRICADE_COST;return gameState==='build'&&cell.fresh?c:Math.floor(c/2)}
+function wallRepairCost(cell){const c=cell.type==='wall'?WALL_COST:BARRICADE_COST;return Math.max(1,Math.ceil((1-cell.hp/cell.maxHp)*c))}
+function clearFreshBuilds(){for(const t of towers)t.fresh=0;for(const row of grid)for(const c of row)if(c&&c.fresh)c.fresh=false}
 function trySell(player,pNum){
   const{c,r}=player.cursor;const cell=grid[r][c];
   if(!cell||cell.type==='castle'||cell.owner!==pNum)return;
@@ -3333,11 +3355,9 @@ function trySell(player,pNum){
     const td=TOWER_DATA.find(t=>t.id===cell.towerType);
     const twr=towers.find(t=>t.col===c&&t.row===r);
     // v3.22: refund includes upgrade investment (60% of base per extra level)
-    const lvl=twr?twr.level||1:1;
-    refund=Math.floor(td.cost/2)+Math.floor(td.cost*0.6*(lvl-1)/2);
+    refund=twr?towerRefund(twr):Math.floor(td.cost/2);
     const idx=towers.findIndex(t=>t.col===c&&t.row===r);if(idx>=0)towers.splice(idx,1);
-  }else if(cell.type==='wall')refund=Math.floor(WALL_COST/2);
-  else if(cell.type==='barricade')refund=Math.floor(BARRICADE_COST/2);
+  }else if(cell.type==='wall'||cell.type==='barricade')refund=wallRefund(cell);
   grid[r][c]=null;player.credits+=refund;markGridDirty();sndBuild();
   // v3.27: sell feedback — dust puff and the refund floating up.
   const wp=tileToWorld(c,r);
@@ -3465,7 +3485,7 @@ function spawnEnemy(type,spawnCol,spawnRow,owner){
 }
 
 function startWave(){
-  waveNum++;gameState='combat';sndWaveStart();
+  waveNum++;clearFreshBuilds();gameState='combat';sndWaveStart();
   // v3.25: snapshot kills/damage at wave start for per-wave recap
   __waveStartKills1=players[1].kills;__waveStartKills2=players[2].kills;
   __waveStartDmg1=players[1].totalDmgDealt;__waveStartDmg2=players[2].totalDmgDealt;
@@ -4875,13 +4895,19 @@ function __cursorAction(pNum){
     const t=towers.find(t=>t.col===c&&t.row===r);ck.tower=t;
     if(t){
       const td=TOWER_DATA.find(d=>d.id===t.type),lv=t.level||1;
-      const refund=Math.floor(td.cost/2)+Math.floor(td.cost*0.6*(lv-1)/2);
+      const refund=towerRefund(t);
       const upCost=Math.floor(td.cost*0.6);
       if(gameState==='build'&&opt.cat==='tower'){
         ck.state=lv>=3?'bad':pl.credits>=upCost?'upg':'bad';
       }
-      ck.text=`${td.name} Lv${lv}${lv<3?` \u2014 Place: Upgrade $${upCost}`:' (MAX)'} \u00B7 Sell: +$${refund} \u00B7 Target: ${TARGET_MODES[t.tmode||0]}`;
+      ck.text=`${td.name} Lv${lv}${lv<3?` \u2014 Place: Upgrade $${upCost}`:' (MAX)'} \u00B7 Sell: +$${refund}${t.fresh&&gameState==='build'?(t.fresh>=refund?' (full refund)':' (upgrade refunded)'):''} \u00B7 Target: ${TARGET_MODES[t.tmode||0]}`;
     }
+    return ck;
+  }
+  if(cell&&cell.owner===pNum&&(cell.type==='wall'||cell.type==='barricade')){
+    const dmg=cell.hp<cell.maxHp,rc=dmg?wallRepairCost(cell):0;
+    if(gameState==='build'&&opt.cat==='build')ck.state=dmg&&pl.credits>=rc?'upg':'bad';
+    ck.text=`${cell.type==='wall'?'Wall':'Barricade'} ${Math.ceil(cell.hp)}/${cell.maxHp}${dmg?` \u2014 Place: Repair $${rc}`:''} \u00B7 Sell: +$${wallRefund(cell)}${cell.fresh&&gameState==='build'?' (full)':''}`;
     return ck;
   }
   if(gameState!=='build'||(opt.cat!=='tower'&&opt.cat!=='build'))return ck;

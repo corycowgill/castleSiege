@@ -505,7 +505,7 @@ function __inspHTML(cell,pl,pn){
     const t=towers.find(x=>x.col===c&&x.row===r);if(!t)return null;
     const td=TOWER_DATA.find(x=>x.id===t.type),lv=t.level||1,mx=lv>=3;
     const nd=Math.round(td.dmg*(1+0.3*lv)),nr=td.range*(1+0.1*lv),nt=td.rate*(1-0.15*lv);
-    const up=Math.floor(td.cost*0.6),sell=Math.floor(td.cost/2)+Math.floor(td.cost*0.6*(lv-1)/2);
+    const up=Math.floor(td.cost*0.6),sell=towerRefund(t),fresh=gameState==='build'&&t.fresh,full=fresh&&sell>=td.cost+up*(lv-1);
     const gain=(a,b,f)=>mx?'':`<em>→ ${f(b)}</em>`;
     const f1=v=>v.toFixed(1),fr=v=>(1/v).toFixed(2)+'/s';
     const pips='◆'.repeat(lv)+`<i>${'◆'.repeat(3-lv)}</i>`;
@@ -517,14 +517,14 @@ function __inspHTML(cell,pl,pn){
       `<div class="ir is">Kills<span><b>${t.kills||0}</b></span></div>`+
       `<div class="ir">Damage dealt<span><b>${Math.round(t.dmgDone||0).toLocaleString()}</b></span></div>`+
       `<div class="tgt" data-p="${pn}">Target<span><b>${TARGET_MODES[t.tmode||0]}</b>${__touchUI()?'':`<span class="key">${pn===1?'C':'MMB'}</span>`}</span></div>`+
-      `<div class="if">${mx?'<span class="max">Max level</span>':`<span class="${pl.credits<up?'poor':''}">Upgrade $${up}</span>`}<span>Sell +$${sell}</span></div>`;
+      `<div class="if">${mx?'<span class="max">Max level</span>':`<span class="${pl.credits<up?'poor':''}">Upgrade $${up}</span>`}<span class="${fresh?'full':''}">Sell +$${sell}${full?' \u00B7 full':fresh?' \u00B7 upg back':''}</span></div>`;
   }
   if(cell.type==='wall'||cell.type==='barricade'){
-    const sell=Math.floor((cell.type==='wall'?WALL_COST:BARRICADE_COST)/2);
+    const sell=wallRefund(cell),full=cell.fresh&&gameState==='build',rc=cell.hp<cell.maxHp?wallRepairCost(cell):0;
     const hp=Math.max(0,Math.ceil(cell.hp)),pc=Math.round(hp/cell.maxHp*100);
     return `<div class="ih"><span class="in">${cell.type==='wall'?'Stone Wall':'Barricade'}</span></div>`+
       `<div class="ir">Integrity<span><b>${hp} / ${cell.maxHp}</b></span></div><div class="hpb"><i style="width:${pc}%"></i></div>`+
-      `<div class="if"><span class="note">${cell.hp<cell.maxHp?'Damaged':'Blocks the march'}</span><span>Sell +$${sell}</span></div>`;
+      `<div class="if">${rc?`<span class="${gameState==='build'&&pl.credits>=rc?'':'poor'}">Repair $${rc}</span>`:'<span class="note">Blocks the march</span>'}<span class="${full?'full':''}">Sell +$${sell}${full?' \u00B7 full':''}</span></div>`;
   }
   return null;
 }
