@@ -477,3 +477,62 @@ function uiTutorialTick(dt){
   }
 }
 document.addEventListener('DOMContentLoaded',()=>{const b=document.getElementById('tut-skip');if(b)b.addEventListener('click',()=>{uiSfx('back');uiTutorialFinish()})});
+
+// ==================== BUILDING INSPECTOR (v3.39) ====================
+// Hovering your own tower or wall shows a small card above it: level,
+// current stats with the next upgrade's gains, the tower's kills and
+// damage dealt, and the upgrade/sell prices. HTML is rebuilt only when
+// its content changes; the card is re-positioned every frame.
+const __insp={1:{sig:'',el:null},2:{sig:'',el:null}};
+const __inspV=typeof THREE!=='undefined'?new THREE.Vector3():null;
+function __inspHTML(cell,pl,pn){
+  const {c,r}=pl.cursor;
+  if(cell.type==='tower'){
+    const t=towers.find(x=>x.col===c&&x.row===r);if(!t)return null;
+    const td=TOWER_DATA.find(x=>x.id===t.type),lv=t.level||1,mx=lv>=3;
+    const nd=Math.round(td.dmg*(1+0.3*lv)),nr=td.range*(1+0.1*lv),nt=td.rate*(1-0.15*lv);
+    const up=Math.floor(td.cost*0.6),sell=Math.floor(td.cost/2)+Math.floor(td.cost*0.6*(lv-1)/2);
+    const gain=(a,b,f)=>mx?'':`<em>→ ${f(b)}</em>`;
+    const f1=v=>v.toFixed(1),fr=v=>(1/v).toFixed(2)+'/s';
+    const pips='◆'.repeat(lv)+`<i>${'◆'.repeat(3-lv)}</i>`;
+    return `<div class="ih"><span class="in">${td.name}</span><span class="ip">${pips}</span></div>`+
+      `<div class="ir">Damage<span><b>${t.dmg}</b>${gain(t.dmg,nd,v=>v)}</span></div>`+
+      `<div class="ir">Range<span><b>${f1(t.range)}</b>${gain(t.range,nr,f1)}</span></div>`+
+      `<div class="ir">Fire rate<span><b>${fr(t.rate)}</b>${gain(t.rate,nt,fr)}</span></div>`+
+      (td.splash?`<div class="ir">Splash<span><b>${td.splash}</b></span></div>`:'')+
+      `<div class="ir is">Kills<span><b>${t.kills||0}</b></span></div>`+
+      `<div class="ir">Damage dealt<span><b>${Math.round(t.dmgDone||0).toLocaleString()}</b></span></div>`+
+      `<div class="if">${mx?'<span class="max">Max level</span>':`<span class="${pl.credits<up?'poor':''}">Upgrade $${up}</span>`}<span>Sell +$${sell}</span></div>`;
+  }
+  if(cell.type==='wall'||cell.type==='barricade'){
+    const sell=Math.floor((cell.type==='wall'?WALL_COST:BARRICADE_COST)/2);
+    const hp=Math.max(0,Math.ceil(cell.hp)),pc=Math.round(hp/cell.maxHp*100);
+    return `<div class="ih"><span class="in">${cell.type==='wall'?'Stone Wall':'Barricade'}</span></div>`+
+      `<div class="ir">Integrity<span><b>${hp} / ${cell.maxHp}</b></span></div><div class="hpb"><i style="width:${pc}%"></i></div>`+
+      `<div class="if"><span class="note">${cell.hp<cell.maxHp?'Damaged':'Blocks the march'}</span><span>Sell +$${sell}</span></div>`;
+  }
+  return null;
+}
+function uiInspectTick(){
+  const live=gameState==='build'||gameState==='combat';
+  for(const pn of [1,2]){
+    const I=__insp[pn];if(!I.el){I.el=document.getElementById('insp-'+pn);if(!I.el)continue}
+    const pl=players[pn];
+    let html=null,cell=null;
+    if(live&&pl&&(pn===1||gameMode==='2p')&&pl.cursor){
+      cell=grid[pl.cursor.r]&&grid[pl.cursor.r][pl.cursor.c];
+      if(cell&&cell.owner===pn&&cell.type!=='castle')html=__inspHTML(cell,pl,pn);
+    }
+    if(!html){if(I.sig){I.sig='';I.el.style.display='none'}continue}
+    if(html!==I.sig){I.sig=html;I.el.innerHTML=html;I.el.style.display='block'}
+    // anchor above the tile, clamped to the viewport
+    const wp=tileToWorld(pl.cursor.c,pl.cursor.r);
+    __inspV.set(wp.x,cell.type==='tower'?2.2:1.2,wp.z).project(camera);
+    const rc=renderer.domElement.getBoundingClientRect();
+    const w=I.el.offsetWidth,h=I.el.offsetHeight;
+    let x=rc.left+(__inspV.x*0.5+0.5)*rc.width-w/2,y=rc.top+(-__inspV.y*0.5+0.5)*rc.height-h-14;
+    if(y<56)y=rc.top+(-__inspV.y*0.5+0.5)*rc.height+40; // flip below near the top bar
+    x=Math.max(8,Math.min(innerWidth-w-8,x));
+    I.el.style.transform=`translate(${x|0}px,${y|0}px)`;
+  }
+}

@@ -510,6 +510,21 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
 .diff-btn.sel{color:#140e05;background:linear-gradient(180deg,#f6dc8e,#c9993f 60%,#9a7128);border-color:#ffe9a8}
 .diff-btn.sel small{color:#3a2a10}
 .diff-keys{font-size:.85em!important;opacity:.8}
+/* v3.39: building inspector */
+.insp{position:fixed;left:0;top:0;z-index:22;pointer-events:none;width:206px;padding:10px 12px 9px;display:none;font-size:12px;line-height:1.35;will-change:transform}
+.insp .ih{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:6px}
+.insp .in{font-family:var(--f-display,serif);font-weight:700;letter-spacing:.08em;text-transform:uppercase;font-size:13px;color:#f3e2b8}
+.insp .ip{color:#ffd76a;letter-spacing:.12em;font-size:11px}.insp .ip i{font-style:normal;opacity:.3}
+.insp .ir{display:flex;justify-content:space-between;color:#cdbf9f;padding:1px 0}
+.insp .ir b,.insp .ir em{font-family:var(--f-display);font-size:11.5px;font-variant-numeric:lining-nums tabular-nums}
+.insp .ir b{color:#fff3d6;font-weight:700}.insp .ir em{font-style:normal;color:#9fe07a;margin-left:4px;font-weight:700}
+.insp .is{border-top:1px solid rgba(255,220,150,.14);margin-top:5px;padding-top:5px}
+.insp .if{display:flex;justify-content:space-between;gap:6px;margin-top:6px;font-size:11px;letter-spacing:.06em;text-transform:uppercase}
+.insp .if span{white-space:nowrap;font-family:var(--f-display);font-size:10px;padding:2px 6px;border:1px solid rgba(255,215,110,.35);border-radius:3px;color:#ffd76a}
+.insp .if span.poor{color:#ff8a7a;border-color:rgba(255,120,100,.35)}.insp .if span.max{color:#9fb0c8;border-color:rgba(160,180,210,.25)}.insp .if span.note{border:0;padding-left:0;color:#9f927a}
+.insp .hpb{height:5px;background:rgba(0,0,0,.45);border-radius:3px;overflow:hidden;margin:4px 0 2px}.insp .hpb i{display:block;height:100%;background:linear-gradient(90deg,#d8a63c,#f3d27a)}
+.insp.p2 .in{color:#ffd0c4}
+@media(max-height:500px){.insp{width:170px;padding:7px 9px;font-size:10.5px}.insp .in{font-size:11px}}
 /* v3.38: tutorial coach card */
 #tut-card{position:absolute;left:16px;bottom:126px;width:min(320px,40vw);padding:14px 16px 12px;display:none;z-index:23;pointer-events:auto;
   animation:screenIn .45s var(--ease-out) both;border-color:var(--line-2)}
@@ -600,7 +615,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
   </div>
   <div class="menu-foot">
     <div class="foot-hints"><span><span class="key">&uarr;</span><span class="key">&darr;</span> Navigate</span><span><span class="key">Enter</span> Select</span><span><span class="key round">A</span> Confirm</span></div>
-    <div class="foot-ver">Castle Siege <b>v3.38</b> &bull; Build 2026-10-24</div>
+    <div class="foot-ver">Castle Siege <b>v3.39</b> &bull; Build 2026-10-24</div>
   </div>
 </div>
 
@@ -757,6 +772,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
 <div id="callouts"></div>
 <div id="tut-card" class="panel frame"><div class="tut-top"><span class="kicker" id="tut-step">Training</span><button class="tut-skip clickable" id="tut-skip">Skip tips</button></div>
   <div class="tut-title" id="tut-title"></div><div class="tut-text" id="tut-text"></div><div class="tut-prog"><i id="tut-prog"></i></div></div>
+<div id="insp-1" class="insp panel frame"></div><div id="insp-2" class="insp panel frame p2"></div>
 <div id="toasts-p1" class="toasts left"></div>
 <div id="toasts-p2" class="toasts right"></div>
 
@@ -3307,8 +3323,9 @@ function trySell(player,pNum){
   spawnDmgNumber(wp.x,0.9,wp.z,'+$'+refund,'#ffd700');
 }
 
-function dealDamage(enemy,dmg){
+function dealDamage(enemy,dmg,src){
   const actual=dmg*(1-enemy.armor);enemy.hp-=actual;
+  if(src)src.dmgDone=(src.dmgDone||0)+actual; // v3.39: per-tower stats for the inspector
   const killer=enemy.owner===1?players[2]:players[1];
   const dmgCredits=Math.floor(actual/5);
   if(dmgCredits>0){killer.credits+=dmgCredits;killer.totalDmgDealt+=actual}
@@ -3318,7 +3335,7 @@ function dealDamage(enemy,dmg){
   // tint it white on the next render frame. Stacks with slow tint.
   enemy._hitFlash=0.12;
   if(enemy.hp<=0){
-    enemy.alive=false;killer.credits+=enemy.reward;killer.kills++;
+    enemy.alive=false;killer.credits+=enemy.reward;killer.kills++;if(src)src.kills=(src.kills||0)+1;
     const ep=pixelToWorld(enemy.x,enemy.y);
     fxDeath(ep.x,ep.z,enemy.owner,enemy.type==='troll'||enemy.type==='dragon'||enemy.type==='lich');
     emitParticles(ep.x,0.3,ep.z,parseInt(enemy.color.replace('#',''),16),20,120);
@@ -3782,7 +3799,7 @@ function updateCombat(dt){
       t.cooldown=t.rate;t._recoilT=0.15; // v3.23: trigger recoil kick
       const pType=t.type==='turret'?'proj_arrow':t.type==='magic'?'proj_magic':t.type==='catapult'?'proj_boulder':'proj_cannonball';
       projectiles.push({x:t.x,y:t.y,target:best,tx:best.x,ty:best.y,
-        dmg:t.dmg,spd:t.projSpd*T,splash:t.splash,type:pType,owner:t.owner,alive:true});
+        dmg:t.dmg,spd:t.projSpd*T,splash:t.splash,type:pType,owner:t.owner,alive:true,src:t});
       sndShoot();
       // Type-specific muzzle flash
       const tp=tileToWorld(t.col,t.row);
@@ -3818,7 +3835,7 @@ function updateCombat(dt){
         for(let i=0;i<nearbyP.length;i++){
           const e=nearbyP[i];
           if(!e.alive||e.owner!==enemyTeam)continue;
-          if(dist(p.tx,p.ty,e.x,e.y)/T<=p.splash)dealDamage(e,p.dmg);
+          if(dist(p.tx,p.ty,e.x,e.y)/T<=p.splash)dealDamage(e,p.dmg,p.src);
         }
         const wp=pixelToWorld(p.tx,p.ty);
         // Type-specific splash impact
@@ -3842,7 +3859,7 @@ function updateCombat(dt){
           fxImpact(p.type,wp.x,wp.z,p.splash);
         }
       }else if(p.target&&p.target.alive){
-        dealDamage(p.target,p.dmg);
+        dealDamage(p.target,p.dmg,p.src);
         const wp=pixelToWorld(p.tx,p.ty);
         fxImpact(p.type==='proj_cannonball'?'proj_cannonball':'hit',wp.x,wp.z,0.5);
         if(p.type==='proj_arrow'){
@@ -5356,7 +5373,7 @@ function gameLoop(){
   }
 
   updateHUD();
-  uiTutorialTick(rawDt);
+  uiTutorialTick(rawDt);uiInspectTick();
 
   // Screen shake effect (visual only — uses raw render dt)
   if(screenShake>0&&camera){
