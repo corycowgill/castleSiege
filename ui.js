@@ -340,7 +340,7 @@ function uiGameOver(winner,score,best,isNewBest){
 
 
 // ==================== v3.37: SETTINGS ====================
-const SETTINGS={music:0.5,sfx:0.8,gfx:'high',shake:true,dmg:true};
+const SETTINGS={music:0.5,sfx:0.8,gfx:'high',shake:true,dmg:true,tips:true};
 try{Object.assign(SETTINGS,JSON.parse(localStorage.getItem('castleSiege_settings')||'{}'))}catch(e){}
 function uiSaveSettings(){try{localStorage.setItem('castleSiege_settings',JSON.stringify(SETTINGS))}catch(e){}}
 function uiApplySettings(init){
@@ -360,6 +360,7 @@ const SETTING_ROWS=[
   {k:'gfx',label:'Graphics',kind:'opt',opts:['high','low'],names:{high:'High',low:'Low (faster)'}},
   {k:'shake',label:'Screen shake',kind:'bool'},
   {k:'dmg',label:'Damage numbers',kind:'bool'},
+  {k:'tips',label:'Tutorial tips',kind:'bool'},
 ];
 let __settingsOpen=false,__settingsFrom='menu';
 function uiSettingsOpen(){return __settingsOpen}
@@ -411,3 +412,68 @@ function uiSyncDifficulty(){
   const n=document.getElementById('lobby-p2-name');if(n&&gameMode==='1p')n.textContent='The '+diffProfile().name;
   const dv=document.getElementById('lobby-p2-dev');if(dv&&gameMode==='1p')dv.textContent='AI Opponent \u2022 '+diffProfile().label;
 }
+
+
+// ==================== v3.38: TUTORIAL (first Campaign game) ====================
+// Coach cards that react to what the player actually does. Visual/UI
+// only — never changes game state. Runs while SETTINGS.tips is on (the
+// default); finishing or skipping turns it off, Settings turns it back on.
+const __touchUI=()=>isMobile;
+const K=t=>`<span class="key">${t}</span>`;
+const TUT=[
+  {phase:'build',title:'Raise a tower',hl:'turret',
+   text:()=>__touchUI()?`Tap ${K('Turret')}, tap a tile beside the road, then tap it again (or ${K('Place')}) to build.`:`Select ${K('Turret')} (click it, or ${K('Q')}/${K('Tab')}), aim at a tile beside the road and press ${K('Space')} or click.`,
+   done:()=>towers.some(t=>t.owner===1)},
+  {phase:'build',title:'Wall them in',hl:'wall',
+   text:()=>`The <b>red arrows</b> show the enemy's march through your half. Place a ${K('Wall')} on them — armies must go the long way round, under your towers.`,
+   done:()=>grid.some(row=>row.some(c=>c&&c.owner===1&&(c.type==='wall'||c.type==='barricade')))},
+  {phase:'build',title:'Upgrade',hl:'turret',
+   text:()=>`With a tower selected, build <b>on top of your own tower</b> to upgrade it (up to level 3). The cursor turns gold when an upgrade is possible.`,
+   done:()=>towers.some(t=>t.owner===1&&t.level>=2)},
+  {phase:'build',title:'March on their keep',hl:'goblin',
+   text:()=>`Defence alone won't win. Buy a squad of ${K('Goblins')} — ten of them join the next wave and attack the enemy castle.`,
+   done:()=>Object.values(players[1].enemyQueue).some(v=>v>0)},
+  {phase:'build',title:'Ready for war',live:true,
+   text:()=>players[1].ready?`You're ready. The wave starts when the Warlord finishes building — or when the timer runs out.`:__touchUI()?`Tap ${K('RDY')} to start the wave. Readying early earns bonus gold.`:`Press ${K('R')} or the ${K('Ready')} button to start the wave. Readying early earns bonus gold.`,
+   done:()=>gameState==='combat'},
+  {phase:'combat',title:'Call down a special',hlSpec:0,auto:22,
+   text:()=>__touchUI()?`Tap a special icon to cast it at your cursor — try ${K('Meteor')} on a crowd. Three charges per round.`:`Pick a special with ${K('Z')} and cast it at your cursor with ${K('F')} — try ${K('Meteor')} on a crowd. Three charges per round.`,
+   done:()=>players[1].specials<3},
+  {phase:'any',title:'You have the basics',auto:9,
+   text:()=>`Each wave pays <b>+250 gold</b> plus <b>10% interest</b> on what you saved. Bosses are bought from the specials row. ${K('Esc')} pauses. Good luck, commander!`,
+   done:()=>false},
+];
+let __tut={i:-1,t:0,shown:-1};
+function uiTutorialReset(){__tut={i:(gameMode==='1p'&&SETTINGS.tips)?0:-1,t:0,shown:-1};uiTutorialHide()}
+function uiTutorialHide(){const c=document.getElementById('tut-card');if(c)c.style.display='none';document.querySelectorAll('.tut-hl').forEach(e=>e.classList.remove('tut-hl'));__tut.shown=-1}
+function uiTutorialFinish(){__tut.i=-1;uiTutorialHide();SETTINGS.tips=false;uiSaveSettings()}
+function uiTutorialTick(dt){
+  if(__tut.i<0||gameMode!=='1p')return;
+  if(!(gameState==='build'||gameState==='combat'||gameState==='waveEnd'))return;
+  let s=TUT[__tut.i];
+  // the wave started before the build lessons were done: jump ahead
+  if(gameState==='combat'&&s.phase==='build'){__tut.i=TUT.findIndex(x=>x.phase==='combat');__tut.t=0;s=TUT[__tut.i]}
+  if(s.phase==='combat'&&gameState!=='combat'&&__tut.t>0.5){__tut.i++;__tut.t=0;s=TUT[__tut.i]}
+  if(!s){uiTutorialFinish();return}
+  __tut.t+=dt;
+  const doneNow=s.done();
+  if(doneNow||(s.auto&&__tut.t>s.auto)){
+    uiSfx('select');__tut.i++;__tut.t=0;
+    if(__tut.i>=TUT.length){uiTutorialFinish();return}
+    s=TUT[__tut.i];
+  }
+  if(s.live&&__tut.shown===__tut.i){const tx=s.text();if(tx!==__tut.tx){__tut.tx=tx;document.getElementById('tut-text').innerHTML=tx}}
+  if(__tut.shown!==__tut.i){
+    __tut.shown=__tut.i;
+    const c=document.getElementById('tut-card');
+    document.getElementById('tut-step').textContent=`Training · ${__tut.i+1}/${TUT.length}`;
+    document.getElementById('tut-title').textContent=s.title;
+    document.getElementById('tut-text').innerHTML=__tut.tx=s.text();
+    document.getElementById('tut-prog').style.width=((__tut.i)/TUT.length*100)+'%';
+    c.style.display='block';c.classList.remove('pop');void c.offsetWidth;c.classList.add('pop');
+    document.querySelectorAll('.tut-hl').forEach(e=>e.classList.remove('tut-hl'));
+    if(s.hl){const idx=BUILD_OPTS.findIndex(o=>o.id===s.hl);document.querySelectorAll(`#p1-build-opts .build-opt[data-idx="${idx}"]`).forEach(e=>e.classList.add('tut-hl'))}
+    if(s.hlSpec!==undefined){document.querySelectorAll(`#p1-specials .spec-btn[data-idx="${s.hlSpec}"],#touch-special-row .touch-spec:nth-child(${s.hlSpec+1})`).forEach(e=>e.classList.add('tut-hl'))}
+  }
+}
+document.addEventListener('DOMContentLoaded',()=>{const b=document.getElementById('tut-skip');if(b)b.addEventListener('click',()=>{uiSfx('back');uiTutorialFinish()})});
