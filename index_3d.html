@@ -256,16 +256,16 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0604}
 .build-opt.p2-opt:hover{background:linear-gradient(180deg,rgba(230,90,130,.2),rgba(140,30,60,.15));
   border-color:var(--p2);box-shadow:0 0 10px var(--p2-glow),inset 0 0 0 1px var(--wood-d),inset 0 -4px 8px rgba(0,0,0,.4)}
 .hud-bottom-specials{display:flex;height:38px;border-top:1px solid var(--wood-d);box-shadow:0 -1px 0 var(--gold-d)}
-.spec-half{flex:1;display:flex;align-items:center;padding:0 8px;min-width:0}
+.spec-half{flex:1;display:flex;align-items:center;padding:0 4px;min-width:0}
 .spec-left{justify-content:center;border-right:1px solid var(--gold-d);box-shadow:1px 0 0 var(--wood-d)}
-.spec-right{justify-content:center;gap:8px}
-.spec-buttons{display:flex;gap:4px}
-.spec-btn{display:flex;align-items:center;gap:3px;padding:3px 8px;
+.spec-right{justify-content:center;gap:6px}
+.spec-buttons{display:flex;gap:3px;align-items:stretch;height:30px}
+.spec-btn{display:flex;align-items:center;gap:3px;padding:2px 6px;
   background:linear-gradient(180deg,rgba(232,212,160,.06),rgba(30,18,8,.4));
   border:1px solid var(--gold-d);border-radius:0;
   box-shadow:inset 0 0 0 1px var(--wood-d),inset 0 -3px 8px rgba(0,0,0,.4);
-  transition:all .15s;font-family:'Cinzel',serif;font-size:clamp(8px,.85vw,10px);font-weight:700;
-  letter-spacing:.3px;text-transform:uppercase;color:var(--parch-l)}
+  transition:all .15s;font-family:'Cinzel',serif;font-size:clamp(7px,.75vw,9px);font-weight:700;
+  letter-spacing:.3px;text-transform:uppercase;color:var(--parch-l);white-space:nowrap}
 .spec-btn.p1s{background:linear-gradient(180deg,rgba(90,140,230,.35),rgba(30,60,140,.25));
   border-color:var(--p1);box-shadow:0 0 12px var(--p1-glow),inset 0 0 0 1px var(--wood-d),inset 0 -3px 8px rgba(0,0,0,.4)}
 .spec-btn.p2s{background:linear-gradient(180deg,rgba(230,90,130,.35),rgba(140,30,60,.25));
@@ -278,20 +278,20 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0604}
 /* v3.16: boss buttons live on the specials row but are single-purchase
    (cat:'boss') not specials. Styled with a gold "elite" accent so
    they visually read as distinct from the specials. */
-.boss-btn{display:flex;align-items:center;gap:3px;padding:3px 8px;margin-left:2px;
+.boss-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;padding:1px 6px;margin-left:2px;line-height:1.05;
   background:linear-gradient(180deg,rgba(212,176,74,.18),rgba(80,40,10,.5));
   border:1px solid #d4b04a;border-radius:0;
   box-shadow:inset 0 0 0 1px var(--wood-d),inset 0 -3px 8px rgba(0,0,0,.4),0 0 4px rgba(212,176,74,.3);
-  transition:all .15s;font-family:'Cinzel',serif;font-size:clamp(8px,.85vw,10px);font-weight:700;
-  letter-spacing:.3px;text-transform:uppercase;color:#ffd97a;cursor:pointer;pointer-events:auto}
+  transition:all .15s;font-family:'Cinzel',serif;font-size:clamp(7px,.75vw,9px);font-weight:700;
+  letter-spacing:.3px;text-transform:uppercase;color:#ffd97a;cursor:pointer;pointer-events:auto;white-space:nowrap}
 .boss-btn:hover{background:linear-gradient(180deg,rgba(255,212,100,.3),rgba(120,60,10,.6));
   border-color:#ffd97a;box-shadow:0 0 8px rgba(255,212,100,.5),inset 0 0 0 1px var(--wood-d),inset 0 -3px 8px rgba(0,0,0,.4)}
 .boss-btn.disabled{opacity:.35;pointer-events:none;filter:grayscale(.5)}
-.boss-btn .boss-cost{color:#ffd97a;opacity:.85;margin-left:2px}
+.boss-btn .boss-cost{color:#ffd97a;opacity:.85}
 .p2-ready-btn{font-family:'Cinzel',serif;font-weight:900;color:var(--gold-b);font-size:clamp(9px,1vw,12px);
   background:linear-gradient(180deg,#5a3a18,#2a1808);
-  border:2px solid var(--gold);padding:3px 14px;margin-left:auto;pointer-events:auto;
-  letter-spacing:2px;text-transform:uppercase;
+  border:2px solid var(--gold);padding:3px 8px;margin-left:auto;pointer-events:auto;flex-shrink:0;white-space:nowrap;
+  letter-spacing:1px;text-transform:uppercase;
   box-shadow:inset 0 0 0 1px var(--wood-d),inset 0 1px 0 rgba(230,191,86,.3),0 0 12px rgba(230,191,86,.25),0 2px 4px rgba(0,0,0,.8)}
 .p2-ready-btn:hover{background:linear-gradient(180deg,#6a4a24,#3a2010);
   box-shadow:inset 0 0 0 1px var(--wood-d),inset 0 1px 0 rgba(230,191,86,.4),0 0 20px rgba(230,191,86,.5),0 2px 4px rgba(0,0,0,.8)}
@@ -483,7 +483,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0604}
     </div>
     <div style="margin-top:16px;display:flex;justify-content:space-between;align-items:center;font-family:'Cinzel',monospace;font-size:11px;opacity:0.85">
       <span style="color:#555">Three.js &bull; Procedural</span>
-      <span style="color:#ffd700;font-weight:bold;letter-spacing:1px">v3.26 &bull; Build 2026-04-14</span>
+      <span style="color:#ffd700;font-weight:bold;letter-spacing:1px">v3.27 &bull; Build 2026-10-24</span>
     </div>
   </div>
 </div>
@@ -496,8 +496,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0604}
       <div class="help-section"><h3>Towers & Walls</h3>
         <table class="help-table"><thead><tr><th>Name</th><th>Cost</th><th>Info</th></tr></thead><tbody>
         <tr><td>Turret</td><td class="cost-col">$100</td><td>Dmg:15, Range:4, Rate:0.8s</td></tr>
-        <tr><td>Magic</td><td class="cost-col">$175</td><td>Dmg:25, Range:3.5, Splash:1.5</td></tr>
-        <tr><td>Catapult</td><td class="cost-col">$150</td><td>Dmg:40, Range:5.5, Splash:2</td></tr>
+        <tr><td>Magic</td><td class="cost-col">$175</td><td>Dmg:32, Range:3.5, Splash:1.8</td></tr>
+        <tr><td>Catapult</td><td class="cost-col">$150</td><td>Dmg:55, Range:5.5, Splash:2</td></tr>
         <tr><td>Bombard</td><td class="cost-col">$200</td><td>Dmg:60, Range:4.5, Rate:2s</td></tr>
         <tr><td>Wall</td><td class="cost-col">$30</td><td>150 HP stone blocker</td></tr>
         <tr><td>Barricade</td><td class="cost-col">$15</td><td>75 HP cheap blocker</td></tr>
@@ -507,20 +507,24 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0604}
         <tr><td>Goblin</td><td class="cost-col">$60</td><td>Fast, weak swarm</td></tr>
         <tr><td>Orc</td><td class="cost-col">$100</td><td>Tanky bruiser</td></tr>
         <tr><td>D.Knight</td><td class="cost-col">$160</td><td>50% armor, tough</td></tr>
-        <tr><td>Archer</td><td class="cost-col">$120</td><td>Balanced unit</td></tr>
+        <tr><td>Archer</td><td class="cost-col">$120</td><td>Ranged: shoots units 3.5 tiles away</td></tr>
+        <tr><td>Troll</td><td class="cost-col">$200</td><td>Boss: smashes walls in its way</td></tr>
+        <tr><td>Dragon</td><td class="cost-col">$250</td><td>Boss: flies over walls &amp; melee</td></tr>
+        <tr><td>Lich</td><td class="cost-col">$300</td><td>Boss: heals nearby allies</td></tr>
         </tbody></table></div>
       <div class="help-section"><h3>Specials (3/round)</h3>
         <table class="help-table"><thead><tr><th>Name</th><th>Effect</th></tr></thead><tbody>
-        <tr><td>Meteor</td><td>100 area damage</td></tr>
+        <tr><td>Meteor</td><td>140 area damage</td></tr>
         <tr><td>Lightning</td><td>Chain 5 enemies, 50 dmg</td></tr>
         <tr><td>Freeze</td><td>Slow enemies 5s</td></tr>
-        <tr><td>Heal</td><td>Restore 200 castle HP</td></tr>
+        <tr><td>Heal</td><td>Restore 500 castle HP</td></tr>
         </tbody></table></div>
       <div class="help-section"><h3>Rules</h3>
         <ul class="help-rules">
-        <li>5 waves, 45s build phase</li><li>Castle: 2500 HP</li>
+        <li>10 waves, 45s build phase</li><li>Castle: 3500 HP</li>
         <li>Build towers/walls to defend</li><li>Buy enemies to attack opponent</li>
-        <li>+200 credits between waves</li><li>Enemies can break walls</li>
+        <li>+250 credits between waves, +10% interest on savings (max 100)</li><li>Enemies can break walls</li>
+        <li>Place a tower on your own tower to upgrade it (max Lv3)</li><li>Arrows show each army's route during build</li>
         </ul></div>
     </div>
     <p class="help-back blink">Press any key or click to go back</p>
@@ -576,7 +580,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0604}
   <div class="overlay-box">
     <h2 id="we-title" class="gold">WAVE 1 COMPLETE!</h2>
     <div class="wave-info">
-      <p>+250 Credits | 3 Specials Recharged</p>
+      <p id="we-reward">+250 Credits | 3 Specials Recharged</p>
       <p id="we-stats" style="font-size:clamp(10px,1.1vw,13px);color:#bbb;margin-top:4px"></p>
       <p id="we-timer">Next wave in 3s</p>
     </div>
@@ -654,7 +658,10 @@ const ENEMY_DATA=[
   {id:'goblin',name:'Goblin',cost:6,hp:30,spd:2.5,dmg:15,reward:10,color:'#4a8c38',armor:0},
   {id:'orc',name:'Orc',cost:10,hp:80,spd:1.2,dmg:38,reward:18,color:'#2d5a1e',armor:0},
   {id:'darkKnight',name:'D.Knight',cost:16,hp:60,spd:1.8,dmg:30,reward:25,color:'#555568',armor:0.5},
-  {id:'archer',name:'Archer',cost:12,hp:40,spd:2.0,dmg:23,reward:20,color:'#8b6914',armor:0},
+  // v3.27: archers are ranged — they loose arrows at enemy units up
+  // to `range` tiles away while marching, instead of being a reskinned
+  // melee unit.
+  {id:'archer',name:'Archer',cost:12,hp:40,spd:2.0,dmg:23,reward:20,color:'#8b6914',armor:0,range:3.5},
 ];
 // v3.14: boss-class enemies. Single-purchase (cost*1, not cost*10),
 // much higher HP/damage/reward, visually much larger. Balanced
@@ -669,12 +676,23 @@ const ENEMY_DATA=[
 // Now a boss hit is a genuine "oh no" moment. Troll one-shots
 // regular enemies in melee, dragon breathes searing fire, lich
 // drops a heavy death curse.
+// v3.27: each boss gets a signature ability so they're tactical picks
+// rather than three stat blocks:
+//   Troll  (smash)  — batters through walls in its way without dying.
+//   Dragon (flying) — flies over every wall and tower; ground melee
+//                     can't reach it, only towers and archers.
+//   Lich   (aura)   — periodically mends nearby allied units.
 const BOSS_DATA=[
-  {id:'troll', name:'Troll', cost:200,hp:800,spd:0.8,dmg:300,reward:150,color:'#4a6a2a',armor:0.30},
-  {id:'dragon',name:'Dragon',cost:250,hp:500,spd:2.2,dmg:220,reward:180,color:'#a02020',armor:0.20},
-  {id:'lich',  name:'Lich',  cost:300,hp:700,spd:1.0,dmg:180,reward:220,color:'#553388',armor:0.55},
+  {id:'troll', name:'Troll', cost:200,hp:800,spd:0.8,dmg:300,reward:150,color:'#4a6a2a',armor:0.30,smash:true},
+  {id:'dragon',name:'Dragon',cost:250,hp:500,spd:2.2,dmg:220,reward:180,color:'#a02020',armor:0.20,flying:true},
+  {id:'lich',  name:'Lich',  cost:300,hp:700,spd:1.0,dmg:180,reward:220,color:'#553388',armor:0.55,aura:{radius:2.5,pct:0.08,every:1.5}},
 ];
+const LICH_AURA=BOSS_DATA.find(b=>b.id==='lich').aura;
 const WALL_COST=30,BARRICADE_COST=15;
+// v3.27: interest on banked credits between waves — rewards saving up
+// for a big push instead of spending every coin immediately.
+const INTEREST_RATE=0.10,INTEREST_CAP=100;
+function interestFor(credits){return Math.min(INTEREST_CAP,Math.floor(credits*INTEREST_RATE))}
 const SPECIAL_DATA=[
   // v3.15: heal was ~8% of castle HP — now ~14%, actually worth using.
   // Meteor bumped for more impact against mid-wave mobs.
@@ -763,6 +781,23 @@ function findPath(sc,sr,goalCells,blockerOwner){
     }
   }
   return null;
+}
+// v3.27: grid version counter. Bumped whenever a blocker is added or
+// removed (build, sell, wall destroyed). Enemies remember the version
+// their path was computed against and re-route when it changes, so a
+// troll smashing a wall or a mid-wave sell opens the shortcut at once.
+let __gridVer=0;
+function markGridDirty(){__gridVer++}
+// Castle-gate cells an enemy owned by `owner` walks toward.
+function enemyGoals(owner){
+  const goals=[],c0=owner===1?38:0;
+  for(let r=6;r<=11;r++){goals.push({c:c0,r});goals.push({c:c0+1,r})}
+  return goals;
+}
+// Route an enemy of `owner` would take from its spawn gate, used by the
+// build-phase path preview and the AI's placement scoring.
+function previewPath(owner){
+  return owner===1?findPath(2,8,enemyGoals(1),2):findPath(37,8,enemyGoals(2),1);
 }
 function canPlace(col,row,owner){
   if(col<0||col>=COLS||row<0||row>=ROWS)return false;if(grid[row][col])return false;
@@ -1143,47 +1178,77 @@ function timeOfDayForWave(w){
 // ==================== TERRAIN ====================
 function seededRandom(x,y){const n=Math.sin(x*127.1+y*311.7)*43758.5453123;return n-Math.floor(n)}
 
+// v3.27: smooth value noise for the terrain texture. The old texture
+// was per-pixel white noise at 16px/tile with nearest filtering, which
+// read as TV static from the default camera. This lattice noise gives
+// broad tonal patches instead, so the field looks like grass and
+// packed earth rather than gravel.
+function __valueNoise(x,y){
+  const xi=Math.floor(x),yi=Math.floor(y),xf=x-xi,yf=y-yi;
+  const u=xf*xf*(3-2*xf),v=yf*yf*(3-2*yf);
+  const a=seededRandom(xi,yi),b=seededRandom(xi+1,yi),c=seededRandom(xi,yi+1),d=seededRandom(xi+1,yi+1);
+  return a+(b-a)*u+(c-a)*v+(a-b-c+d)*u*v;
+}
+function __fbm(x,y,oct){
+  let sum=0,amp=0.5,f=1,norm=0;
+  for(let i=0;i<oct;i++){sum+=__valueNoise(x*f,y*f)*amp;norm+=amp;amp*=0.5;f*=2.03}
+  return sum/norm;
+}
+function __smooth(e0,e1,x){const t=clamp((x-e0)/(e1-e0),0,1);return t*t*(3-2*t)}
+
 function createTerrain(){
-  const PX=16,texW=COLS*PX,texH=ROWS*PX;
+  const PX=32,texW=COLS*PX,texH=ROWS*PX;
   const canvas=document.createElement('canvas');canvas.width=texW;canvas.height=texH;
   const ctx=canvas.getContext('2d');
   const img=ctx.createImageData(texW,texH);const d=img.data;
+  // Road occupies rows 7-10 (tile-space z 7..11), centred on z=9.
+  const ROAD_C=9,ROAD_HALF=2;
   for(let py=0;py<texH;py++){
-    const row=Math.floor(py/PX);
+    const tz=py/PX;
     for(let px=0;px<texW;px++){
-      const col=Math.floor(px/PX);
-      const n=seededRandom(px,py),n2=seededRandom(px*3.7,py*2.3);
-      let r,g,b;
-      if(row>=7&&row<=10){// Dirt road
-        r=120+Math.floor(n*30);g=r-18;b=r-40;
-        if(n2>0.88){r+=15;g+=12;b+=10}
-      }else if(row===6||row===11){// Transition
-        r=75+Math.floor(n*20);g=95+Math.floor(n*15);b=50+Math.floor(n*10);
-      }else{// Grass
-        const gv=55+Math.floor(n*25);r=gv;g=gv+25+Math.floor(n2*15);b=gv-10;
-        if(seededRandom(px*7.1,py*5.3)>0.85){g+=20;r+=5}
-        if(seededRandom(px*13.3,py*17.7)>0.97){const fc=Math.floor(n2*3);if(fc===0){r+=50;g-=15}else if(fc===1){b+=40}else{r+=30;g+=10;b+=30}}
-      }
-      // Territory tint
-      if(col>=2&&col<=19){b=Math.min(255,b+10);r=Math.max(0,r-2)}
-      else if(col>=20&&col<=37){r=Math.min(255,r+10);b=Math.max(0,b-2)}
-      // Center line
-      const lp=px%PX;
-      if((col===19&&lp>=PX-2)||(col===20&&lp<=1)){r=Math.floor(r*0.6);g=Math.floor(g*0.6);b=Math.floor(b*0.6)}
+      const tx=px/PX;
+      const broad=__fbm(tx*0.22,tz*0.22,4);   // multi-tile patches
+      const mid=__fbm(tx*1.3+17,tz*1.3+5,3);  // tuft-scale variation
+      const fine=seededRandom(px,py);         // very low-amplitude grain
+      // Grass: blend between a deep and a sunlit green.
+      let gr=60+broad*28+mid*10, gg=95+broad*34+mid*14, gb=36+broad*12+mid*5;
+      // Occasional darker clover clumps.
+      const clump=__smooth(0.62,0.72,__fbm(tx*0.9+40,tz*0.9+11,3));
+      gr-=clump*10;gg-=clump*12;gb-=clump*6;
+      gr+=(fine-0.5)*6;gg+=(fine-0.5)*8;gb+=(fine-0.5)*4;
+      // Road: packed earth with a noisy, feathered edge.
+      const edgeJitter=(__fbm(tx*0.8+3,tz*0.4+9,3)-0.5)*0.7;
+      const dRoad=Math.abs(tz-ROAD_C)-ROAD_HALF+edgeJitter;
+      const roadW=1-__smooth(-0.35,0.35,dRoad);
+      const dirtN=__fbm(tx*0.6+60,tz*0.6+2,4);
+      let rr=118+dirtN*36+mid*10, rg=98+dirtN*28+mid*8, rb=68+dirtN*18+mid*5;
+      // Subtle trodden centre (lighter) and darker worn lanes.
+      const lane=Math.abs(Math.abs(tz-ROAD_C)-0.9);
+      const rut=1-__smooth(0,0.35,lane);
+      rr-=rut*9;rg-=rut*8;rb-=rut*6;
+      rr+=(fine-0.5)*10;rg+=(fine-0.5)*9;rb+=(fine-0.5)*7;
+      // Dry, trampled grass bordering the road.
+      const verge=1-__smooth(0,1.1,Math.abs(dRoad));
+      gr+=verge*14;gg+=verge*4;gb+=verge*2;
+      let r=gr+(rr-gr)*roadW,g=gg+(rg-gg)*roadW,b=gb+(rb-gb)*roadW;
+      // Territory tint (blue left, red right) — kept faint.
+      if(tx>=2&&tx<20){b+=7;r-=2}
+      else if(tx>=20&&tx<38){r+=7;b-=2}
+      // Soft shadowed seam on the centre line.
+      const seam=1-__smooth(0,0.12,Math.abs(tx-20));
+      r*=1-seam*0.35;g*=1-seam*0.35;b*=1-seam*0.35;
       const idx=(py*texW+px)*4;
       d[idx]=clamp(r,0,255);d[idx+1]=clamp(g,0,255);d[idx+2]=clamp(b,0,255);d[idx+3]=255;
     }
   }
   ctx.putImageData(img,0,0);
-  // Grid lines
-  ctx.strokeStyle='rgba(0,0,0,0.07)';ctx.lineWidth=0.5;
-  for(let c=0;c<=COLS;c++){ctx.beginPath();ctx.moveTo(c*PX,0);ctx.lineTo(c*PX,texH);ctx.stroke()}
-  for(let r=0;r<=ROWS;r++){ctx.beginPath();ctx.moveTo(0,r*PX);ctx.lineTo(texW,r*PX);ctx.stroke()}
-  ctx.strokeStyle='rgba(0,0,0,0.2)';ctx.lineWidth=1.5;
-  ctx.beginPath();ctx.moveTo(20*PX,0);ctx.lineTo(20*PX,texH);ctx.stroke();
-
+  // Faint build grid, only inside the two build territories.
+  ctx.strokeStyle='rgba(0,0,0,0.06)';ctx.lineWidth=1;
+  for(let c=2;c<=38;c++){ctx.beginPath();ctx.moveTo(c*PX+0.5,0);ctx.lineTo(c*PX+0.5,texH);ctx.stroke()}
+  for(let r=0;r<=ROWS;r++){ctx.beginPath();ctx.moveTo(2*PX,r*PX+0.5);ctx.lineTo(38*PX,r*PX+0.5);ctx.stroke()}
   const tex=new THREE.CanvasTexture(canvas);
-  tex.magFilter=THREE.NearestFilter;tex.colorSpace=THREE.SRGBColorSpace;
+  tex.colorSpace=THREE.SRGBColorSpace;
+  tex.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());
   const geo=new THREE.PlaneGeometry(COLS,ROWS,COLS*2,ROWS*2);
   geo.rotateX(-Math.PI/2);
   // Gentle height variation on grass
@@ -2378,7 +2443,7 @@ function createBattlefieldDecals(){
   scene.add(decalGroup);
 }
 // ==================== 3D CURSOR ====================
-let cursor1Mesh,cursor2Mesh,rangeMesh;
+let cursor1Mesh,cursor2Mesh,rangeMesh,rangeMesh2;
 function initCursors(){
   const g1=new THREE.BoxGeometry(1,0.02,1);
   cursor1Mesh=new THREE.Mesh(g1,new THREE.MeshBasicMaterial({color:0x4488ff,transparent:true,opacity:0.3,depthWrite:false}));
@@ -2397,6 +2462,8 @@ function initCursors(){
   const circleGeo=new THREE.RingGeometry(0.95,1,32);circleGeo.rotateX(-Math.PI/2);
   rangeMesh=new THREE.Mesh(circleGeo,new THREE.MeshBasicMaterial({color:0x4488ff,transparent:true,opacity:0.15,depthWrite:false,side:THREE.DoubleSide}));
   rangeMesh.position.y=0.01;rangeMesh.visible=false;scene.add(rangeMesh);
+  rangeMesh2=new THREE.Mesh(circleGeo,new THREE.MeshBasicMaterial({color:0xff4488,transparent:true,opacity:0.15,depthWrite:false,side:THREE.DoubleSide}));
+  rangeMesh2.position.y=0.01;rangeMesh2.visible=false;scene.add(rangeMesh2);
 }
 
 // ==================== 3D ENTITY TRACKING ====================
@@ -2647,6 +2714,8 @@ function updateHUD(){
       const wd2=Math.round(p2.totalDmgDealt-(__waveStartDmg2||0));
       h.weStats.textContent=`P1: ${wk1} kills, ${wd1} dmg | P2: ${wk2} kills, ${wd2} dmg`;
     }
+    if(!h.weReward)h.weReward=document.getElementById('we-reward');
+    h.weReward.textContent=`+250 Credits | Interest +$${interestFor(p1.credits)} / +$${interestFor(p2.credits)} | Specials Recharged`;
   }
 
   // Build option highlighting (uses cached NodeLists + dataset.idx so
@@ -2756,16 +2825,15 @@ function tryPlace(player,pNum){
     existingTower.dmg=Math.round(td.dmg*(1+0.3*(lv-1)));
     existingTower.range=td.range*(1+0.1*(lv-1));
     existingTower.rate=td.rate*(1-0.15*(lv-1));
-    // Visual: scale mesh slightly per level.
-    const mesh=towerMeshes.get(existingTower);
-    if(mesh){
-      const s=1+0.08*(lv-1);
-      mesh.scale.set(s,s,s);
-    }
+    // Visual: syncTowers scales the mesh per level, pulses it and
+    // rebuilds the gold level bands.
+    existingTower._upT=0;
     sndBuild();
     // Upgrade particles burst
     const wp=tileToWorld(c,r);
     emitParticles(wp.x,1.0,wp.z,0xffd700,12,60);
+    spawnAuraPulse(wp.x,wp.z,1.2,0xffd700,0.5);
+    spawnDmgNumber(wp.x,1.6,wp.z,'LV '+lv,'#ffd700');
     return;
   }
   if(!canPlace(c,r,pNum))return;if(player.credits<opt.cost)return;
@@ -2777,6 +2845,7 @@ function tryPlace(player,pNum){
       splash:td.splash,color:td.color,x:colToX(c),y:rowToY(r),cooldown:0,target:null,angle:0,level:1});
   }else if(opt.id==='wall'){grid[r][c]={type:'wall',owner:pNum,hp:150,maxHp:150}}
   else{grid[r][c]={type:'barricade',owner:pNum,hp:75,maxHp:75}}
+  markGridDirty();
   sndBuild();
 }
 
@@ -2793,7 +2862,11 @@ function trySell(player,pNum){
     const idx=towers.findIndex(t=>t.col===c&&t.row===r);if(idx>=0)towers.splice(idx,1);
   }else if(cell.type==='wall')refund=Math.floor(WALL_COST/2);
   else if(cell.type==='barricade')refund=Math.floor(BARRICADE_COST/2);
-  grid[r][c]=null;player.credits+=refund;sndBuild();
+  grid[r][c]=null;player.credits+=refund;markGridDirty();sndBuild();
+  // v3.27: sell feedback — dust puff and the refund floating up.
+  const wp=tileToWorld(c,r);
+  spawnSmoke(wp.x,0.3,wp.z,0xb8a888,6,0.5);
+  spawnDmgNumber(wp.x,0.9,wp.z,'+$'+refund,'#ffd700');
 }
 
 function dealDamage(enemy,dmg){
@@ -2856,6 +2929,8 @@ function useSpecial(player,pNum){
   }else if(spec.id==='freeze'){
     for(const e of enemies){if(!e.alive||e.owner!==enemyTeam)continue;if(dist(cx,cy,e.x,e.y)/T<=spec.radius)e.slowTimer=spec.duration}
     emitParticles(wp.x,0.3,wp.z,0xaaeeff,25,60);
+    spawnAuraPulse(wp.x,wp.z,spec.radius,0x99ddff,0.8);
+    spawnSmoke(wp.x,0.2,wp.z,0xcceeff,8,1.0,{rise:0.15,spread:3,life:1.2,alpha:0.4});
   }else if(spec.id==='heal'){
     player.castleHP=Math.min(player.maxHP,player.castleHP+spec.amount);
     const hx=pNum===1?colToX(1):colToX(38);const hp=pixelToWorld(hx,rowToY(9));
@@ -2869,16 +2944,17 @@ function spawnEnemy(type,spawnCol,spawnRow,owner){
   // either and stamp out an entity record with the same shape.
   const d=ENEMY_DATA.find(e=>e.id===type)||BOSS_DATA.find(b=>b.id===type);
   if(!d)return;
-  const blocker=owner===1?2:1;
-  let goals=[];
-  if(owner===1){for(let r=6;r<=11;r++){goals.push({c:38,r});goals.push({c:39,r})}}
-  else{for(let r=6;r<=11;r++){goals.push({c:0,r});goals.push({c:1,r})}}
-  let path=findPath(spawnCol,spawnRow,goals,blocker);
+  // v3.27: dragons fly — no player building blocks them (blocker 0
+  // matches no owner), so mazing does nothing against them.
+  const flying=!!d.flying;
+  const blocker=flying?0:(owner===1?2:1);
+  let path=findPath(spawnCol,spawnRow,enemyGoals(owner),blocker);
   if(!path||path.length<2)path=[{c:spawnCol,r:spawnRow}];
   enemies.push({type,owner,hp:d.hp,maxHp:d.hp,spd:d.spd,dmg:d.dmg,reward:d.reward,
     armor:d.armor||0,color:d.color,x:colToX(spawnCol),y:rowToY(spawnRow),
     path,pathIdx:1,alive:true,slowTimer:0,slowMult:1,wallCheckTimer:rnd(0.3,1),
-    combatTarget:null,atkCooldown:0,combatScanTimer:rnd(0,0.3),_anim:Math.random()*Math.PI*2});
+    combatTarget:null,atkCooldown:0,combatScanTimer:rnd(0,0.3),_anim:Math.random()*Math.PI*2,
+    flying,ranged:d.range||0,rangedCd:rnd(0.2,0.8),auraCd:1.5,_pathVer:__gridVer,_spawnT:0});
 }
 
 function startWave(){
@@ -2947,7 +3023,14 @@ function startBuild(){
   players[1].ready=false;players[2].ready=false;
   // v3.15: per-wave credit bonus 200 → 250 (since there are now 10 waves
   // and the enemy curve is tougher late).
-  if(waveNum>0){players[1].credits+=250;players[2].credits+=250;players[1].specials=3;players[2].specials=3}
+  if(waveNum>0){
+    for(const pn of[1,2]){
+      const pl=players[pn];
+      const interest=interestFor(pl.credits);
+      pl.credits+=250+interest;pl.specials=3;
+      if(interest>0){const cw=tileToWorld(pn===1?1:38,9);spawnDmgNumber(cw.x,1.8,cw.z,'+$'+interest+' INTEREST','#ffd700')}
+    }
+  }
   showScreen('game');
 }
 
@@ -3082,9 +3165,42 @@ function updateCombat(dt){
     if(e.slowTimer>0){e.slowTimer-=dt;e.slowMult=0.3}else{e.slowMult=1}
     e._anim+=dt*3*e.slowMult;
 
-    // Melee combat
+    // v3.27: re-route when the grid changed since this path was made
+    // (wall destroyed, tower sold mid-wave). Flyers ignore buildings.
+    if(!e.flying&&e._pathVer!==__gridVer){
+      e._pathVer=__gridVer;
+      const sc=clamp(xToCol(e.x),0,COLS-1),sr=clamp(yToRow(e.y),0,ROWS-1);
+      const np=findPath(sc,sr,enemyGoals(e.owner),e.owner===1?2:1);
+      if(np&&np.length>=2){e.path=np;e.pathIdx=1}
+    }
+
+    // v3.27: lich aura — mend nearby allies on a fixed cadence.
+    const bd=e.type==='lich'?LICH_AURA:null;
+    if(bd){
+      e.auraCd-=dt;
+      if(e.auraCd<=0){
+        e.auraCd=bd.every;
+        const near=__spatQuery(e.x,e.y,bd.radius,__nearbyScan);
+        let healed=0;
+        for(let i=0;i<near.length;i++){
+          const a=near[i];
+          if(!a.alive||a.owner!==e.owner||a.hp>=a.maxHp)continue;
+          if(dist(e.x,e.y,a.x,a.y)/T>bd.radius)continue;
+          a.hp=Math.min(a.maxHp,a.hp+a.maxHp*(a===e?bd.pct*0.25:bd.pct));
+          const hp=pixelToWorld(a.x,a.y);
+          emitParticles(hp.x,0.4,hp.z,0x66ff99,3,25);
+          healed++;
+        }
+        const lp=pixelToWorld(e.x,e.y);
+        spawnAuraPulse(lp.x,lp.z,bd.radius,healed?0x66ff99:0x9966ff);
+      }
+    }
+
+    // Melee combat. Ground units can't reach flyers; flyers and
+    // archers don't go looking for melee (archers still fight back
+    // when an enemy closes on them).
     if(e.combatTarget&&(!e.combatTarget.alive||dist(e.x,e.y,e.combatTarget.x,e.combatTarget.y)>T*2.5))e.combatTarget=null;
-    if(!e.combatTarget){
+    if(!e.combatTarget&&!e.flying&&!e.ranged){
       e.combatScanTimer=(e.combatScanTimer||0)-dt;
       if(e.combatScanTimer<=0){
         e.combatScanTimer=0.2;let closest=null,closestD=T*1.5;
@@ -3093,11 +3209,11 @@ function updateCombat(dt){
         const nearbyScan=__spatQuery(e.x,e.y,1.5,__nearbyScan);
         for(let i=0;i<nearbyScan.length;i++){
           const e2=nearbyScan[i];
-          if(!e2.alive||e2.owner===e.owner)continue;
+          if(!e2.alive||e2.owner===e.owner||e2.flying)continue;
           const d2=dist(e.x,e.y,e2.x,e2.y);
           if(d2<closestD){closestD=d2;closest=e2}
         }
-        if(closest){e.combatTarget=closest;closest.combatTarget=e}
+        if(closest){e.combatTarget=closest;if(!closest.combatTarget)closest.combatTarget=e}
       }
     }
     if(e.combatTarget&&e.combatTarget.alive){
@@ -3105,7 +3221,8 @@ function updateCombat(dt){
       const cdx=e.combatTarget.x-e.x,cdy=e.combatTarget.y-e.y,cd=Math.hypot(cdx,cdy);
       if(cd>T*0.6){const ms=e.spd*T*0.3*e.slowMult*dt;e.x+=cdx/cd*ms;e.y+=cdy/cd*ms}
       if(e.atkCooldown<=0){
-        e.atkCooldown=0.5;const atkDmg=e.dmg*(1-e.combatTarget.armor);e.combatTarget.hp-=atkDmg;
+        e.atkCooldown=0.5;e._atkT=0.25;const atkDmg=e.dmg*(1-e.combatTarget.armor);e.combatTarget.hp-=atkDmg;
+        e.combatTarget._hitFlash=0.12;
         const wp=pixelToWorld(e.combatTarget.x+rnd(-6,6),e.combatTarget.y-8);
         spawnDmgNumber(wp.x,0.5,wp.z,Math.round(atkDmg)|0,'#ffaa00');
         const mp=pixelToWorld((e.x+e.combatTarget.x)/2,(e.y+e.combatTarget.y)/2);
@@ -3121,35 +3238,75 @@ function updateCombat(dt){
       continue;
     }
 
-    // Wall attack
-    e.wallCheckTimer=(e.wallCheckTimer||0)-dt;
-    if(e.wallCheckTimer<=0){
-      e.wallCheckTimer=0.5;const ec=xToCol(e.x),er=yToRow(e.y);const remainPath=e.path.length-e.pathIdx;
-      if(remainPath>10){
-        for(const[dc,dr]of[[1,0],[-1,0],[0,1],[0,-1]]){
-          const nc=ec+dc,nr=er+dr;if(nc<0||nc>=COLS||nr<0||nr>=ROWS)continue;
-          const cell=grid[nr][nc];
-          if(cell&&(cell.type==='wall'||cell.type==='barricade')&&cell.owner!==e.owner){
-            if(Math.random()<0.35){
-              cell.hp-=e.hp;
-              const wp=pixelToWorld(colToX(nc),rowToY(nr));
-              emitParticles(wp.x,0.3,wp.z,0xff8800,10,70);sndWallHit();
-              if(cell.hp<=0){grid[nr][nc]=null;emitParticles(wp.x,0.3,wp.z,0x888888,25,120)}
-              e.alive=false;const ep=pixelToWorld(e.x,e.y);emitParticles(ep.x,0.3,ep.z,parseInt(e.color.replace('#',''),16),8,60);break;
-            }
-          }
+    // v3.27: ranged units loose arrows at the nearest enemy unit in
+    // range while they keep marching.
+    if(e.ranged){
+      e.rangedCd-=dt;
+      if(e.rangedCd<=0){
+        const near=__spatQuery(e.x,e.y,e.ranged,__nearbyScan);
+        let best=null,bd2=e.ranged*T;
+        for(let i=0;i<near.length;i++){
+          const o=near[i];
+          if(!o.alive||o.owner===e.owner)continue;
+          const dd=dist(e.x,e.y,o.x,o.y);
+          if(dd<bd2){bd2=dd;best=o}
         }
-        if(!e.alive)continue;
+        if(best){
+          e.rangedCd=1.1;e._atkT=0.25;e._aimAt=best;
+          projectiles.push({x:e.x,y:e.y,target:best,tx:best.x,ty:best.y,dmg:e.dmg,spd:9*T,splash:0,
+            type:'proj_arrow',owner:e.owner,alive:true,fromUnit:true});
+        }else e.rangedCd=0.25;
       }
     }
+
+    // Wall attack
+    e.wallCheckTimer=(e.wallCheckTimer||0)-dt;
+    if(!e.flying&&e.wallCheckTimer<=0){
+      const ec=xToCol(e.x),er=yToRow(e.y);const remainPath=e.path.length-e.pathIdx;
+      if(e.type==='troll'){
+        // v3.27: trolls batter the wall ahead of them (toward the
+        // enemy castle) and keep going once it falls.
+        e.wallCheckTimer=0.8;
+        const fc=ec+(e.owner===1?1:-1);
+        const cell=remainPath>4&&fc>=0&&fc<COLS&&er>=0&&er<ROWS?grid[er][fc]:null;
+        if(cell&&(cell.type==='wall'||cell.type==='barricade')&&cell.owner!==e.owner){
+          cell.hp-=e.dmg*0.5;e._atkT=0.3;e._smashing=0.8;
+          const wp=pixelToWorld(colToX(fc),rowToY(er));
+          emitParticles(wp.x,0.4,wp.z,0x999988,14,90);spawnSmoke(wp.x,0.3,wp.z,0x9a9080,3,0.6);
+          sndWallHit();screenShake=Math.max(screenShake,0.12);
+          if(cell.hp<=0){grid[er][fc]=null;markGridDirty();emitParticles(wp.x,0.3,wp.z,0x888888,25,120);spawnSmoke(wp.x,0.3,wp.z,0x8a8070,8,0.9)}
+        }
+      }else{
+        e.wallCheckTimer=0.5;
+        if(remainPath>10){
+          for(const[dc,dr]of[[1,0],[-1,0],[0,1],[0,-1]]){
+            const nc=ec+dc,nr=er+dr;if(nc<0||nc>=COLS||nr<0||nr>=ROWS)continue;
+            const cell=grid[nr][nc];
+            if(cell&&(cell.type==='wall'||cell.type==='barricade')&&cell.owner!==e.owner){
+              if(Math.random()<0.35){
+                cell.hp-=e.hp;
+                const wp=pixelToWorld(colToX(nc),rowToY(nr));
+                emitParticles(wp.x,0.3,wp.z,0xff8800,10,70);sndWallHit();
+                if(cell.hp<=0){grid[nr][nc]=null;markGridDirty();emitParticles(wp.x,0.3,wp.z,0x888888,25,120);spawnSmoke(wp.x,0.3,wp.z,0x8a8070,6,0.8)}
+                e.alive=false;const ep=pixelToWorld(e.x,e.y);emitParticles(ep.x,0.3,ep.z,parseInt(e.color.replace('#',''),16),8,60);break;
+              }
+            }
+          }
+          if(!e.alive)continue;
+        }
+      }
+    }
+    if(e._smashing>0){e._smashing-=dt;continue}
 
     // Path following
     if(e.pathIdx>=e.path.length){
       const target=e.owner===1?players[2]:players[1];target.castleHP-=e.dmg;
+      target._hitT=0.3;
       const ep=pixelToWorld(e.x,e.y);
       spawnDmgNumber(ep.x,0.5,ep.z,'-'+e.dmg,'#ff8800');emitParticles(ep.x,0.3,ep.z,0xff4400,10,80);
+      spawnSmoke(ep.x,0.5,ep.z,0x555048,4,0.7);
       screenShake=0.3;
-      e.alive=false;continue;
+      e.alive=false;e._noCorpse=true;continue;
     }
     const tgt=e.path[e.pathIdx];const tx=colToX(tgt.c),ty=rowToY(tgt.r);
     const dx=tx-e.x,dy=ty-e.y,d=Math.hypot(dx,dy);const speed=e.spd*T*e.slowMult;
@@ -3297,11 +3454,20 @@ function showGameOver(){
 function restartGame(){
   enemies.length=0;towers.length=0;projectiles.length=0;spawnQueue1.length=0;spawnQueue2.length=0;
   // Clean 3D meshes
-  enemyMeshes.forEach(m=>scene.remove(m));enemyMeshes.clear();
+  enemyMeshes.forEach(m=>releaseEnemyMesh(m));enemyMeshes.clear();
+  // v3.27: previously leaked — HP bars of enemies alive at game over
+  // stayed floating over the next game, and corpses mid-animation.
+  for(const e of [...__hpBars.keys()])__removeHpBar(e);
+  for(const k of [...__wallBars.keys()])__removeWallBar(k);
+  __clearCorpses();
   towerMeshes.forEach(m=>scene.remove(m));towerMeshes.clear();
   buildingMeshes.forEach(m=>scene.remove(m));buildingMeshes.clear();
-  projMeshes.forEach(m=>scene.remove(m));projMeshes.clear();
-  initGrid();waveNum=0;
+  projMeshes.forEach(m=>releaseProjMesh(m));projMeshes.clear();
+  initGrid();markGridDirty();waveNum=0;spawnTimer=0;__simAcc=0;__combatSpeed=1;
+  // v3.27: reset the day/weather cycle back to wave-1 noon.
+  applyTimeOfDay(0);__weatherRain=false;if(__rain)__rain.visible=false;
+  if(scene.fog)scene.fog.density=0.005;
+  players[1]._hitT=0;players[2]._hitT=0;
   players[1].castleHP=CASTLE_HP;players[1].maxHP=CASTLE_HP;players[1].credits=START_CREDITS;
   players[1].specials=3;players[1].ready=false;players[1].selectedIdx=0;players[1].kills=0;players[1].totalDmgDealt=0;
   players[1].enemyQueue={goblin:0,orc:0,darkKnight:0,archer:0,troll:0,dragon:0,lich:0};players[1].cursor={c:10,r:9};
@@ -3329,14 +3495,54 @@ function syncBuildings(){
       __canonicalizeEnemyMaterials(mesh);
       __mergeEnemyModel(mesh);
       __freezeSubtree(mesh);
+      spawnSmoke(wp.x,0.15,wp.z,0xb8a888,4,0.45,{rise:0.3,spread:1.0,life:0.8});
+    }
+    // v3.27: walls under attack show an HP bar.
+    if(cell.hp<cell.maxHp){
+      const bar=__ensureWallBar(key);
+      const wp=tileToWorld(c,r),pct=Math.max(0,cell.hp/cell.maxHp),bw=0.8;
+      bar.bg.position.set(wp.x,1.15,wp.z);bar.bg.scale.set(bw,1,1);bar.bg.quaternion.copy(camera.quaternion);
+      bar.fg.position.set(wp.x-(bw*(1-pct))/2,1.15,wp.z);bar.fg.scale.set(bw*pct,1,1);bar.fg.quaternion.copy(camera.quaternion);
     }
   }
   // Remove stale
   for(const[key,mesh] of buildingMeshes){
     if(!activeKeys.has(key)){scene.remove(mesh);buildingMeshes.delete(key)}
   }
+  for(const key of __wallBars.keys()){
+    const [r,c]=key.split('_').map(Number);const cell=grid[r][c];
+    if(!cell||!(cell.hp<cell.maxHp))__removeWallBar(key);
+  }
+}
+const __wallBars=new Map();
+const __wallBarFgMat=new THREE.MeshBasicMaterial({color:0xd8b060,depthTest:false,depthWrite:false,side:THREE.DoubleSide});
+function __ensureWallBar(key){
+  let bar=__wallBars.get(key);if(bar)return bar;
+  const bg=new THREE.Mesh(__hpBarGeo,__hpBarBgMat),fg=new THREE.Mesh(__hpBarGeo,__wallBarFgMat);
+  bg.renderOrder=999;fg.renderOrder=1000;scene.add(bg);scene.add(fg);
+  bar={bg,fg};__wallBars.set(key,bar);return bar;
+}
+function __removeWallBar(key){
+  const bar=__wallBars.get(key);if(!bar)return;
+  scene.remove(bar.bg);scene.remove(bar.fg);__wallBars.delete(key);
 }
 
+// v3.27: gold level bands around the tower base (one per upgrade) and
+// a glowing ground sigil at max level, so tower level reads at a glance.
+const __pipBandGeo=new THREE.TorusGeometry(0.36,0.035,6,24);__pipBandGeo.rotateX(Math.PI/2);
+const __pipBandMat=new THREE.MeshStandardMaterial({color:0xffd700,emissive:0xaa7700,emissiveIntensity:0.6,metalness:0.8,roughness:0.3});
+const __pipSigilMat=new THREE.MeshBasicMaterial({color:0xffcc44,transparent:true,opacity:0.45,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide});
+const __pipSigilGeo=new THREE.RingGeometry(0.44,0.5,32);__pipSigilGeo.rotateX(-Math.PI/2);
+function __setTowerPips(mesh,lv){
+  if(mesh.userData.pips){mesh.remove(mesh.userData.pips);mesh.userData.pips=null}
+  if(lv<=1)return;
+  const g=new THREE.Group();
+  for(let i=0;i<lv-1;i++){
+    const b=new THREE.Mesh(__pipBandGeo,__pipBandMat);b.position.y=0.1+i*0.09;g.add(b);
+  }
+  if(lv>=3){const sg=new THREE.Mesh(__pipSigilGeo,__pipSigilMat);sg.position.y=0.03;g.add(sg)}
+  mesh.add(g);mesh.userData.pips=g;
+}
 function syncTowers(){
   const activeTowers=new Set(towers);
   // Add new
@@ -3359,9 +3565,28 @@ function syncTowers(){
       __freezeMergedMeshes(mesh);
       const wp=tileToWorld(t.col,t.row);mesh.position.set(wp.x,0,wp.z);
       scene.add(mesh);towerMeshes.set(t,mesh);
+      // v3.27: build animation — the tower rises out of a dust cloud.
+      t._buildT=0;t._pipLv=1;
+      spawnSmoke(wp.x,0.2,wp.z,0xb8a888,7,0.55,{rise:0.4,spread:1.2,life:0.9});
+      spawnAuraPulse(wp.x,wp.z,0.9,t.owner===1?0x5588ff:0xff5577,0.45);
     }
     // Rotate tower to face target (catapult/bombard especially)
     const mesh=towerMeshes.get(t);
+    if(mesh){
+      const lvS=1+0.08*((t.level||1)-1);
+      let sx=lvS,sy=lvS;
+      if(t._buildT<1){
+        t._buildT=Math.min(1,t._buildT+__lastRawDt/0.4);
+        const k=t._buildT;
+        sy=lvS*(1+2.0*Math.pow(k-1,3)+1.0*Math.pow(k-1,2));sx=lvS*(0.7+0.3*k);
+      }
+      if(t._upT!==undefined&&t._upT<1){
+        t._upT=Math.min(1,t._upT+__lastRawDt/0.35);
+        const pk=Math.sin(t._upT*Math.PI)*0.12;sx+=pk;sy+=pk;
+      }
+      mesh.scale.set(sx,Math.max(0.02,sy),sx);
+      if(t._pipLv!==(t.level||1)){t._pipLv=t.level||1;__setTowerPips(mesh,t._pipLv)}
+    }
     if(mesh&&t.target){
       mesh.rotation.y=-t.angle+Math.PI/2;
     }
@@ -3626,6 +3851,11 @@ function acquireEnemyMesh(type,owner){
   // freezing skips ~10 per-enemy matrix composes per frame.
   __freezeMergedMeshes(mesh);
   mesh.userData._poolKey=k;
+  // v3.27: remember model scale (spawn pop-in / death shrink animate
+  // relative to it) and use yaw-first rotation so the death topple
+  // tips along the unit's own facing.
+  mesh.userData._baseScale=mesh.scale.x;
+  mesh.rotation.order='YXZ';
   return mesh;
 }
 function releaseEnemyMesh(mesh){
@@ -3685,16 +3915,28 @@ function syncEnemies(){
       const mesh=acquireEnemyMesh(e.type,e.owner);
       if(!mesh.parent)scene.add(mesh);
       enemyMeshes.set(e,mesh);
+      // v3.27: spawn puff at the gate.
+      const sp=pixelToWorld(e.x,e.y);
+      spawnSmoke(sp.x,0.2,sp.z,e.owner===1?0x8899cc:0xcc8899,2,0.35,{rise:0.3,life:0.6});
     }
     const mesh=enemyMeshes.get(e);
     const wp=pixelToWorld(e.x,e.y);
-    // Bob animation
-    const bob=Math.sin(e._anim)*0.05;
+    // Bob animation. v3.27: flyers hover well above the ground with a
+    // slower, larger bob.
+    const bob=e.flying?1.1+Math.sin(e._anim*0.7)*0.15:Math.sin(e._anim)*0.05;
     mesh.position.set(wp.x,bob,wp.z);
+    // v3.27: pop-in on spawn (scale up with a little overshoot).
+    const base=mesh.userData._baseScale;
+    if(e._spawnT<1){
+      e._spawnT=Math.min(1,e._spawnT+__lastRawDt/0.3);
+      const k=e._spawnT,ob=1+2.2*Math.pow(k-1,3)+1.2*Math.pow(k-1,2);
+      mesh.scale.setScalar(base*Math.max(0.05,ob));
+    }else if(mesh.scale.x!==base)mesh.scale.setScalar(base);
     // Face movement/attack direction
-    if(e.combatTarget&&e.combatTarget.alive){
-      // Face combat target
-      const twp=pixelToWorld(e.combatTarget.x,e.combatTarget.y);
+    const aimT=e.combatTarget&&e.combatTarget.alive?e.combatTarget:(e._atkT>0&&e._aimAt&&e._aimAt.alive?e._aimAt:null);
+    if(aimT){
+      // Face combat / ranged target
+      const twp=pixelToWorld(aimT.x,aimT.y);
       mesh.rotation.y=Math.atan2(twp.x-wp.x,twp.z-wp.z);
     }else if(e.pathIdx<e.path.length){
       // Face next path tile
@@ -3717,15 +3959,24 @@ function syncEnemies(){
     // than marching like a metronome.
     const s2=Math.sin(animSpeed*0.55+0.7); // slower, offset phase
     const s3=Math.sin(animSpeed*0.9+1.4);
+    // v3.27: attack lunge — short forward jab along the facing.
+    if(e._atkT>0){
+      e._atkT-=__lastRawDt;
+      const lk=Math.sin(Math.max(0,e._atkT)/0.25*Math.PI)*(e.ranged?-0.04:0.12);
+      mesh.position.x+=Math.sin(mesh.rotation.y)*lk;
+      mesh.position.z+=Math.cos(mesh.rotation.y)*lk;
+    }
     const limbs=mesh.userData.limbs;
+    const flap=e.flying?0.25+Math.sin(e._anim*2.2)*0.6:0;
     if(limbs){
       for(let i=0;i<limbs.length;i++){
         const L=limbs[i];
         switch(L.type){
           case 0: L.grp.rotation.x= s*legSwing; break;
           case 1: L.grp.rotation.x=-s*legSwing; break;
-          case 2: L.grp.rotation.x=-s*armSwing; break;
-          case 3: L.grp.rotation.x= s*armSwing; break;
+          // v3.27: a flying dragon's "arms" are its wings — flap them.
+          case 2: if(e.flying)L.grp.rotation.z= flap; else L.grp.rotation.x=-s*armSwing; break;
+          case 3: if(e.flying)L.grp.rotation.z=-flap; else L.grp.rotation.x= s*armSwing; break;
           // v3.18 secondary motions (bosses):
           // v3.26: increased amplitudes for more dramatic boss motion.
           case 4: L.grp.rotation.x=s2*0.28;                       break; // head nod (bigger)
@@ -3769,7 +4020,7 @@ function syncEnemies(){
       const bar=__ensureHpBar(e);
       const wp2=pixelToWorld(e.x,e.y);
       const isBoss=(e.type==='troll'||e.type==='dragon'||e.type==='lich');
-      const barY=isBoss?3.5:1.6;
+      const barY=(isBoss?3.5:1.6)+(e.flying?1.1:0);
       const barW=isBoss?1.8:0.7;
       bar.bg.position.set(wp2.x,barY,wp2.z);
       bar.bg.scale.set(barW,1,1);
@@ -3790,9 +4041,41 @@ function syncEnemies(){
   }
   // Remove dead — walk the map directly, no Set allocation.
   // PERF v3.0: return mesh to pool instead of disposing.
+  // v3.27: killed units topple and sink instead of vanishing.
   for(const[e,mesh] of enemyMeshes){
-    if(!e.alive){releaseEnemyMesh(mesh);__removeHpBar(e);enemyMeshes.delete(e)}
+    if(!e.alive){
+      __removeHpBar(e);enemyMeshes.delete(e);
+      if(e._noCorpse||__corpses.length>=60)releaseEnemyMesh(mesh);
+      else __corpses.push({mesh,t:0,y0:mesh.position.y,dir:Math.random()<0.5?1:-1});
+    }
   }
+  updateCorpses(__lastRawDt);
+}
+
+// v3.27: death animation. Corpses tip over (forward or back), then
+// sink into the ground and shrink before the mesh returns to the pool.
+const __corpses=[];
+function updateCorpses(dt){
+  for(let i=__corpses.length-1;i>=0;i--){
+    const c=__corpses[i];c.t+=dt;const m=c.mesh,base=m.userData._baseScale;
+    const fall=Math.min(1,c.t/0.3);
+    m.rotation.x=c.dir*fall*fall*1.45;
+    // flyers drop out of the sky first
+    m.position.y=c.y0>0.5?c.y0*(1-fall*fall)+0.05:m.position.y;
+    if(c.t>0.55){
+      const k=Math.min(1,(c.t-0.55)/0.5);
+      m.position.y=0.05-k*0.35;
+      m.scale.setScalar(base*(1-k*0.6));
+    }
+    if(c.t>=1.05){
+      m.rotation.x=0;m.scale.setScalar(base);
+      releaseEnemyMesh(m);__corpses.splice(i,1);
+    }
+  }
+}
+function __clearCorpses(){
+  for(const c of __corpses){c.mesh.rotation.x=0;c.mesh.scale.setScalar(c.mesh.userData._baseScale);releaseEnemyMesh(c.mesh)}
+  __corpses.length=0;
 }
 
 function syncProjectiles(){
@@ -3871,24 +4154,134 @@ function syncProjectiles(){
   }
 }
 
+// v3.27: cursor tint tells the player what Place will do here:
+// team colour = valid build, gold = upgrade, red = blocked/unaffordable.
+const __CUR_OK=[null,new THREE.Color(0x4488ff),new THREE.Color(0xff4488)];
+const __CUR_UPG=new THREE.Color(0xffd34a),__CUR_BAD=new THREE.Color(0xff3322),__CUR_IDLE=new THREE.Color(0xaaaaaa);
+const __curCache=[null,{},{}];
+function __cursorAction(pNum){
+  const pl=players[pNum],{c,r}=pl.cursor,opt=BUILD_OPTS[pl.selectedIdx];
+  const ck=__curCache[pNum];
+  const sig=c+','+r+','+pl.selectedIdx+','+__gridVer+','+pl.credits+','+gameState;
+  if(ck.sig===sig)return ck;
+  ck.sig=sig;ck.tower=null;ck.state='idle';ck.text='';
+  const cell=grid[r]&&grid[r][c];
+  if(cell&&cell.type==='tower'&&cell.owner===pNum){
+    const t=towers.find(t=>t.col===c&&t.row===r);ck.tower=t;
+    if(t){
+      const td=TOWER_DATA.find(d=>d.id===t.type),lv=t.level||1;
+      const refund=Math.floor(td.cost/2)+Math.floor(td.cost*0.6*(lv-1)/2);
+      const upCost=Math.floor(td.cost*0.6);
+      if(gameState==='build'&&opt.cat==='tower'){
+        ck.state=lv>=3?'bad':pl.credits>=upCost?'upg':'bad';
+      }
+      ck.text=`${td.name} Lv${lv}${lv<3?` \u2014 Place: Upgrade $${upCost}`:' (MAX)'} \u00B7 Sell: +$${refund}`;
+    }
+    return ck;
+  }
+  if(gameState!=='build'||(opt.cat!=='tower'&&opt.cat!=='build'))return ck;
+  ck.state=(canPlace(c,r,pNum)&&pl.credits>=opt.cost)?'ok':'bad';
+  return ck;
+}
+function __tintCursor(mesh,col){
+  mesh.material.color.copy(col);
+  if(mesh.children[0])mesh.children[0].material.color.copy(col);
+}
+let __hintEls=null;
 function updateCursors(){
   const vis=gameState==='build'||gameState==='combat';
   cursor1Mesh.visible=vis;cursor2Mesh.visible=vis&&gameMode==='2p';
-  if(!vis){rangeMesh.visible=false;return}
-  const wp1=tileToWorld(players[1].cursor.c,players[1].cursor.r);
-  cursor1Mesh.position.set(wp1.x,0.02,wp1.z);
-  const wp2=tileToWorld(players[2].cursor.c,players[2].cursor.r);
-  cursor2Mesh.position.set(wp2.x,0.02,wp2.z);
+  if(!vis){rangeMesh.visible=false;rangeMesh2.visible=false;return}
+  if(!__hintEls)__hintEls=[null,document.getElementById('hint-left'),document.getElementById('hint-right')];
+  const pulse=0.25+Math.sin(performance.now()*0.006)*0.08;
+  for(const pn of[1,2]){
+    const cm=pn===1?cursor1Mesh:cursor2Mesh,rm=pn===1?rangeMesh:rangeMesh2;
+    const pl=players[pn],wp=tileToWorld(pl.cursor.c,pl.cursor.r);
+    cm.position.set(wp.x,0.02,wp.z);
+    // The AI's cursor jumps around; don't draw or describe it.
+    if(gameMode==='1p'&&pn===2){rm.visible=false;continue}
+    const act=__cursorAction(pn);
+    __tintCursor(cm,act.state==='ok'?__CUR_OK[pn]:act.state==='upg'?__CUR_UPG:act.state==='bad'?__CUR_BAD:__CUR_IDLE);
+    cm.material.opacity=pulse;
+    // Range ring: selected tower type while building, or the hovered
+    // tower's real (upgraded) range.
+    const opt=BUILD_OPTS[pl.selectedIdx];
+    let range=0;
+    if(act.tower)range=act.tower.range;
+    else if(gameState==='build'&&opt.cat==='tower')range=TOWER_DATA.find(t=>t.id===opt.id).range;
+    if(range){rm.visible=true;rm.position.set(wp.x,0.01,wp.z);rm.scale.set(range,1,range);
+      rm.material.color.copy(act.state==='bad'?__CUR_BAD:act.state==='upg'?__CUR_UPG:__CUR_OK[pn])}
+    else rm.visible=false;
+    // Hover readout in the hint bar for the hovered own tower.
+    const hel=__hintEls[pn];
+    if(hel){
+      if(hel._def===undefined)hel._def=hel.textContent;
+      const want=act.text||hel._def;
+      if(hel.textContent!==want)hel.textContent=want;
+    }
+  }
+  updatePathPreview();
+}
 
-  // Range preview for P1
-  if(gameState==='build'){
-    const opt=BUILD_OPTS[players[1].selectedIdx];
-    if(opt.cat==='tower'){
-      const td=TOWER_DATA.find(t=>t.id===opt.id);
-      if(td){rangeMesh.visible=true;rangeMesh.position.set(wp1.x,0.01,wp1.z);rangeMesh.scale.set(td.range,1,td.range)}
-      else rangeMesh.visible=false;
-    }else rangeMesh.visible=false;
-  }else rangeMesh.visible=false;
+// v3.27: build-phase route preview. Glowing chevrons stream along the
+// path each side's units will walk, so mazing with walls is visible
+// before the wave starts. Rebuilt only when the grid changes.
+let __pathPrev=null;
+function __initPathPreview(){
+  const sh=new THREE.Shape();
+  sh.moveTo(-0.16,-0.12);sh.lineTo(0,0.02);sh.lineTo(0.16,-0.12);sh.lineTo(0.16,0.02);sh.lineTo(0,0.16);sh.lineTo(-0.16,0.02);sh.closePath();
+  const geo=new THREE.ShapeGeometry(sh);geo.rotateX(-Math.PI/2);
+  const mk=(col)=>{
+    const m=new THREE.InstancedMesh(geo,new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:0.6,depthWrite:false,blending:THREE.AdditiveBlending}),200);
+    m.frustumCulled=false;m.count=0;m.renderOrder=2;scene.add(m);return m;
+  };
+  __pathPrev={ver:-1,routes:[null,null,null],meshes:[null,mk(0x66aaff),mk(0xff6688)],dummy:new THREE.Object3D()};
+}
+function updatePathPreview(){
+  if(!__pathPrev)__initPathPreview();
+  const P=__pathPrev,show=gameState==='build';
+  if(!show){P.meshes[1].visible=P.meshes[2].visible=false;return}
+  if(P.ver!==__gridVer){P.ver=__gridVer;P.routes[1]=previewPath(1);P.routes[2]=previewPath(2)}
+  const now=performance.now()*0.001,SP=0.75;
+  for(const o of[1,2]){
+    const m=P.meshes[o],route=P.routes[o];m.visible=true;
+    if(!route||route.length<2){m.count=0;continue}
+    const L=route.length-1;let n=0;
+    const off=(now*1.6)%SP;
+    for(let sd=off;sd<L&&n<200;sd+=SP){
+      const i=Math.floor(sd),f=sd-i,a=route[i],b=route[i+1];
+      const pa=tileToWorld(a.c,a.r),pb=tileToWorld(b.c,b.r);
+      // keep to the right of travel so opposing routes sharing tiles
+      // don't draw on top of each other
+      const ddx=pb.x-pa.x,ddz=pb.z-pa.z;
+      P.dummy.position.set(pa.x+ddx*f-ddz*0.22,0.05,pa.z+ddz*f+ddx*0.22);
+      // chevron points along +z locally after rotateX; yaw toward b
+      P.dummy.rotation.set(0,Math.atan2(pb.x-pa.x,pb.z-pa.z)+Math.PI,0);
+      // fade in/out at the ends
+      const edge=Math.min(1,sd/1.5,(L-sd)/1.5);
+      P.dummy.scale.setScalar(0.6+0.4*edge);
+      P.dummy.updateMatrix();m.setMatrixAt(n++,P.dummy.matrix);
+    }
+    m.count=n;m.instanceMatrix.needsUpdate=true;
+  }
+}
+
+// v3.27: castles visibly burn as they take damage — smoke from 66%
+// HP, smoke plus fire and embers below 33%.
+let __castleFxT=0;
+function updateCastleFx(dt){
+  __castleFxT-=dt;if(__castleFxT>0)return;__castleFxT=0.12;
+  for(const pn of[1,2]){
+    const pl=players[pn],pct=pl.castleHP/pl.maxHP;
+    if(pct>0.66||gameState==='modeselect'||gameState==='title')continue;
+    const x=pn===1?-COLS/2+1:COLS/2-1;
+    const z=rnd(-3.5,3.5),y=rnd(1.4,2.6);
+    if(Math.random()<(pct<0.33?0.9:0.5))spawnSmoke(x+rnd(-0.6,0.6),y,z,pct<0.33?0x2a2622:0x4a4642,1,0.6,{rise:0.9,spread:0.3,life:1.8,grow:2.4,alpha:0.5});
+    if(pct<0.33&&Math.random()<0.7){
+      spawnSmoke(x+rnd(-0.5,0.5),y-0.3,z,0xff7722,1,0.35,{rise:0.6,spread:0.2,life:0.5,grow:0.6,alpha:0.8,additive:true});
+      emitParticles(x,y,z,0xff9933,1,25);
+    }
+  }
 }
 
 // ==================== AI PLAYER (P2 in 1P mode) ====================
@@ -3924,7 +4317,9 @@ function aiDoBuildAction(ai){
     // before building a new one. Uses the v3.22 upgrade mechanic.
     const myTowers=towers.filter(t=>t.owner===pNum&&(t.level||1)<3);
     if(myTowers.length&&Math.random()<0.4){
-      const upg=myTowers[Math.floor(Math.random()*myTowers.length)];
+      const route=__aiEnemyRoute(pNum);
+      let upg=myTowers[0],bestCov=-1;
+      for(const t of myTowers){const cv=__aiCoverage(t.col,t.row,route,t.range)+Math.random()*2;if(cv>bestCov){bestCov=cv;upg=t}}
       ai.cursor.c=upg.col;ai.cursor.r=upg.row;
       // Select ANY tower type in BUILD_OPTS — tryPlace's upgrade
       // branch checks ownership, not the selected tower type.
@@ -3935,7 +4330,7 @@ function aiDoBuildAction(ai){
       const affordable=TOWER_DATA.filter(t=>ai.credits>=t.cost);
       if(affordable.length){
         const td=affordable[Math.floor(Math.random()*affordable.length)];
-        const spot=aiFindBuildSpot(pNum);
+        const spot=aiFindBuildSpot(pNum,td.range);
         if(spot){
           ai.cursor.c=spot.c;ai.cursor.r=spot.r;
           ai.selectedIdx=BUILD_OPTS.findIndex(o=>o.id===td.id);
@@ -3974,24 +4369,51 @@ function aiDoBuildAction(ai){
   }
 }
 
-function aiFindBuildSpot(pNum){
-  // Try random spots in AI territory near the path rows
-  for(let attempt=0;attempt<20;attempt++){
-    const c=20+Math.floor(Math.random()*18);
-    const r=Math.floor(Math.random()*ROWS);
-    if(canPlace(c,r,pNum))return{c,r};
-  }
-  return null;
+// v3.27: placement is scored against the route the opponent's units
+// actually take, instead of picking random tiles (which used to put
+// towers in corners nothing ever walks past).
+function __aiEnemyRoute(pNum){
+  // Units owned by the other player walking into the AI's territory.
+  const route=previewPath(pNum===2?1:2)||[];
+  return route.filter(t=>t.c>=players[pNum].buildMin-1&&t.c<=players[pNum].buildMax+1);
 }
-
-function aiFindWallSpot(pNum){
-  // Place walls near the front of territory (cols 20-24) to create maze
-  for(let attempt=0;attempt<15;attempt++){
-    const c=20+Math.floor(Math.random()*6);
+function __aiCoverage(c,r,route,range){
+  let n=0;
+  for(const t of route){if(Math.hypot(t.c-c,t.r-r)<=range)n++}
+  return n;
+}
+function aiFindBuildSpot(pNum,range){
+  const pl=players[pNum],route=__aiEnemyRoute(pNum);
+  let best=null,bestScore=-1;
+  for(let attempt=0;attempt<40;attempt++){
+    const c=pl.buildMin+Math.floor(Math.random()*(pl.buildMax-pl.buildMin+1));
     const r=Math.floor(Math.random()*ROWS);
-    if(canPlace(c,r,pNum))return{c,r};
+    if(grid[r][c])continue;
+    // Never sit directly on the route — that's what walls are for.
+    const score=__aiCoverage(c,r,route,range||4)+Math.random()*1.5;
+    if(score>bestScore&&canPlace(c,r,pNum)){best={c,r};bestScore=score}
   }
-  return null;
+  return best;
+}
+function aiFindWallSpot(pNum){
+  // Try tiles on/next to the current route and keep the one that
+  // lengthens it the most (classic mazing).
+  const pl=players[pNum],route=__aiEnemyRoute(pNum);
+  const base=(previewPath(pNum===2?1:2)||[]).length;
+  if(!route.length)return null;
+  let best=null,bestGain=0;
+  for(let attempt=0;attempt<14;attempt++){
+    const t=route[Math.floor(Math.random()*route.length)];
+    const c=t.c+Math.floor(rnd(-1,2)),r=t.r+Math.floor(rnd(-1,2));
+    if(c<pl.buildMin||c>pl.buildMax||r<0||r>=ROWS||grid[r][c])continue;
+    if(!canPlace(c,r,pNum))continue;
+    grid[r][c]={type:'temp',owner:pNum};
+    const len=(previewPath(pNum===2?1:2)||[]).length;
+    grid[r][c]=null;
+    const gain=len-base+Math.random()*0.5;
+    if(gain>bestGain){bestGain=gain;best={c,r}}
+  }
+  return best;
 }
 
 function aiUseSpecial(ai){
@@ -4002,7 +4424,12 @@ function aiUseSpecial(ai){
     // Use offensive special targeting cluster of enemies
     const targetEnemies=enemies.filter(e=>e.alive&&e.owner===1);
     if(targetEnemies.length){
-      const target=targetEnemies[Math.floor(Math.random()*targetEnemies.length)];
+      // v3.27: aim at the densest cluster rather than a random unit.
+      let target=targetEnemies[0],bestN=-1;
+      for(const e of targetEnemies){
+        const n=__spatQuery(e.x,e.y,2,__nearbyScan).filter(o=>o.alive&&o.owner===1).length;
+        if(n>bestN){bestN=n;target=e}
+      }
       ai.cursor.c=xToCol(target.x);ai.cursor.r=yToRow(target.y);
       // Prefer meteor or lightning for groups, freeze if many
       if(enemyCount>8)ai.selectedSpecial=2; // freeze
@@ -4236,7 +4663,7 @@ function gameLoop(){
   // sets, so rendering between sim ticks shows the last sim state.
   if(gameState!=='title'){
     syncBuildings();syncTowers();syncEnemies();syncProjectiles();updateCursors();
-    updateParticles(rawDt);updateDmgNumbers(rawDt);updateVfx(rawDt);
+    updateParticles(rawDt);updateDmgNumbers(rawDt);updateVfx(rawDt);updateSmoke(rawDt);updateCastleFx(rawDt);
   }
 
   updateHUD();
