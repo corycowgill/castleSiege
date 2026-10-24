@@ -562,7 +562,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
   </div>
   <div class="menu-foot">
     <div class="foot-hints"><span><span class="key">&uarr;</span><span class="key">&darr;</span> Navigate</span><span><span class="key">Enter</span> Select</span><span><span class="key round">A</span> Confirm</span></div>
-    <div class="foot-ver">Castle Siege <b>v3.33</b> &bull; Build 2026-10-24</div>
+    <div class="foot-ver">Castle Siege <b>v3.34</b> &bull; Build 2026-10-24</div>
   </div>
 </div>
 
@@ -3932,8 +3932,11 @@ function __buildTowerMesh(t){
   __freezeMergedMeshes(mesh);
   // cache animated parts tagged by art.js
   const bows=[];
-  mesh.traverse(c=>{const l=c.userData&&c.userData.limb;if(l==='aim'){mesh.userData.aim=c;c.userData.baseY=c.position.y}else if(l==='bowL'||l==='bowR')bows.push({g:c,sx:l==='bowL'?1:-1})});
+  const anim=[];
+  mesh.traverse(c=>{const l=c.userData&&c.userData.limb;if(l==='aim'){mesh.userData.aim=c;c.userData.baseY=c.position.y}else if(l==='bowL'||l==='bowR')bows.push({g:c,sx:l==='bowL'?1:-1});
+    else if(l==='spin'||l==='float'||l==='arm'||l==='ammo'){c.userData.baseY=c.position.y;anim.push(c)}});
   if(bows.length)mesh.userData.bows=bows;
+  if(anim.length)mesh.userData.anim=anim;
   return mesh;
 }
 function syncTowers(){
@@ -4002,11 +4005,26 @@ function syncTowers(){
     // spring back. Makes every shot feel punchy.
     if(!mesh)continue;
     if(t._recoilT===undefined)t._recoilT=0;
+    // v3.34: ambient + firing animation for art towers. Driven by the
+    // real cooldown so visuals never change combat timing.
+    if(mesh.userData.anim){
+      const now=performance.now()*0.001,p=t.rate>0?1-Math.max(0,t.cooldown)/t.rate:1;
+      for(const c of mesh.userData.anim){
+        const u=c.userData;
+        if(u.limb==='spin'){const r=__lastRawDt*(u.spd||1);if(u.axis==='x')c.rotation.x+=r;else if(u.axis==='z')c.rotation.z+=r;else c.rotation.y+=r}
+        else if(u.limb==='float')c.position.y=u.baseY+Math.sin(now*(u.spd||1.5)+t.col)*(u.amp||0.04);
+        else if(u.limb==='arm'){
+          // fling within the first 8% of the reload, wind back by 75%
+          const f=p<0.08?p/0.08:1-Math.min(1,Math.max(0,(p-0.12)/0.63));
+          const fr=1-Math.pow(1-f,3);c.rotation.x=u.rest+(u.fire-u.rest)*fr;
+        }else if(u.limb==='ammo')c.visible=p>0.7||t.cooldown<=0;
+      }
+    }
     if(t._recoilT>0&&aim){
       // art tower: kick only the weapon back along its own axis
       t._recoilT-=__lastRawDt;if(t._recoilT<0)t._recoilT=0;
-      const rk=t._recoilT/0.15;
-      aim.position.x=-Math.sin(aim.rotation.y)*0.06*rk;aim.position.z=-Math.cos(aim.rotation.y)*0.06*rk;
+      const rk=t._recoilT/0.15,rd=aim.userData.recoil||0.06;
+      aim.position.x=-Math.sin(aim.rotation.y)*rd*rk;aim.position.z=-Math.cos(aim.rotation.y)*rd*rk;
     }else if(t._recoilT>0){
       t._recoilT-=__lastRawDt;
       if(t._recoilT<0)t._recoilT=0;
@@ -4089,7 +4107,7 @@ function __cacheEnemyMeshRefs(mesh){
     if(c.isGroup&&c.userData.limb){
       const l=c.userData.limb;
       const t=l==='leftLeg'?0:l==='rightLeg'?1:l==='leftArm'?2:l==='rightArm'?3
-             :l==='head'?4:l==='tail'?5:l==='weapon'?6:l==='neck'?7:-1;
+             :l==='head'?4:l==='tail'?5:l==='weapon'?6:l==='neck'?7:l==='orbit'?8:-1;
       if(t>=0)limbs.push({grp:c,type:t});
     }
     if(c.isMesh&&c.material){
@@ -4466,6 +4484,7 @@ function syncEnemies(){
           case 5: L.grp.rotation.y=s*0.5; L.grp.rotation.x=s2*0.15; break; // tail sway (wider + more undulation)
           case 6: L.grp.rotation.x=s*0.35+(inCombat?s3*0.65:0);   break; // weapon swing (much more violent in combat)
           case 7: L.grp.rotation.x=s2*0.32-0.08;                  break; // neck bob (more dramatic reach)
+          case 8: L.grp.rotation.y+=__lastRawDt*1.3;              break; // v3.34: orbiting skulls (lich)
         }
       }
     }

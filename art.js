@@ -51,7 +51,7 @@ function ell(rx,ry,rz,ws,hs){const g=new THREE.SphereGeometry(1,ws||12,hs||8);g.
 function dome(r,ws,hs){return new THREE.SphereGeometry(r,ws||14,hs||7,0,Math.PI*2,0,Math.PI/2)}
 function cyl(rt,rb,h,s,open){return new THREE.CylinderGeometry(rt,rb,h,s||14,1,!!open)}
 function cone(r,h,s){return new THREE.ConeGeometry(r,h,s||10)}
-function torus(R,r,rs,ts){return new THREE.TorusGeometry(R,r,rs||6,ts||20)}
+function torus(R,r,rs,ts,arc){return new THREE.TorusGeometry(R,r,rs||6,ts||20,arc)}
 // Lathe from [[radius,y],...].
 function lathe(prof,seg){return new THREE.LatheGeometry(prof.map(([r,y])=>new THREE.Vector2(r,y)),seg||16)}
 // Tube along points with radius tapering r0 -> r1 (horns, tusks, bow limbs).
@@ -567,10 +567,504 @@ function artCastleDamage(root,pct){
   set('dmgA',st<1);set('dmgB',st<2);set('rubA',st>=1);set('rubB',st>=2);
 }
 
+// ==================== SHARED TOWER PARTS ====================
+// Stone-block pedestal (same language as the Arrow Bastion). Returns the
+// top height and width so the crown can sit on it.
+function pedestal(g,M,R,layers,w0,banners,bannerLen){
+  const blocks=[M.block1,M.block2,M.block3];
+  P(g,rbox(w0+0.12,0.13,w0+0.12,0.04,3),M.blockD,[0,0.065,0]);
+  const lh=0.19;let y=0.13,w=w0;
+  for(let i=0;i<layers;i++){
+    w=w0-i*0.03;
+    P(g,rbox(w-0.08,lh,w-0.08,0.02,2),M.blockD,[0,y+lh/2,0]);
+    for(let side=0;side<4;side++){
+      const along=(side%2===i%2)?w:w-0.22,n=2,len=along/n,a=side*Math.PI/2;
+      const nx=Math.sin(a),nz=Math.cos(a),tx=Math.cos(a),tz=-Math.sin(a);
+      for(let k=0;k<n;k++){const off=-along/2+len*(k+0.5);
+        P(g,rbox(len-0.012,lh-0.012+(R()-0.5)*0.01,0.12,0.03,2),blocks[(R()*3)|0],[nx*(w/2-0.06)+tx*off,y+lh/2,nz*(w/2-0.06)+tz*off],[0,a+(R()-0.5)*0.03,(R()-0.5)*0.02])}
+    }
+    y+=lh;
+  }
+  P(g,rbox(w+0.05,0.05,w+0.05,0.02,3),M.gold,[0,y+0.02,0]);y+=0.045;
+  P(g,rbox(w+0.1,0.1,w+0.1,0.03,3),M.block1,[0,y+0.05,0]);y+=0.1;
+  for(const sd of banners){const a=sd*Math.PI/2;banner(g,M,[Math.sin(a)*(w/2+0.075),y-0.04,Math.cos(a)*(w/2+0.075)],0.27,bannerLen,a,sd)}
+  return{y,w};
+}
+function cornerMerlons(g,M,w,y,spikes){
+  for(const[sx,sz]of[[1,1],[1,-1],[-1,1],[-1,-1]]){
+    const cx=sx*(w/2+0.01),cz=sz*(w/2+0.01);
+    P(g,rbox(0.14,0.16,0.14,0.03,2),M.block3,[cx,y+0.08,cz]);
+    P(g,rbox(0.16,0.035,0.16,0.012,3),M.gold,[cx,y+0.175,cz]);
+    if(spikes)P(g,cone(0.035,0.14,6),M.gold,[cx,y+0.26,cz]);
+  }
+}
+// Animated group helper: tags drive syncTowers' ambient animation.
+function A(parent,pos,limb,opts){const g=G(parent,pos,limb);Object.assign(g.userData,opts||{});return g}
+
+// ==================== TOWER: ARCANE SPIRE (magic) ====================
+// Floating crystal held by brass rings over a stone pedestal.
+//  L1 single crystal + one ring, L2 bigger crystal, two rings, runes,
+//  L3 monumental crystal, three rings, orbiting shards, arc spikes.
+function buildArcaneSpire(owner,level){
+  const L=Math.max(1,Math.min(3,level||1)),M=artMats(owner),R=artRng(57+L),g=new THREE.Group();
+  const {y,w}=pedestal(g,M,R,1+L,0.78,L===1?[0,2]:[0,1,2,3],0.34+0.08*L);
+  if(L>=2)cornerMerlons(g,M,w,y,L>=3);
+  const crys=mkMat(0x58b4ff,{emissive:0x2a7aff,emissiveIntensity:1.5});
+  const core=mkMat(0xd8f4ff,{emissive:0x9ad8ff,emissiveIntensity:2.6});
+  const rune=mkMat(0x8ad0ff,{emissive:0x4aa0ff,emissiveIntensity:2});
+  // brass cradle
+  P(g,lathe([[0.2,0],[0.22,0.04],[0.16,0.1],[0.1,0.16],[0.12,0.2]],18),M.goldD,[0,y,0]);
+  for(let i=0;i<3;i++){const a=i/3*Math.PI*2;P(g,horn([[Math.cos(a)*0.18,0,Math.sin(a)*0.18],[Math.cos(a)*0.24,0.16,Math.sin(a)*0.24],[Math.cos(a)*0.15,0.3,Math.sin(a)*0.15]],0.022,0.01,8,5),M.gold,[0,y,0]);}
+  if(L>=2)for(let i=0;i<4;i++){const a=i/4*Math.PI*2+0.4;P(g,rbox(0.05,0.07,0.012,0.01,2),rune,[Math.sin(a)*(w/2+0.05),y-0.19,Math.cos(a)*(w/2+0.05)],[0,a,0])}
+  const S=0.8+0.2*L,cy=y+0.36+0.12*L;
+  const fl=A(g,[0,cy,0],'float',{amp:0.05,spd:1.6});
+  const cr=A(fl,[0,0,0],'spin',{spd:0.6});
+  const oct=new THREE.OctahedronGeometry(0.18*S,0);oct.scale(1,1.65,1);
+  P(cr,oct,crys);
+  const oc2=new THREE.OctahedronGeometry(0.09*S,0);oc2.scale(1,1.7,1);
+  P(cr,oc2,core);
+  // rings (each spins on its own axis)
+  const rings=L;
+  for(let i=0;i<rings;i++){
+    const rg=A(fl,[0,0,0],'spin',{spd:(i%2?-1:1)*(0.9+i*0.4),axis:i===0?'y':i===1?'x':'z'});
+    const tilt=G(rg,[0,0,0],null,[Math.PI/2+(i===0?0:0.6),0,i*0.9]);
+    P(tilt,torus(0.27*S+i*0.06,0.016,6,32),M.gold);
+    for(let k=0;k<4;k++){const a=k/4*Math.PI*2;P(tilt,ell(0.022,0.022,0.022,8,6),rune,[Math.cos(a)*(0.27*S+i*0.06),Math.sin(a)*(0.27*S+i*0.06),0])}
+  }
+  if(L>=3){
+    const orb=A(fl,[0,0,0],'spin',{spd:-0.7});
+    for(let k=0;k<5;k++){const a=k/5*Math.PI*2;const sh=new THREE.OctahedronGeometry(0.045,0);sh.scale(1,1.8,1);P(orb,sh,crys,[Math.cos(a)*0.42,Math.sin(k*1.7)*0.08,Math.sin(a)*0.42])}
+    for(const sx of[-1,1])P(g,cone(0.025,0.3,6),M.gold,[sx*0.16,y+0.15,0],[0,0,-sx*0.3]);
+  }
+  g.userData.artLevel=L;return g;
+}
+
+// ==================== TOWER: STONEBREAKER (catapult) ====================
+// Wooden mangonel. L1 sled frame, L2 reinforced w/ small wheels and
+// plating, L3 heavy siege engine with big iron-shod wheels. The arm
+// ('arm') flings on the shot and winds back over the reload time.
+function buildStonebreaker(owner,level){
+  const L=Math.max(1,Math.min(3,level||1)),M=artMats(owner),g=new THREE.Group();
+  const aim=G(g,[0,0,0],'aim');
+  const S=0.85+0.12*L,wy=L===1?0.08:0.16+0.04*L;
+  // chassis beams
+  for(const sx of[-1,1]){
+    P(aim,rbox(0.1*S,0.1*S,0.92*S,0.02,3),M.wood,[sx*0.27*S,wy,0]);
+    if(L>=2)for(const z of[-0.3,0.3])P(aim,rbox(0.11*S,0.115*S,0.04,0.01),M.iron,[sx*0.27*S,wy,z*S]);
+  }
+  for(const z of[-0.36,0,0.36])P(aim,rbox(0.64*S,0.08*S,0.09*S,0.02,3),M.woodD,[0,wy+0.02,z*S]);
+  P(aim,rbox(0.5*S,0.04,0.7*S,0.01,3),M.woodD,[0,wy+0.06,0]);
+  if(L===1){for(const sx of[-1,1])P(aim,rbox(0.12*S,0.06,0.98*S,0.025,3),M.woodD,[sx*0.27*S,0.03,0])}
+  else{
+    const wr=(0.1+0.05*L)*S;
+    for(const sx of[-1,1])for(const z of[-0.3,0.3]){
+      const wh=G(aim,[sx*0.36*S,wr,z*S],null,[0,0,Math.PI/2]);
+      P(wh,cyl(wr,wr,0.07*S,16),M.wood);
+      P(wh,torus(wr,0.018,5,20),L>=3?M.iron:M.ironD,[0,0.04*S,0],[Math.PI/2,0,0]);
+      P(wh,torus(wr,0.018,5,20),L>=3?M.iron:M.ironD,[0,-0.04*S,0],[Math.PI/2,0,0]);
+      P(wh,cyl(0.03,0.03,0.11*S,8),M.gold,[0,0,0]);
+      if(L>=3)for(let k=0;k<8;k++){const a=k/8*Math.PI*2;P(wh,ell(0.012,0.012,0.012,5,4),M.steel,[Math.cos(a)*wr,0.045*S,Math.sin(a)*wr])}
+    }
+    P(aim,cyl(0.025,0.025,0.8*S,8),M.ironD,[0,wr,-0.3*S],[0,0,Math.PI/2]);
+    P(aim,cyl(0.025,0.025,0.8*S,8),M.ironD,[0,wr,0.3*S],[0,0,Math.PI/2]);
+  }
+  // A-frame uprights + axle
+  const ay=wy+0.42*S;
+  for(const sx of[-1,1]){
+    P(aim,rbox(0.07*S,0.5*S,0.07*S,0.015),M.wood,[sx*0.22*S,wy+0.25*S,-0.08*S],[0.25,0,0]);
+    P(aim,rbox(0.07*S,0.5*S,0.07*S,0.015),M.wood,[sx*0.22*S,wy+0.25*S,0.12*S],[-0.25,0,0]);
+    P(aim,rbox(0.1*S,0.08*S,0.1*S,0.02),M.gold,[sx*0.22*S,ay,0.02*S]);
+  }
+  P(aim,rbox(0.5*S,0.06*S,0.06*S,0.015),M.woodD,[0,ay+0.04*S,0.26*S]); // crossbar the arm strikes
+  P(aim,rbox(0.52*S,0.035,0.08*S,0.01),M.leather,[0,ay+0.075*S,0.26*S]);
+  P(aim,cyl(0.035,0.035,0.5*S,10),M.iron,[0,ay,0.02*S],[0,0,Math.PI/2]);
+  // torsion rope bundles
+  for(const sx of[-1,1])for(let k=0;k<3;k++)P(aim,torus(0.05*S,0.014,5,14),M.rope,[sx*(0.1+k*0.035)*S,ay,0.02*S],[0,Math.PI/2,0]);
+  // throwing arm (rests cocked back, flings forward)
+  const arm=A(aim,[0,ay,0.02*S],'arm',{rest:-0.3,fire:1.75});
+  P(arm,rbox(0.07*S,0.07*S,0.72*S,0.015,3),M.wood,[0,0,-0.3*S],[0,0,0]);
+  for(let k=0;k<2+L;k++)P(arm,rbox(0.085*S,0.085*S,0.025,0.008),L>=2?M.gold:M.iron,[0,0,-0.08*S-k*0.14*S]);
+  const cupZ=-0.66*S;
+  P(arm,lathe([[0,0],[0.1,0.01],[0.13,0.06],[0.12,0.075]],12),M.woodD,[0,0.02,cupZ],[0,0,0],S);
+  const ammo=G(arm,[0,0.11*S,cupZ],'ammo');
+  P(ammo,new THREE.DodecahedronGeometry(0.1*S,1),M.blockD);
+  if(L>=3){P(aim,rbox(0.36*S,0.24*S,0.04,0.02),M.iron,[0,wy+0.17,0.5*S]);crest(aim,M,[0,wy+0.17,0.53*S],0.28*S)}
+  banner(aim,M,[0,wy+0.12,-0.5*S],0.22,0.22+0.05*L,Math.PI,1);
+  g.userData.artLevel=L;return g;
+}
+
+// ==================== TOWER: IRON THUNDER (bombard) ====================
+// Black-iron cannon on a stone emplacement. L3 is an oversized ornate
+// bombard with a glowing, heated muzzle.
+function buildIronThunder(owner,level){
+  const L=Math.max(1,Math.min(3,level||1)),M=artMats(owner),R=artRng(77+L),g=new THREE.Group();
+  const {y,w}=pedestal(g,M,R,L,0.86,[0,1,2,3].slice(0,L===1?2:4),0.26+0.06*L);
+  if(L>=2)cornerMerlons(g,M,w,y,L>=3);
+  const aim=A(g,[0,y,0],'aim',{recoil:0.16});
+  const S=0.85+0.15*L;
+  // wooden carriage with iron straps
+  for(const sx of[-1,1]){
+    P(aim,rbox(0.08*S,0.24*S,0.56*S,0.02,3),M.wood,[sx*0.17*S,0.14*S,0]);
+    for(const z of[-0.18,0.18])P(aim,rbox(0.09*S,0.25*S,0.03,0.008),M.iron,[sx*0.17*S,0.14*S,z*S]);
+    const wh=G(aim,[sx*0.24*S,0.1*S,-0.12*S],null,[0,0,Math.PI/2]);
+    P(wh,cyl(0.1*S,0.1*S,0.05*S,14),M.woodD);P(wh,torus(0.1*S,0.014,5,18),M.iron,[0,0,0],[Math.PI/2,0,0]);
+  }
+  // barrel (lathe profile: breech knob -> body -> flared muzzle)
+  const len=(0.62+0.08*L)*S,r=(0.11+0.015*L)*S;
+  const prof=[[0,-0.08],[0.06,-0.08],[0.09,-0.04],[1.0,0.0],[1.05,0.12],[0.95,0.35],[0.82,0.82],[0.9,0.88],[1.08,0.93],[1.08,1.0],[0.7,1.0],[0.65,0.9]];
+  const bg=G(aim,[0,0.3*S,-0.05*S],null,[Math.PI/2-0.22,0,0]);
+  P(bg,lathe(prof.map(([a,b])=>[a*r,b*len]),18),M.ironD,[0,-len*0.35,0]);
+  for(const t of[0.12,0.38,0.62,0.86])P(bg,torus(r*(1.04-t*0.2)+0.008,0.02*S,6,20),L>=2?M.gold:M.iron,[0,-len*0.35+t*len,0],[Math.PI/2,0,0]);
+  P(bg,ell(0.05*S,0.05*S,0.05*S,8,6),M.gold,[0,-len*0.35-0.1*S,0]);
+  // trunnions
+  P(bg,cyl(0.035*S,0.035*S,0.36*S,10),M.iron,[0,0,0],[0,0,Math.PI/2]);
+  // muzzle (heated glow on L3)
+  const muz=L>=3?mkMat(0xff8a3a,{emissive:0xff4a10,emissiveIntensity:2.6}):M.black;
+  P(bg,cyl(r*0.64,r*0.64,0.02,16),muz,[0,-len*0.35+len*0.99,0]);
+  if(L>=3){
+    for(let k=0;k<6;k++){const a=k/6*Math.PI*2;P(bg,cone(0.025*S,0.08*S,5),M.gold,[Math.cos(a)*r*1.1,-len*0.35+len*0.96,Math.sin(a)*r*1.1],[0,0,0])}
+    crest(aim,M,[0,0.2*S,0.3*S],0.26*S);
+  }
+  // shot pile
+  for(const[x,z]of[[0.3,-0.3],[0.36,-0.22],[0.33,-0.38]])P(g,ell(0.05,0.05,0.05,8,6),M.ironD,[x,y+0.05,z]);
+  g.userData.artLevel=L;return g;
+}
+
+// ==================== FORTIFICATIONS ====================
+// Stone wall tile: chunky staggered blocks, merlons, team cloth.
+function buildStoneWall(owner){
+  const M=artMats(owner),R=artRng(13),g=new THREE.Group(),bl=[M.block1,M.block2,M.block3];
+  P(g,rbox(0.96,0.1,0.96,0.03,3),M.blockD,[0,0.05,0]);
+  const rows=3,rh=0.27;
+  for(let i=0;i<rows;i++){
+    const y=0.1+i*rh+rh/2;
+    P(g,rbox(0.78,rh,0.78,0.02,2),M.blockD,[0,y,0]);
+    for(let side=0;side<4;side++){
+      const a=side*Math.PI/2,nx=Math.sin(a),nz=Math.cos(a),tx=Math.cos(a),tz=-Math.sin(a);
+      const n=(i+side)%2?2:3,along=0.9,len=along/n;
+      for(let k=0;k<n;k++){const off=-along/2+len*(k+0.5);
+        P(g,rbox(len-0.02,rh-0.02,0.16,0.05,2),bl[(R()*3)|0],[nx*0.38+tx*off,y,nz*0.38+tz*off],[(R()-0.5)*0.04,a,(R()-0.5)*0.04])}
+    }
+  }
+  const top=0.1+rows*rh;
+  P(g,rbox(0.92,0.06,0.92,0.02,3),M.stoneD,[0,top+0.03,0]);
+  for(const[x,z]of[[-0.3,-0.3],[0.3,-0.3],[-0.3,0.3],[0.3,0.3]])P(g,rbox(0.22,0.2,0.22,0.05,2),bl[(R()*3)|0],[x,top+0.16,z]);
+  P(g,rbox(0.94,0.04,0.94,0.015,3),M.gold,[0,top-0.02,0]);
+  banner(g,M,[0,top-0.06,0.475],0.3,0.42,0,R()*6);
+  return g;
+}
+// Wooden spike palisade.
+function buildPalisade(owner){
+  const M=artMats(owner),R=artRng(29),g=new THREE.Group();
+  P(g,rbox(0.9,0.06,0.5,0.03,2),M.leatherD,[0,0.03,0]);
+  const n=6;
+  for(let i=0;i<n;i++){
+    const x=-0.4+i*0.16,h=0.5+R()*0.14,r=0.055+R()*0.012,lean=(R()-0.5)*0.12;
+    const lg=G(g,[x,0,(i%2?0.06:-0.04)],null,[-0.32+lean,0,(R()-0.5)*0.08]);
+    P(lg,cyl(r,r*1.08,h,8),[M.wood,M.woodD][i%2]);
+    P(lg,cone(r,0.17,8),M.wood,[0,h/2+0.085,0]);
+    P(lg,cone(r*0.55,0.07,6),M.ivory,[0,h/2+0.15,0]);
+  }
+  for(const[y,z]of[[0.2,0.13],[0.4,0.04]]){P(g,rbox(0.96,0.05,0.06,0.015),M.woodD,[0,y,z],[-0.32,0,0]);for(let i=0;i<n;i++)P(g,torus(0.06,0.012,4,10),M.rope,[-0.4+i*0.16,y,z+0.005],[0.3,0,0])}
+  // crossed spikes in front
+  for(const sx of[-1,1])P(g,horn([[sx*0.32,0.02,0.22],[sx*0.2,0.18,0.38]],0.04,0.008,4,6),M.wood);
+  banner(g,M,[0.02,0.55,0.15],0.2,0.24,0,2);
+  return g;
+}
+
+// ==================== SHARED CHARACTER PARTS ====================
+// Leg with thigh/shin/foot; armour=true swaps skin for plate + greave.
+function legRig(g,side,x,hip,mats,o){
+  const lg=G(g,[side*x,hip,0],side<0?'leftLeg':'rightLeg'),h=hip;
+  P(lg,ell(o.tw,h*0.36,o.tw*1.08,10,7),mats.thigh,[0,-h*0.24,0.005]);
+  P(lg,ell(o.sw,h*0.32,o.sw*1.1,10,7),mats.shin,[0,-h*0.62,0.01]);
+  if(o.knee)P(lg,ell(o.sw*1.1,o.sw*0.9,o.sw*0.7,8,6),mats.knee,[0,-h*0.42,o.sw*0.8]);
+  if(o.wrap)P(lg,torus(o.sw*1.05,o.sw*0.22,4,10),mats.wrap,[0,-h*0.58,0.01],[Math.PI/2,0,0]);
+  P(lg,ell(o.fw,h*0.12,o.fl,10,6),mats.foot,[0,-h*0.9,o.fl*0.45]);
+  return lg;
+}
+function armRig(g,side,x,y,mats,o){
+  const ag=G(g,[side*x,y,0],side<0?'leftArm':'rightArm');
+  P(ag,ell(o.uw,o.len*0.3,o.uw*1.05,10,7),mats.upper,[side*o.uw*0.3,-o.len*0.27,0],[0,0,side*0.14]);
+  P(ag,ell(o.fw,o.len*0.28,o.fw*1.05,10,7),mats.fore,[side*o.uw*0.55,-o.len*0.7,o.fw*0.5],[-0.25,0,0]);
+  if(o.bracer)P(ag,cyl(o.fw*1.08,o.fw*1.02,o.len*0.2,10),mats.bracer,[side*o.uw*0.55,-o.len*0.74,o.fw*0.55],[-0.25,0,0]);
+  P(ag,ell(o.hand,o.hand*0.9,o.hand,10,7),mats.hand,[side*o.uw*0.6,-o.len,o.fw*0.9]);
+  ag.userData.handPos=[side*o.uw*0.6,-o.len,o.fw*0.9];
+  return ag;
+}
+
+// ==================== ENEMY: ORC BRUISER ====================
+function buildOrc(owner){
+  const M=artMats(owner),g=new THREE.Group();
+  const skin=mkMat(0x6c8c3c),skinD=mkMat(0x4e6a2a);
+  const eye=mkMat(0xffd040,{emissive:0xff8a00,emissiveIntensity:1.4});
+  for(const sx of[-1,1])legRig(g,sx,0.085,0.15,{thigh:M.leather,shin:skinD,knee:M.iron,wrap:M.leatherD,foot:M.leatherD},{tw:0.05,sw:0.042,fw:0.05,fl:0.07,knee:1,wrap:1});
+  // hips: kilt + belt + team tabard
+  P(g,skirt(0.11,0.13,0.08,14,0.025,8),M.fur,[0,0.15,0]);
+  P(g,cyl(0.112,0.115,0.04,16),M.leather,[0,0.19,0]);
+  P(g,rbox(0.06,0.045,0.02,0.008,2),M.gold,[0,0.19,0.115]);
+  P(g,bannerGeo(0.1,0.12,0.025,0.008),M.cloth,[0,0.18,0.12],[0.12,0,0]);
+  // torso: barrel chest, hunched
+  P(g,ell(0.12,0.1,0.1,12,9),skin,[0,0.25,0.02]);
+  P(g,ell(0.16,0.13,0.12,12,9),skin,[0,0.34,0.0],[0.3,0,0]);
+  P(g,ell(0.13,0.09,0.09,10,7),skinD,[0,0.4,-0.07]);
+  P(g,strap([[-0.15,0.43,0.02],[0,0.34,0.13],[0.13,0.22,0.08]],0.012),M.leather);
+  P(g,rbox(0.08,0.07,0.03,0.012,2),M.iron,[0.02,0.33,0.13],[0.3,0.2,0]);
+  // head
+  const hd=G(g,[0,0.43,0.07],'head');
+  P(hd,ell(0.07,0.065,0.07,12,9),skin,[0,0.03,0]);
+  P(hd,ell(0.075,0.04,0.065,12,8),skin,[0,-0.005,0.025]);
+  P(hd,ell(0.07,0.022,0.035,10,6),skinD,[0,0.05,0.045]);
+  for(const sx of[-1,1]){
+    P(hd,ell(0.011,0.009,0.007,6,5),eye,[sx*0.026,0.038,0.064]);
+    P(hd,horn([[sx*0.04,-0.01,0.07],[sx*0.05,0.03,0.085],[sx*0.04,0.06,0.075]],0.012,0.002,6,5),M.ivory);
+    P(hd,ext(shapeLeaf(0.05,0.018),0.006,0.002),skinD,[sx*0.066,0.03,-0.005],[0,-sx*0.4,sx*(-Math.PI/2+0.5)]);
+  }
+  P(hd,cone(0.022,0.07,7),M.dark,[0,0.1,-0.03],[-0.5,0,0]);
+  // arms: big hands, spiked pauldron on the left, spiked mace on the right
+  const mats={upper:skin,fore:skin,bracer:M.iron,hand:skinD};
+  for(const sx of[-1,1]){
+    const ag=armRig(g,sx,0.17,0.38,mats,{uw:0.048,fw:0.05,len:0.21,hand:0.045,bracer:1});
+    const pf=G(ag,[sx*0.015,0.015,0],null,[0,0,-sx*0.45]);
+    P(pf,dome(sx<0?0.08:0.065,12,6),M.iron);P(pf,torus(sx<0?0.079:0.064,0.009,5,16),sx<0?M.trim:M.leather,[0,0.003,0],[Math.PI/2,0,0]);
+    if(sx<0)for(const a of[-0.5,0,0.5]){const d=V3(Math.sin(a)*0.5,1,0.1).normalize();const sp=P(pf,cone(0.018,0.09,6),M.steel,[d.x*0.05,0.04,d.z*0.05]);alignY(sp,d)}
+    if(sx>0){
+      const w=G(ag,ag.userData.handPos,null,[1.0,0,0]);
+      P(w,cyl(0.014,0.016,0.3,8),M.woodD,[0,0.1,0]);
+      P(w,ell(0.055,0.065,0.055,10,8),M.iron,[0,0.27,0]);
+      P(w,torus(0.055,0.009,5,16),M.gold,[0,0.27,0],[Math.PI/2,0,0]);
+      for(const d of fibDirs(10)){const sp=P(w,cone(0.012,0.05,5),M.steel,[d.x*0.055,0.27+d.y*0.065,d.z*0.055]);alignY(sp,d)}
+    }
+  }
+  return g;
+}
+
+// ==================== ENEMY: DARK KNIGHT ====================
+function buildDarkKnight(owner){
+  const M=artMats(owner),T=TEAM_OF(owner),g=new THREE.Group();
+  const plate=mkMat(0x3a3e48,{metalness:0.75}),plateD=mkMat(0x23262d,{metalness:0.7});
+  const visor=mkMat(T.trim,{emissive:T.trim,emissiveIntensity:2.2});
+  for(const sx of[-1,1]){
+    const lg=legRig(g,sx,0.065,0.15,{thigh:plateD,shin:plate,knee:plate,wrap:M.trim,foot:plateD},{tw:0.042,sw:0.04,fw:0.042,fl:0.068,knee:1,wrap:1});
+    P(lg,cone(0.012,0.04,5),M.steel,[0,-0.065,0.05],[Math.PI/2,0,0]);
+  }
+  // faulds + tabard
+  P(g,skirt(0.09,0.115,0.07,12,0.0,2),plate,[0,0.155,0]);
+  P(g,bannerGeo(0.1,0.15,0.03,0.006),M.cloth,[0,0.19,0.1],[0.08,0,0]);
+  // cuirass
+  P(g,ell(0.1,0.12,0.085,12,9),plateD,[0,0.3,0]);
+  P(g,ell(0.11,0.08,0.09,12,8),plate,[0,0.34,0.012]);
+  P(g,rbox(0.03,0.12,0.02,0.008,2),M.gold,[0,0.31,0.095]);
+  P(g,rbox(0.1,0.022,0.02,0.006,2),M.gold,[0,0.35,0.095]);
+  P(g,torus(0.075,0.012,5,16),M.gold,[0,0.22,0],[Math.PI/2,0,0]);
+  // cape
+  P(g,bannerGeo(0.2,0.32,0.06,0.03,1),M.cloth,[0,0.4,-0.085],[0.18,Math.PI,0]);
+  P(g,torus(0.06,0.014,5,14),M.clothD,[0,0.4,-0.02],[Math.PI/2,0,0]);
+  // horned helm with glowing visor slit
+  const hd=G(g,[0,0.42,0.01],'head');
+  P(hd,ell(0.062,0.07,0.066,12,9),plateD,[0,0.05,0]);
+  P(hd,rbox(0.11,0.05,0.04,0.012,2),plate,[0,0.04,0.045]);
+  P(hd,rbox(0.075,0.011,0.012,0.004,2),visor,[0,0.05,0.066]);
+  P(hd,rbox(0.012,0.06,0.01,0.004,2),M.gold,[0,0.075,0.062]);
+  for(const sx of[-1,1])P(hd,horn([[sx*0.05,0.08,0],[sx*0.1,0.11,0.02],[sx*0.11,0.18,0.04]],0.016,0.002,8,6),M.ivory);
+  P(hd,cone(0.012,0.06,6),M.gold,[0,0.14,0]);
+  // pauldrons + arms; greatsword right, kite shield left
+  const mats={upper:plateD,fore:plate,bracer:plateD,hand:plateD};
+  for(const sx of[-1,1]){
+    const ag=armRig(g,sx,0.135,0.37,mats,{uw:0.036,fw:0.036,len:0.19,hand:0.032,bracer:1});
+    const pf=G(ag,[sx*0.012,0.01,0],null,[0,0,-sx*0.5]);
+    const d0=P(pf,dome(0.06,12,6),plate);d0.scale.set(1,0.8,1.1);
+    P(pf,torus(0.059,0.008,5,16),M.gold,[0,0.002,0],[Math.PI/2,0,0]);
+    for(const a of[-0.4,0.4]){const d=V3(sx*0.3,1,a).normalize();const sp=P(pf,cone(0.013,0.07,5),M.steel,[d.x*0.035,0.035,d.z*0.035]);alignY(sp,d)}
+    const hp=ag.userData.handPos;
+    if(sx>0){
+      const w=G(ag,hp,null,[1.1,0,0]);
+      P(w,cyl(0.009,0.009,0.06,6),M.leatherD,[0,0,0]);
+      P(w,ell(0.014,0.014,0.014,6,5),M.gold,[0,-0.035,0]);
+      P(w,rbox(0.1,0.016,0.022,0.006,2),M.gold,[0,0.035,0]);
+      P(w,ext(shapeBlade(0.32,0.022),0.008,0.003),M.steel,[0,0.04,0]);
+      P(w,rbox(0.006,0.24,0.004,0.002,2),plateD,[0,0.15,0.007]);
+    }else{
+      const sh=G(ag,[hp[0]-0.02,hp[1]+0.04,hp[2]+0.025],null,[0,-0.2,0]);
+      P(sh,ext(shapeShield(0.075,0.1),0.012,0.004),M.gold,[0,0,0]);
+      P(sh,ext(shapeShield(0.062,0.085),0.016,0.003),M.cloth,[0,0.003,0.002]);
+      crest(sh,M,[0,0.01,0.015],0.11);
+    }
+  }
+  return g;
+}
+
+// ==================== ENEMY: HOODED ARCHER ====================
+function buildArcher(owner){
+  const M=artMats(owner),T=TEAM_OF(owner),g=new THREE.Group();
+  const skin=mkMat(0xc89a74),eye=mkMat(T.trim,{emissive:T.trim,emissiveIntensity:2});
+  for(const sx of[-1,1])legRig(g,sx,0.045,0.12,{thigh:M.leatherD,shin:M.leather,knee:M.leather,wrap:M.leatherD,foot:M.leatherD},{tw:0.03,sw:0.026,fw:0.03,fl:0.05,wrap:1});
+  P(g,skirt(0.06,0.085,0.09,12,0.03,4),M.clothD,[0,0.13,0]);
+  P(g,torus(0.058,0.009,5,14),M.leather,[0,0.17,0],[Math.PI/2,0,0]);
+  // lean leather torso + jerkin
+  P(g,ell(0.065,0.1,0.052,10,8),M.leather,[0,0.26,0]);
+  P(g,ell(0.06,0.05,0.05,10,7),M.leatherD,[0,0.31,0.008]);
+  P(g,strap([[-0.055,0.34,0.03],[0,0.27,0.058],[0.05,0.19,0.035]],0.007),M.leatherD);
+  // quiver on the back
+  const q=G(g,[0.03,0.3,-0.065],null,[0.25,0,-0.35]);
+  P(q,cyl(0.024,0.02,0.17,10),M.leatherD);
+  P(q,torus(0.025,0.005,4,10),M.gold,[0,0.06,0],[Math.PI/2,0,0]);
+  for(let i=0;i<4;i++){const x=(i-1.5)*0.012;P(q,cyl(0.003,0.003,0.08,4),M.woodD,[x,0.12,0]);P(q,rbox(0.012,0.03,0.002,0.001,2),M.cloth,[x,0.15,0])}
+  // cape
+  P(g,bannerGeo(0.13,0.24,0.05,0.025,2),M.cloth,[0,0.355,-0.05],[0.12,Math.PI,0]);
+  // hood with shadowed face + glowing eyes
+  const hd=G(g,[0,0.36,0.01],'head');
+  P(hd,ell(0.05,0.055,0.052,10,8),skin,[0,0.04,0.005]);
+  P(hd,ell(0.064,0.07,0.064,12,9),M.cloth,[0,0.05,-0.01]);
+  P(hd,cone(0.045,0.09,8),M.cloth,[0,0.07,-0.06],[-1.0,0,0]);
+  P(hd,ell(0.048,0.05,0.02,10,7),M.dark,[0,0.035,0.045]);
+  for(const sx of[-1,1])P(hd,ell(0.009,0.006,0.005,6,4),eye,[sx*0.017,0.045,0.06]);
+  P(hd,torus(0.055,0.009,5,14),M.clothD,[0,0.0,0.0],[Math.PI/2,0,0]);
+  // arms: bow in the left hand, nocked arrow drawn by the right
+  const mats={upper:M.leather,fore:skin,bracer:M.leatherD,hand:M.leatherD};
+  for(const sx of[-1,1]){
+    const ag=armRig(g,sx,0.08,0.34,mats,{uw:0.022,fw:0.02,len:0.15,hand:0.02,bracer:1});
+    if(sx<0){
+      const hp=ag.userData.handPos,bw=G(ag,[hp[0],hp[1],hp[2]+0.01],null,[0.15,0,0]);
+      P(bw,horn([[0,-0.17,-0.03],[0,-0.09,0.03],[0,0,0.045],[0,0.09,0.03],[0,0.17,-0.03]],0.008,0.008,14,5),M.woodD);
+      for(const yy of[-0.17,0.17])P(bw,cone(0.009,0.03,5),M.gold,[0,yy*1.05,-0.035],[yy>0?0:Math.PI,0,0]);
+      P(bw,cyl(0.011,0.011,0.035,6),M.leather,[0,0,0.045]);
+      P(bw,strap([[0,0.17,-0.03],[0,0,-0.09],[0,-0.17,-0.03]],0.0018,4),M.rope);
+      P(bw,cyl(0.0035,0.0035,0.2,4),M.woodD,[0,0,-0.02],[Math.PI/2,0,0]);
+      P(bw,cone(0.008,0.025,4),M.steel,[0,0,0.09],[Math.PI/2,0,0]);
+    }
+  }
+  return g;
+}
+
+// ==================== BOSS: INFERNAL DRAGON ====================
+// Crimson wyvern: huge bat wings (the 'arm' limbs, flapped by the game
+// while flying), glowing chest plates, swept black horns, burning maw,
+// spiked spade tail. Flight height/semantics stay in gameplay code.
+function buildDragon(owner){
+  const M=artMats(owner),g=new THREE.Group();
+  const scale=mkMat(0xb0242a),scaleD=mkMat(0x6e1418),hornM=mkMat(0x1e1a1c),claw=mkMat(0x2a2224);
+  const glow=mkMat(0xffa040,{emissive:0xff5a10,emissiveIntensity:2.2}),eye=mkMat(0xffe060,{emissive:0xffa000,emissiveIntensity:2.4});
+  const memb=mkMat(0x7a1a20,{side:THREE.DoubleSide});
+  // body
+  P(g,ell(0.16,0.15,0.3,14,10),scale,[0,0.5,0],[-0.08,0,0]);
+  P(g,ell(0.15,0.15,0.17,12,9),scale,[0,0.54,0.17]);
+  for(let i=0;i<6;i++)P(g,rbox(0.16-i*0.012,0.03,0.07,0.012,2),glow,[0,0.4-i*0.004+(i<2?0.02:0),0.24-i*0.085],[0.15,0,0]);
+  for(let i=0;i<7;i++)P(g,cone(0.025,0.08-i*0.004,5),hornM,[0,0.66-i*0.012,0.2-i*0.08],[-0.4,0,0]);
+  // neck + head
+  const nk=G(g,[0,0.6,0.28],'neck');
+  P(nk,horn([[0,0,0],[0,0.16,0.12],[0,0.26,0.28]],0.085,0.05,10,9),scale);
+  for(let i=0;i<4;i++)P(nk,cone(0.018,0.055,5),hornM,[0,0.07+i*0.06,0.05+i*0.07],[-0.6,0,0]);
+  const hd=G(nk,[0,0.27,0.31],'head');
+  P(hd,ell(0.07,0.06,0.1,12,9),scale,[0,0.01,0]);
+  P(hd,ell(0.05,0.035,0.09,10,7),scale,[0,0.0,0.1]);
+  P(hd,ell(0.045,0.022,0.085,10,6),scaleD,[0,-0.04,0.08],[0.18,0,0]);
+  P(hd,ell(0.04,0.018,0.07,10,6),glow,[0,-0.025,0.09],[0.1,0,0]);
+  for(let i=0;i<4;i++)for(const sx of[-1,1])P(hd,cone(0.006,0.022,4),M.ivory,[sx*0.03,-0.012,0.05+i*0.035],[Math.PI,0,0]);
+  for(const sx of[-1,1]){
+    P(hd,ell(0.015,0.01,0.01,6,5),eye,[sx*0.045,0.035,0.06]);
+    P(hd,rbox(0.05,0.016,0.035,0.006,2),scaleD,[sx*0.042,0.05,0.055],[0,0,sx*0.35]);
+    P(hd,horn([[sx*0.04,0.04,-0.02],[sx*0.08,0.08,-0.1],[sx*0.09,0.1,-0.22]],0.022,0.003,8,6),hornM);
+    P(hd,horn([[sx*0.06,0.0,-0.02],[sx*0.1,0.01,-0.08],[sx*0.12,0.03,-0.14]],0.012,0.002,6,5),hornM);
+  }
+  // tail with spade
+  const tl=G(g,[0,0.48,-0.28],'tail');
+  P(tl,horn([[0,0,0],[0,-0.06,-0.3],[0,-0.03,-0.62],[0,0.02,-0.85]],0.085,0.018,14,8),scale);
+  for(let i=0;i<6;i++){const z=-0.08-i*0.13;P(tl,cone(0.018-i*0.002,0.06,5),hornM,[0,0.06-i*0.012-(i>2?0.02:0),z],[-0.5,0,0])}
+  P(tl,ext(shapeLeaf(0.16,0.07),0.012,0.004),hornM,[0,0.02,-0.82],[-Math.PI/2,0,0]);
+  // legs (tucked while flying)
+  for(const sx of[-1,1]){
+    const lg=G(g,[sx*0.11,0.42,-0.06],sx<0?'leftLeg':'rightLeg');
+    P(lg,ell(0.06,0.09,0.07,10,7),scale,[0,-0.04,0]);
+    P(lg,ell(0.035,0.07,0.04,8,6),scaleD,[0,-0.14,-0.03],[0.5,0,0]);
+    for(const tx of[-0.025,0,0.025])P(lg,cone(0.01,0.05,4),claw,[tx,-0.2,0.0],[Math.PI*0.75,0,0]);
+  }
+  // wings
+  for(const sx of[-1,1]){
+    const wg=G(g,[sx*0.12,0.62,0.08],sx<0?'leftArm':'rightArm');
+    const w=G(wg,[0,0,0],null,[0,0,sx*0.38]); // dihedral: rest slightly raised
+    const WS=1.3,elbow=[sx*0.3*WS,0.04,-0.04],wrist=[sx*0.58*WS,0.06,0.08];
+    P(w,horn([[0,0,0],elbow,wrist],0.035,0.02,10,6),scale);
+    P(w,cone(0.016,0.07,5),claw,[wrist[0]+sx*0.02,wrist[1],wrist[2]+0.04],[Math.PI/2,0,0]);
+    const tips=[[sx*0.82*WS,0.02,-0.18],[sx*0.66*WS,0.0,-0.46],[sx*0.42*WS,0.0,-0.58],[sx*0.2*WS,0.0,-0.46]];
+    for(const t of tips)P(w,horn([wrist,[(wrist[0]+t[0])/2,(wrist[1]+t[1])/2+0.02,(wrist[2]+t[2])/2],t],0.016,0.006,8,5),scaleD);
+    // membrane: shape in x/(-z), laid flat, scalloped trailing edge
+    const sh=new THREE.Shape(),pts=[[0,0.02],[elbow[0],-elbow[2]],[wrist[0],-wrist[2]],...tips.map(t=>[t[0],-t[2]]),[0,0.3]];
+    sh.moveTo(pts[0][0],pts[0][1]);sh.lineTo(pts[1][0],pts[1][1]);sh.lineTo(pts[2][0],pts[2][1]);sh.lineTo(pts[3][0],pts[3][1]);
+    for(let i=3;i<pts.length-1;i++){const a=pts[i],b=pts[i+1],mx=(a[0]+b[0])/2,my=(a[1]+b[1])/2;sh.quadraticCurveTo(mx*0.9,my*0.82,b[0],b[1])}
+    sh.lineTo(0,0.02);
+    const mg=new THREE.ShapeGeometry(sh,6);mg.rotateX(-Math.PI/2);
+    P(w,mg,memb,[0,0.005,0]);
+  }
+  // presence: the dragon is the biggest silhouette on the field
+  const root=new THREE.Group();g.scale.setScalar(1.45);root.add(g);
+  return root;
+}
+
+// ==================== BOSS: LICH NECROMANCER ====================
+// Undead sorcerer in violet robes: horned gold crown, skull face with
+// burning eyes, skeletal hands, an arcane staff and orbiting skulls.
+// (The healing aura itself is gameplay code + spawnAuraPulse.)
+function buildLich(owner){
+  const M=artMats(owner),g=new THREE.Group();
+  const robe=mkMat(0x4a2a6e,{side:THREE.DoubleSide}),robeD=mkMat(0x241436,{side:THREE.DoubleSide}),bone=mkMat(0xe6dcc4);
+  const arcane=mkMat(0xc070ff,{emissive:0x9a3aff,emissiveIntensity:2.4}),arcaneCore=mkMat(0xf4d8ff,{emissive:0xe0a0ff,emissiveIntensity:3});
+  // floating robe with ragged hem + arcane mist ring
+  P(g,skirt(0.17,0.32,0.46,18,0.08,11),robe,[0,0.28,0]);
+  P(g,skirt(0.14,0.27,0.44,16,0.05,13),robeD,[0,0.27,0]);
+  P(g,torus(0.3,0.018,6,28),arcane,[0,0.04,0],[Math.PI/2,0,0]);
+  P(g,lathe([[0.17,0],[0.19,0.12],[0.16,0.3],[0.12,0.38]],18),robe,[0,0.5,0]);
+  P(g,torus(0.165,0.016,6,22),M.gold,[0,0.52,0],[Math.PI/2,0,0]);
+  P(g,bannerGeo(0.12,0.5,0.06,0.01),M.cloth,[0,0.58,0.17],[0.08,0,0]);
+  // exposed ribcage under the mantle
+  for(let i=0;i<4;i++)P(g,torus(0.09-i*0.008,0.009,4,14,Math.PI),bone,[0,0.82-i*0.045,0.08],[0,0,Math.PI]);
+  P(g,cyl(0.012,0.012,0.2,6),bone,[0,0.75,0.085]);
+  // mantle with bone spikes
+  P(g,ell(0.24,0.1,0.19,14,9),robeD,[0,0.9,0]);
+  P(g,torus(0.2,0.016,5,24),M.gold,[0,0.88,0],[Math.PI/2,0,0]);
+  for(const sx of[-1,1])for(let k=0;k<3;k++){const d=V3(sx*(0.6+k*0.2),1,(k-1)*0.3).normalize();const sp=P(g,cone(0.018,0.12-k*0.02,5),bone,[sx*(0.14+k*0.04),0.95,(k-1)*0.06]);alignY(sp,d)}
+  // head: hood, skull, crown
+  const hd=G(g,[0,0.95,0.03],'head');
+  P(hd,ell(0.13,0.15,0.13,14,10),robeD,[0,0.1,-0.03]);
+  P(hd,ell(0.075,0.088,0.08,12,9),bone,[0,0.09,0.03]);
+  P(hd,ell(0.06,0.035,0.055,10,7),bone,[0,0.03,0.05]);
+  for(const sx of[-1,1]){P(hd,ell(0.022,0.022,0.012,8,6),M.black,[sx*0.03,0.1,0.098]);P(hd,ell(0.012,0.012,0.008,6,5),arcane,[sx*0.03,0.1,0.104])}
+  for(let i=0;i<5;i++)P(hd,rbox(0.01,0.018,0.008,0.003,2),bone,[-0.024+i*0.012,0.03,0.104]);
+  P(hd,torus(0.078,0.014,5,22),M.gold,[0,0.15,0.02],[Math.PI/2-0.15,0,0]);
+  for(let k=0;k<5;k++){const a=(k-2)*0.45;P(hd,cone(0.016,0.08+(k===2?0.05:0),5),M.gold,[Math.sin(a)*0.078,0.2,0.02+Math.cos(a)*0.078])}
+  P(hd,ell(0.016,0.016,0.012,6,5),arcane,[0,0.17,0.1]);
+  for(const sx of[-1,1])P(hd,horn([[sx*0.07,0.15,0],[sx*0.14,0.22,-0.04],[sx*0.15,0.34,-0.02]],0.022,0.003,8,6),M.ironD);
+  // arms: flared sleeves, skeletal hands; staff in the right hand
+  for(const sx of[-1,1]){
+    const ag=G(g,[sx*0.2,0.86,0.02],sx<0?'leftArm':'rightArm');
+    P(ag,cyl(0.05,0.1,0.32,12,true),robe,[sx*0.02,-0.15,0.02],[-0.2,0,sx*0.1]);
+    P(ag,cyl(0.012,0.012,0.12,6),bone,[sx*0.03,-0.3,0.06],[-0.3,0,0]);
+    const hand=G(ag,[sx*0.03,-0.36,0.08]);
+    P(hand,ell(0.025,0.02,0.03,8,6),bone);
+    for(let f=0;f<4;f++)P(hand,cyl(0.005,0.004,0.05,4),bone,[(f-1.5)*0.012,-0.03,0.02],[0.4,0,0]);
+    if(sx>0){
+      const w=G(hand,[0,0,0.01],'weapon',[0.15,0,0]);
+      P(w,cyl(0.014,0.018,1.05,8),M.woodD,[0,0.2,0]);
+      P(w,strap([[0.016,-0.2,0],[-0.016,0,0.016],[0.016,0.2,0],[-0.016,0.4,-0.016],[0.016,0.6,0]],0.005,16),M.gold);
+      P(w,ell(0.035,0.03,0.035,8,6),bone,[0,0.66,0]);
+      for(let k=0;k<3;k++){const a=k/3*Math.PI*2;P(w,horn([[Math.cos(a)*0.02,0.68,Math.sin(a)*0.02],[Math.cos(a)*0.07,0.76,Math.sin(a)*0.07],[Math.cos(a)*0.03,0.86,Math.sin(a)*0.03]],0.012,0.003,6,5),M.gold)}
+      P(w,ell(0.055,0.055,0.055,12,9),arcane,[0,0.79,0]);
+      P(w,ell(0.028,0.028,0.028,8,6),arcaneCore,[0,0.79,0]);
+    }
+  }
+  // orbiting skulls
+  const orb=G(g,[0,0.62,0],'orbit');
+  for(let k=0;k<3;k++){const a=k/3*Math.PI*2,sk=G(orb,[Math.cos(a)*0.38,Math.sin(k*2.1)*0.06,Math.sin(a)*0.38]);
+    P(sk,ell(0.035,0.04,0.038,10,7),bone);P(sk,ell(0.026,0.015,0.028,8,5),bone,[0,-0.03,0.008]);
+    for(const sx of[-1,1])P(sk,ell(0.009,0.009,0.006,6,4),arcane,[sx*0.013,0.004,0.034])}
+  return g;
+}
+
 // ==================== REGISTRY + ENTRY POINTS ====================
 const ART={
-  tower:{turret:{levels:3,build:buildArrowBastion}},
-  enemy:{goblin:{build:buildGoblin},troll:{build:buildTroll,boss:true}},
+  tower:{turret:{levels:3,build:buildArrowBastion},magic:{levels:3,build:buildArcaneSpire},catapult:{levels:3,build:buildStonebreaker},bombard:{levels:3,build:buildIronThunder}},
+  build:{wall:buildStoneWall,barricade:buildPalisade},
+  enemy:{goblin:{build:buildGoblin},orc:{build:buildOrc},darkKnight:{build:buildDarkKnight},archer:{build:buildArcher},troll:{build:buildTroll,boss:true},dragon:{build:buildDragon,boss:true},lich:{build:buildLich,boss:true}},
   castle:{build:buildCastle},
 };
 function artHasLevels(type){return !!(ART.tower[type]&&ART.tower[type].levels>1)}
@@ -593,6 +1087,9 @@ function artHasLevels(type){return !!(ART.tower[type]&&ART.tower[type].levels>1)
     }
     return _enemy(type,owner);
   };
+  const _wall=createWall,_barr=createBarricade;
+  createWall=function(owner){try{return ART.build.wall(owner)}catch(e){console.warn('[art] wall',e);return _wall(owner)}};
+  createBarricade=function(owner){try{return ART.build.barricade(owner)}catch(e){console.warn('[art] barricade',e);return _barr(owner)}};
   createCastle=function(owner){
     try{return ART.castle.build(owner)}catch(e){console.warn('[art] castle',e);return _castle(owner)}
   };
