@@ -633,7 +633,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
   </div>
   <div class="menu-foot">
     <div class="foot-hints"><span><span class="key">&uarr;</span><span class="key">&darr;</span> Navigate</span><span><span class="key">Enter</span> Select</span><span><span class="key round">A</span> Confirm</span></div>
-    <div class="foot-ver">Castle Siege <b>v3.41</b> &bull; Build 2026-10-24</div>
+    <div class="foot-ver">Castle Siege <b>v3.42</b> &bull; Build 2026-10-24</div>
   </div>
 </div>
 
@@ -3362,7 +3362,7 @@ function dealDamage(enemy,dmg,src){
   const actual=dmg*(1-enemy.armor);enemy.hp-=actual;
   if(src)src.dmgDone=(src.dmgDone||0)+actual; // v3.39: per-tower stats for the inspector
   const killer=enemy.owner===1?players[2]:players[1];
-  const dmgCredits=Math.floor(actual/5);
+  const dmgCredits=Math.floor(actual/5*(enemy.bountyMul||1));
   if(dmgCredits>0){killer.credits+=dmgCredits;killer.totalDmgDealt+=actual}
   const wp=pixelToWorld(enemy.x+rnd(-8,8),enemy.y-10);
   spawnDmgNumber(wp.x,0.5,wp.z,Math.round(actual)|0,'#ff4444');
@@ -3432,7 +3432,13 @@ function useSpecial(player,pNum){
   }
 }
 
+// v3.42: a bought regular unit used to repay its killer ~3x its price
+// (kill reward + damage gold), so every squad that died bankrolled the
+// opponent. Bought regulars now pay half bounty; free wave units and
+// bosses are unchanged.
+const BOUGHT_BOUNTY=0.5;
 function spawnEnemy(type,spawnCol,spawnRow,owner){
+  let bought=false;if(type[0]==='+'){bought=true;type=type.slice(1)}
   // v3.14: bosses live in BOSS_DATA; regulars in ENEMY_DATA. Look up
   // either and stamp out an entity record with the same shape.
   const d=ENEMY_DATA.find(e=>e.id===type)||BOSS_DATA.find(b=>b.id===type);
@@ -3444,7 +3450,8 @@ function spawnEnemy(type,spawnCol,spawnRow,owner){
   let path=findPath(spawnCol,spawnRow,enemyGoals(owner),blocker);
   if(!path||path.length<2)path=[{c:spawnCol,r:spawnRow}];
   const hpM=endlessHpMult();
-  enemies.push({type,owner,hp:Math.round(d.hp*hpM),maxHp:Math.round(d.hp*hpM),spd:d.spd,dmg:d.dmg,reward:d.reward,
+  const bm=bought?BOUGHT_BOUNTY:1;
+  enemies.push({type,owner,bountyMul:bm,hp:Math.round(d.hp*hpM),maxHp:Math.round(d.hp*hpM),spd:d.spd,dmg:d.dmg,reward:Math.round(d.reward*bm),
     armor:d.armor||0,color:d.color,x:colToX(spawnCol),y:rowToY(spawnRow),
     path,pathIdx:1,alive:true,slowTimer:0,slowMult:1,wallCheckTimer:rnd(0.3,1),
     combatTarget:null,atkCooldown:0,combatScanTimer:rnd(0,0.3),_anim:Math.random()*Math.PI*2,
@@ -3498,8 +3505,9 @@ function startWave(){
   for(const eid of['goblin','orc','darkKnight','archer']){
     const c1=(players[1].enemyQueue[eid]||0)+baseQ[eid];
     const c2=(players[2].enemyQueue[eid]||0)+baseQ[eid];
-    for(let i=0;i<c1;i++)spawnQueue1.push(eid);
-    for(let i=0;i<c2;i++)spawnQueue2.push(eid);
+    // v3.42: purchased units are tagged '+' so they pay reduced bounty
+    for(let i=0;i<c1;i++)spawnQueue1.push(i<baseQ[eid]?eid:'+'+eid);
+    for(let i=0;i<c2;i++)spawnQueue2.push(i<baseQ[eid]?eid:'+'+eid);
   }
   // v3.14: bosses come only from the player's queue, never baseline.
   // They're purchased, not generated. Appended to the END of the
@@ -5023,6 +5031,9 @@ function aiUpdate(dt){
       aiDoBuildAction(ai);
       // hard AI with a war chest acts twice
       if(difficulty==='hard'&&ai.credits>500)aiDoBuildAction(ai);
+      // v3.42: in Endless past wave 10 an AI sitting on a large bank spends
+      // it faster (the 10-wave difficulties stay tuned as they were).
+      if(isEndless()&&waveNum>=MAX_WAVES)for(let k=Math.min(6,Math.floor(ai.credits/1500));k>0&&ai.credits>=D.keep;k--)aiDoBuildAction(ai);
     }
     // AI readies up when time is short or it has spent down its gold
     if(buildTimer<D.readyAt||ai.credits<D.keep)ai.ready=true;
