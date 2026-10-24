@@ -10,6 +10,13 @@
 //   restartGame, stopMusic, startMusic, playTitleMusic, setMusicDuck,
 //   toggleMute, AUDIO, applyTimeOfDay
 
+// v3.30: hover-driven UI (tooltips, hover-to-focus) only for a real
+// mouse. On iOS Safari a mouseenter handler that changes the page makes
+// the first tap count as a "hover" and swallows the click, so build
+// cards and menu buttons needed two taps (and tooltips stuck open).
+const UI_HOVER=(()=>{try{return matchMedia('(hover: hover) and (pointer: fine)').matches}catch(e){return true}})();
+const __isMouse=e=>e.pointerType==='mouse'||(e.pointerType===undefined&&UI_HOVER);
+
 // ==================== ICONS ====================
 function uiIcon(id,cls){return `<svg class="ico${cls?' '+cls:''}" viewBox="0 0 24 24"><use href="#i-${id}"/></svg>`}
 const OPT_ICON={turret:'turret',magic:'magic',catapult:'catapult',bombard:'bombard',wall:'wall',barricade:'barricade',
@@ -95,7 +102,7 @@ function uiNavSet(selector,descEl){
   __nav.idx=Math.max(0,__nav.items.findIndex(i=>i.classList.contains('focus')));
   __nav.items.forEach((it,i)=>{
     if(it._navBound)return;it._navBound=true;
-    it.addEventListener('mouseenter',()=>{const k=__nav.items.indexOf(it);if(k>=0&&k!==__nav.idx){__nav.idx=k;uiNavPaint();uiSfx('hover')}});
+    it.addEventListener('pointerenter',e=>{if(!__isMouse(e))return;const k=__nav.items.indexOf(it);if(k>=0&&k!==__nav.idx){__nav.idx=k;uiNavPaint();uiSfx('hover')}});
   });
   uiNavPaint();
 }
@@ -180,7 +187,8 @@ function uiToast(pNum,text,kind,icon){
 // ==================== TOOLTIP ====================
 function uiTooltipFor(el){
   const tt=document.getElementById('tooltip');
-  el.addEventListener('mouseenter',()=>{
+  el.addEventListener('pointerenter',e=>{
+    if(!__isMouse(e))return;
     tt.innerHTML=uiTooltipHTML(el);
     const r=el.getBoundingClientRect();
     tt.classList.add('show');
@@ -188,7 +196,7 @@ function uiTooltipFor(el){
     tt.style.left=Math.max(8,Math.min(innerWidth-w-8,r.left+r.width/2-w/2))+'px';
     tt.style.top=Math.max(8,r.top-h-10)+'px';
   });
-  el.addEventListener('mouseleave',()=>tt.classList.remove('show'));
+  el.addEventListener('pointerleave',()=>tt.classList.remove('show'));
 }
 function uiTooltipHTML(el){
   const stat=(k,v)=>`<span>${k}<b>${v}</b></span>`;

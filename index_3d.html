@@ -58,7 +58,9 @@ html,body{width:100%;height:100%;overflow:hidden;background:#07060a}
 }
 
 #game-container{width:100%;height:100%;position:absolute;top:0;left:0;z-index:0}
-#game-container canvas{display:block;width:100%!important;height:100%!important}
+#game-container canvas{display:block;width:100%!important;height:100%!important;touch-action:none}
+/* v3.30: iOS ignores user-scalable=no — stop double-tap zoom on controls. */
+html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2-ready-btn,#touch-controls *{touch-action:manipulation}
 #game-container.no-touch{pointer-events:none}
 #game-container.no-touch canvas{pointer-events:none;touch-action:auto}
 #game-container.hidden-canvas canvas{display:none}
@@ -316,7 +318,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#07060a}
 .build-opt.poor{opacity:.42}
 .build-opt.poor .opt-cost{color:var(--bad)}
 .build-opt.p1-opt,.build-opt.p2-opt{cursor:pointer;pointer-events:auto}
-.build-opt:hover{transform:translateY(-2px);border-color:var(--line-2);background:linear-gradient(180deg,rgba(64,50,34,.95),rgba(22,17,12,.95))}
+@media(hover:hover){.build-opt:hover{transform:translateY(-2px);border-color:var(--line-2);background:linear-gradient(180deg,rgba(64,50,34,.95),rgba(22,17,12,.95))}}
 .build-opt:hover .ico{color:var(--gold-b)}
 .build-opt.p1s,.build-opt.p2s{transform:translateY(-3px);opacity:1}
 .build-opt.p1s{--tc:var(--p1);border-color:var(--p1);background:linear-gradient(180deg,rgba(60,100,200,.45),rgba(14,22,48,.95));box-shadow:0 0 16px var(--p1-glow),inset 0 1px 0 rgba(200,220,255,.2)}
@@ -331,7 +333,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#07060a}
   transition:all .18s var(--ease-out);font-family:var(--f-display);font-size:clamp(7px,.66vw,8.5px);font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--parch);white-space:nowrap}
 .spec-btn .ico{font-size:15px;color:#a8c4ff}
 .spec-btn[data-idx="0"] .ico{color:#ffa060}.spec-btn[data-idx="1"] .ico{color:#bcd8ff}.spec-btn[data-idx="2"] .ico{color:#8ee8ff}.spec-btn[data-idx="3"] .ico{color:#8af0a0}
-.spec-btn:hover{border-color:rgba(180,200,255,.6);transform:translateY(-1px)}
+@media(hover:hover){.spec-btn:hover{border-color:rgba(180,200,255,.6);transform:translateY(-1px)}}
 .spec-btn.p1s{border-color:var(--p1);box-shadow:0 0 14px var(--p1-glow),inset 0 0 12px rgba(90,150,255,.2);background:linear-gradient(180deg,rgba(50,80,170,.6),rgba(12,16,36,.95))}
 .spec-btn.p2s{border-color:var(--p2);box-shadow:0 0 14px var(--p2-glow),inset 0 0 12px rgba(255,90,120,.2);background:linear-gradient(180deg,rgba(170,50,80,.6),rgba(36,12,16,.95))}
 .spec-btn.p1-spec,.spec-btn.p2-spec{cursor:pointer;pointer-events:auto}
@@ -343,7 +345,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#07060a}
 .boss-btn .ico{font-size:15px;color:var(--gold-b)}
 .boss-btn .bb-t{display:flex;flex-direction:column;line-height:1.1}
 .boss-btn .boss-cost{color:var(--parch-d);font-size:.92em}
-.boss-btn:hover{transform:translateY(-1px);box-shadow:0 0 16px rgba(246,220,142,.45),inset 0 1px 0 rgba(255,230,170,.3)}
+@media(hover:hover){.boss-btn:hover{transform:translateY(-1px);box-shadow:0 0 16px rgba(246,220,142,.45),inset 0 1px 0 rgba(255,230,170,.3)}}
 .boss-btn.disabled{opacity:.32;pointer-events:none;filter:grayscale(.6)}
 .p2-ready-btn{font-family:var(--f-display);font-weight:900;font-size:clamp(9px,.95vw,12px);letter-spacing:.18em;padding:0 12px;height:32px;margin-left:auto;flex-shrink:0;white-space:nowrap;
   color:#140e05;background:linear-gradient(180deg,#f6dc8e,#c9993f 60%,#9a7128);border:1px solid #ffe9a8;pointer-events:auto;cursor:pointer;text-shadow:0 1px 0 rgba(255,240,200,.5);
@@ -503,6 +505,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#07060a}
 #touch-actions{position:absolute;bottom:118px;right:16px;display:flex;flex-direction:column;gap:10px;pointer-events:auto;touch-action:none}
 .touch-act-btn{width:58px;height:58px;border-radius:50%;font-size:clamp(9px,1.2vw,12px);letter-spacing:.1em}
 .touch-act-btn.ready-btn{background:linear-gradient(180deg,#f6dc8e,#c9993f 60%,#9a7128);border-color:#ffe9a8;color:#140e05}
+#touch-pause{position:fixed;top:calc(56px + env(safe-area-inset-top,0px));left:calc(12px + env(safe-area-inset-left,0px));width:40px!important;height:40px!important;font-size:12px!important;letter-spacing:0!important;pointer-events:auto}
 #touch-cycle{position:absolute;bottom:118px;left:50%;transform:translateX(-50%);display:flex;gap:8px;pointer-events:auto;touch-action:none}
 .touch-cycle-btn{width:46px;height:46px;border-radius:8px;font-size:18px}
 #touch-special-row{position:absolute;bottom:64px;left:50%;transform:translateX(-50%);display:flex;gap:8px;pointer-events:auto;touch-action:none}
@@ -557,7 +560,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#07060a}
   </div>
   <div class="menu-foot">
     <div class="foot-hints"><span><span class="key">&uarr;</span><span class="key">&darr;</span> Navigate</span><span><span class="key">Enter</span> Select</span><span><span class="key round">A</span> Confirm</span></div>
-    <div class="foot-ver">Castle Siege <b>v3.29</b> &bull; Build 2026-10-24</div>
+    <div class="foot-ver">Castle Siege <b>v3.30</b> &bull; Build 2026-10-24</div>
   </div>
 </div>
 
@@ -785,6 +788,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#07060a}
     <div class="touch-cycle-btn" id="tc-next">&rarr;</div>
   </div>
   <div id="touch-special-row"></div>
+  <div id="touch-pause" class="touch-act-btn">&#10074;&#10074;</div>
   <div id="touch-actions">
     <div class="touch-act-btn" id="ta-place">PLACE</div>
     <div class="touch-act-btn" id="ta-sell">SELL</div>
@@ -4823,6 +4827,7 @@ function initTouchControls(){
   document.getElementById('ta-place').addEventListener('touchstart',(e)=>{e.preventDefault();touchPlaceFlag=true},{passive:false});
   document.getElementById('ta-sell').addEventListener('touchstart',(e)=>{e.preventDefault();touchSellFlag=true},{passive:false});
   document.getElementById('ta-ready').addEventListener('touchstart',(e)=>{e.preventDefault();touchReadyFlag=true},{passive:false});
+  document.getElementById('touch-pause').addEventListener('touchstart',(e)=>{e.preventDefault();if(gameState==='paused')uiResume();else uiPause()},{passive:false});
   document.getElementById('tc-prev').addEventListener('touchstart',(e)=>{e.preventDefault();touchCyclePrev=true},{passive:false});
   document.getElementById('tc-next').addEventListener('touchstart',(e)=>{e.preventDefault();touchCycleNext=true},{passive:false});
 
@@ -4841,6 +4846,7 @@ function initTouchControls(){
 }
 
 let canvasTouchRegistered=false;
+let __lastTapTile=null;
 function registerCanvasTouchListeners(){
   if(canvasTouchRegistered)return;
   canvasTouchRegistered=true;
@@ -4868,8 +4874,14 @@ function registerCanvasTouchListeners(){
     if(raycaster.ray.intersectPlane(groundPlane,hitPt)){
       const tile=worldToTile(hitPt.x,hitPt.z);
       if(tile.row>=0&&tile.row<ROWS){
-        players[1].cursor.c=clamp(tile.col,0,COLS-1);
-        players[1].cursor.r=clamp(tile.row,0,ROWS-1);
+        const nc=clamp(tile.col,0,COLS-1),nr=clamp(tile.row,0,ROWS-1);
+        // v3.30: tap a tile to aim, tap the same tile again to build.
+        // (Only counts when the previous tap aimed here, so the cursor
+        // merely resting on a tile never builds by surprise.)
+        const key=nc+','+nr;
+        if(gameState==='build'&&__lastTapTile===key&&players[1].cursor.c===nc&&players[1].cursor.r===nr)touchPlaceFlag=true;
+        __lastTapTile=key;
+        players[1].cursor.c=nc;players[1].cursor.r=nr;
       }
     }
     e.preventDefault();
@@ -5107,7 +5119,7 @@ function init(){
         keyRow(K('R')+K('Esc'),'Ready &middot; Pause'));
     }else{
       setHTML('lobby-p1-dev','Player 1 &bull; Touch');
-      setHTML('lobby-p1-keys',keyRow(K('D-Pad'),'Move cursor')+keyRow(K('Place'),'Build / upgrade')+keyRow(K('Sell'),'Sell')+
+      setHTML('lobby-p1-keys',keyRow(K('Tap')+K('D-Pad'),'Aim \u00B7 tap again to build')+keyRow(K('Place'),'Build / upgrade')+keyRow(K('Sell'),'Sell')+
         keyRow(K('&larr;')+K('&rarr;'),'Cycle build')+keyRow(K('Icon'),'Cast special')+keyRow(K('RDY'),'Ready up'));
     }
     setHTML('lobby-p2-name','The Warlord');
