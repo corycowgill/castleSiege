@@ -440,7 +440,7 @@ const TUT=[
    text:()=>__touchUI()?`Tap a special icon to cast it at your cursor — try ${K('Meteor')} on a crowd. Three charges per round.`:`Pick a special with ${K('Z')} and cast it at your cursor with ${K('F')} — try ${K('Meteor')} on a crowd. Three charges per round.`,
    done:()=>players[1].specials<3},
   {phase:'any',title:'You have the basics',auto:9,
-   text:()=>`Each wave pays <b>+250 gold</b> plus <b>10% interest</b> on what you saved. Bosses are bought from the specials row. ${K('Esc')} pauses. Good luck, commander!`,
+   text:()=>`Each wave pays <b>+250 gold</b> plus <b>10% interest</b> on what you saved. Bosses are bought from the specials row. ${__touchUI()?'Tap a tower\'s <b>Target</b> tag':K('C')+' on a tower'} changes who it shoots. ${K('Esc')} pauses. Good luck, commander!`,
    done:()=>false},
 ];
 let __tut={i:-1,t:0,shown:-1};
@@ -502,6 +502,7 @@ function __inspHTML(cell,pl,pn){
       (td.splash?`<div class="ir">Splash<span><b>${td.splash}</b></span></div>`:'')+
       `<div class="ir is">Kills<span><b>${t.kills||0}</b></span></div>`+
       `<div class="ir">Damage dealt<span><b>${Math.round(t.dmgDone||0).toLocaleString()}</b></span></div>`+
+      `<div class="tgt" data-p="${pn}">Target<span><b>${TARGET_MODES[t.tmode||0]}</b>${__touchUI()?'':`<span class="key">${pn===1?'C':'MMB'}</span>`}</span></div>`+
       `<div class="if">${mx?'<span class="max">Max level</span>':`<span class="${pl.credits<up?'poor':''}">Upgrade $${up}</span>`}<span>Sell +$${sell}</span></div>`;
   }
   if(cell.type==='wall'||cell.type==='barricade'){
@@ -530,9 +531,19 @@ function uiInspectTick(){
     __inspV.set(wp.x,cell.type==='tower'?2.2:1.2,wp.z).project(camera);
     const rc=renderer.domElement.getBoundingClientRect();
     const w=I.el.offsetWidth,h=I.el.offsetHeight;
-    let x=rc.left+(__inspV.x*0.5+0.5)*rc.width-w/2,y=rc.top+(-__inspV.y*0.5+0.5)*rc.height-h-14;
-    if(y<56)y=rc.top+(-__inspV.y*0.5+0.5)*rc.height+40; // flip below near the top bar
+    const sx=rc.left+(__inspV.x*0.5+0.5)*rc.width,sy=rc.top+(-__inspV.y*0.5+0.5)*rc.height;
+    if(!__insp.bot){const hb=document.getElementById('hud-bottom');__insp.bot=hb}
+    const floor=(__insp.bot&&__insp.bot.offsetHeight?__insp.bot.getBoundingClientRect().top:innerHeight)-6;
+    let x=sx-w/2,y=sy-h-14;
+    if(y<56){ // no room above (near the top bar): sit beside the tile instead
+      x=sx+(sx+34+w<innerWidth-8?34:-34-w);y=Math.max(56,Math.min(floor-h,sy-h/2));
+    }
     x=Math.max(8,Math.min(innerWidth-w-8,x));
     I.el.style.transform=`translate(${x|0}px,${y|0}px)`;
   }
 }
+document.addEventListener('DOMContentLoaded',()=>{
+  for(const pn of [1,2]){const el=document.getElementById('insp-'+pn);if(!el)continue;
+    const go=e=>{if(!e.target.closest('.tgt'))return;e.preventDefault();e.stopPropagation();cycleTargetMode(players[pn],pn)};
+    el.addEventListener('pointerdown',go);}
+});

@@ -524,6 +524,9 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
 .insp .if span.poor{color:#ff8a7a;border-color:rgba(255,120,100,.35)}.insp .if span.max{color:#9fb0c8;border-color:rgba(160,180,210,.25)}.insp .if span.note{border:0;padding-left:0;color:#9f927a}
 .insp .hpb{height:5px;background:rgba(0,0,0,.45);border-radius:3px;overflow:hidden;margin:4px 0 2px}.insp .hpb i{display:block;height:100%;background:linear-gradient(90deg,#d8a63c,#f3d27a)}
 .insp.p2 .in{color:#ffd0c4}
+.insp .tgt{pointer-events:auto;cursor:pointer;display:flex;justify-content:space-between;align-items:center;margin-top:5px;padding:3px 6px;border:1px solid rgba(120,170,255,.35);border-radius:3px;background:rgba(60,100,180,.14);color:#cfe0ff;font-family:var(--f-display);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase}
+.insp.p2 .tgt{border-color:rgba(255,140,120,.35);background:rgba(180,70,60,.14);color:#ffd8d0}
+.insp .tgt b{font-weight:700;color:#fff}.insp .tgt .key{font-size:9px;padding:0 4px;margin-left:4px}
 @media(max-height:500px){.insp{width:170px;padding:7px 9px;font-size:10.5px}.insp .in{font-size:11px}}
 /* v3.38: tutorial coach card */
 #tut-card{position:absolute;left:16px;bottom:126px;width:min(320px,40vw);padding:14px 16px 12px;display:none;z-index:23;pointer-events:auto;
@@ -615,7 +618,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
   </div>
   <div class="menu-foot">
     <div class="foot-hints"><span><span class="key">&uarr;</span><span class="key">&darr;</span> Navigate</span><span><span class="key">Enter</span> Select</span><span><span class="key round">A</span> Confirm</span></div>
-    <div class="foot-ver">Castle Siege <b>v3.39</b> &bull; Build 2026-10-24</div>
+    <div class="foot-ver">Castle Siege <b>v3.40</b> &bull; Build 2026-10-24</div>
   </div>
 </div>
 
@@ -660,6 +663,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
         <span class="k"><span class="key">E</span><span class="key round">B</span></span><span class="a">Sell</span>
         <span class="k"><span class="key">Q</span><span class="key">Tab</span></span><span class="a">Cycle build</span>
         <span class="k"><span class="key">Z</span><span class="key">F</span></span><span class="a">Pick / cast special</span>
+        <span class="k"><span class="key">C</span><span class="key round">L3</span></span><span class="a">Tower target</span>
         <span class="k"><span class="key">R</span><span class="key round">&#9776;</span></span><span class="a">Ready up</span>
       </div>
       <div class="pcard-status"><span class="rs">Not Ready</span></div>
@@ -676,7 +680,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
         <span class="k"><span class="key">R-Click</span></span><span class="a">Sell / cast special</span>
         <span class="k"><span class="key">Wheel</span></span><span class="a">Cycle build</span>
         <span class="k"><span class="key">Click</span></span><span class="a">Specials &amp; bosses</span>
-        <span class="k"><span class="key">M-Click</span></span><span class="a">Ready up</span>
+        <span class="k"><span class="key">M-Click</span></span><span class="a">Ready &middot; tower target</span>
       </div>
       <div class="pcard-status"><span class="rs">Not Ready</span></div>
     </div>
@@ -3323,6 +3327,19 @@ function trySell(player,pNum){
   spawnDmgNumber(wp.x,0.9,wp.z,'+$'+refund,'#ffd700');
 }
 
+// v3.40: tower target priority. Cycled per tower with C / L3 / middle
+// click on the tower, or the Target pill on the inspector card (touch).
+const TARGET_MODES=['First','Last','Strongest','Closest'];
+let __tmodeVer=0;
+function cycleTargetMode(player,pNum){
+  const{c,r}=player.cursor;const cell=grid[r]&&grid[r][c];
+  if(!cell||cell.type!=='tower'||cell.owner!==pNum)return false;
+  const t=towers.find(x=>x.col===c&&x.row===r);if(!t)return false;
+  t.tmode=((t.tmode||0)+1)%TARGET_MODES.length;__tmodeVer++;
+  uiSfx('select');uiToast(pNum,`${TOWER_DATA.find(d=>d.id===t.type).name} targets: ${TARGET_MODES[t.tmode]}`,'good','target');
+  const wp=tileToWorld(c,r);spawnAuraPulse(wp.x,wp.z,0.9,pNum===1?0x6aa8ff:0xff7a6a,0.35);
+  return true;
+}
 function dealDamage(enemy,dmg,src){
   const actual=dmg*(1-enemy.armor);enemy.hp-=actual;
   if(src)src.dmgDone=(src.dmgDone||0)+actual; // v3.39: per-tower stats for the inspector
@@ -3530,6 +3547,7 @@ function processInput(dt){
       if(gpPressed(gp,0))tryPlace(p1,1);if(gpPressed(gp,1))trySell(p1,1);if(gpPressed(gp,9))p1.ready=true;
       if(gpPressed(gp,3))p1.selectedSpecial=(p1.selectedSpecial+1)%4;
     }
+    if((gameState==='build'||gameState==='combat')&&gpPressed(gp,10))cycleTargetMode(p1,1);
     if(gameState==='combat'){if(gpPressed(gp,2))useSpecial(p1,1);if(gpPressed(gp,3))p1.selectedSpecial=(p1.selectedSpecial+1)%4}
     const newPrev={};for(let i=0;i<gp.buttons.length;i++)newPrev[i]=gp.buttons[i].pressed;gpPrev=newPrev;
   }
@@ -3547,6 +3565,7 @@ function processInput(dt){
       if(consumeKey('Space'))tryPlace(p1,1);if(consumeKey('KeyE'))trySell(p1,1);
       if(consumeKey('KeyR'))p1.ready=true;if(consumeKey('KeyZ'))p1.selectedSpecial=(p1.selectedSpecial+1)%4;
     }
+    if((gameState==='build'||gameState==='combat')&&consumeKey('KeyC'))cycleTargetMode(p1,1);
     if(gameState==='combat'){
       if(consumeKey('KeyF'))useSpecial(p1,1);
       if(consumeKey('KeyZ'))p1.selectedSpecial=(p1.selectedSpecial+1)%4;
@@ -3574,11 +3593,12 @@ function processInput(dt){
       if(tile.row>=0&&tile.row<ROWS)tryPlace(mousePlayer,mousePNum);
     }
     if(mouseRightClicked)trySell(mousePlayer,mousePNum);
-    if(middleClicked)mousePlayer.ready=true;
+    if(middleClicked&&!cycleTargetMode(mousePlayer,mousePNum))mousePlayer.ready=true;
   }
   // v3.25: sell works during combat too (right-click on mouse, E on
   // keyboard). Allows tactical repositioning mid-wave.
   if(gameState==='combat'){
+    if(middleClicked)cycleTargetMode(mousePlayer,mousePNum);
     if(mouseRightClicked)useSpecial(mousePlayer,mousePNum);
     if(consumeKey('KeyE'))trySell(players[1],1);
   }
@@ -3791,8 +3811,14 @@ function updateCombat(dt){
     for(let i=0;i<nearbyT.length;i++){
       const e=nearbyT[i];
       if(!e.alive||e.owner!==targetOwner)continue;const d=dist(t.x,t.y,e.x,e.y)/T;
-      if(d<=t.range&&e.pathIdx>((best&&best.pathIdx)||0)){best=e;bestDist=d}
-      else if(d<=t.range&&e.pathIdx===((best&&best.pathIdx)||0)&&d<bestDist){best=e;bestDist=d}
+      if(d>t.range)continue;
+      // v3.40: per-tower target priority. 'first' (0) is the original rule.
+      const m=t.tmode||0;
+      if(!best){best=e;bestDist=d;continue}
+      if(m===0){if(e.pathIdx>best.pathIdx||(e.pathIdx===best.pathIdx&&d<bestDist)){best=e;bestDist=d}}
+      else if(m===1){if(e.pathIdx<best.pathIdx||(e.pathIdx===best.pathIdx&&d<bestDist)){best=e;bestDist=d}}
+      else if(m===2){if(e.hp>best.hp||(e.hp===best.hp&&e.pathIdx>best.pathIdx)){best=e;bestDist=d}}
+      else if(d<bestDist){best=e;bestDist=d}
     }
     t.target=best;if(best)t.angle=Math.atan2(best.y-t.y,best.x-t.x);
     if(best&&t.cooldown<=0){
@@ -4809,7 +4835,7 @@ const __curCache=[null,{},{}];
 function __cursorAction(pNum){
   const pl=players[pNum],{c,r}=pl.cursor,opt=BUILD_OPTS[pl.selectedIdx];
   const ck=__curCache[pNum];
-  const sig=c+','+r+','+pl.selectedIdx+','+__gridVer+','+pl.credits+','+gameState;
+  const sig=c+','+r+','+pl.selectedIdx+','+__gridVer+','+pl.credits+','+gameState+','+__tmodeVer;
   if(ck.sig===sig)return ck;
   ck.sig=sig;ck.tower=null;ck.state='idle';ck.text='';
   const cell=grid[r]&&grid[r][c];
@@ -4822,7 +4848,7 @@ function __cursorAction(pNum){
       if(gameState==='build'&&opt.cat==='tower'){
         ck.state=lv>=3?'bad':pl.credits>=upCost?'upg':'bad';
       }
-      ck.text=`${td.name} Lv${lv}${lv<3?` \u2014 Place: Upgrade $${upCost}`:' (MAX)'} \u00B7 Sell: +$${refund}`;
+      ck.text=`${td.name} Lv${lv}${lv<3?` \u2014 Place: Upgrade $${upCost}`:' (MAX)'} \u00B7 Sell: +$${refund} \u00B7 Target: ${TARGET_MODES[t.tmode||0]}`;
     }
     return ck;
   }
@@ -5515,12 +5541,12 @@ function init(){
     if(!isMobile){
       setHTML('lobby-p1-dev','Player 1 &bull; Keyboard + Mouse');
       setHTML('lobby-p1-keys',keyRow(K('WASD')+K('Mouse'),'Move cursor')+keyRow(K('Space')+K('L-Click'),'Build / upgrade')+
-        keyRow(K('E')+K('R-Click'),'Sell')+keyRow(K('Q')+K('Wheel'),'Cycle build')+keyRow(K('Z')+K('F'),'Pick / cast special')+
+        keyRow(K('E')+K('R-Click'),'Sell')+keyRow(K('Q')+K('Wheel'),'Cycle build')+keyRow(K('Z')+K('F'),'Pick / cast special')+keyRow(K('C')+K('M-Click'),'Tower target')+
         keyRow(K('R')+K('Esc'),'Ready &middot; Pause'));
     }else{
       setHTML('lobby-p1-dev','Player 1 &bull; Touch');
       setHTML('lobby-p1-keys',keyRow(K('Tap')+K('D-Pad'),'Aim \u00B7 tap again to build')+keyRow(K('Place'),'Build / upgrade')+keyRow(K('Sell'),'Sell')+
-        keyRow(K('&larr;')+K('&rarr;'),'Cycle build')+keyRow(K('Icon'),'Cast special')+keyRow(K('RDY'),'Ready up'));
+        keyRow(K('&larr;')+K('&rarr;'),'Cycle build')+keyRow(K('Icon'),'Cast special')+keyRow(K('Target'),'Tower target (on its card)')+keyRow(K('RDY'),'Ready up'));
     }
     setHTML('lobby-p2-name','The Warlord');
     setHTML('lobby-p2-dev','AI Opponent &bull; Ruthless');
