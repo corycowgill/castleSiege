@@ -208,8 +208,9 @@ function spawnMeteorStrike(wx,wz,delay,impactRadius,dmg,enemyTeam){
       core.position.y=y;glow.position.y=y;
       trailTimer-=dt;
       if(trailTimer<=0){
-        emitParticles(core.position.x,y,core.position.z,0xff8800,2,30);
-        emitParticles(core.position.x,y,core.position.z,0xff3300,1,20);
+        emitParticles(core.position.x,y,core.position.z,0xff8800,1,30);
+        spawnSmoke(core.position.x,y,core.position.z,0xff7a20,1,0.5,{additive:true,rise:0.2,spread:0.3,life:0.45,grow:1.2,alpha:0.8});
+        spawnSmoke(core.position.x,y+0.2,core.position.z,0x3a3028,1,0.6,{rise:0.4,spread:0.3,life:1.0,grow:2,alpha:0.4});
         trailTimer=0.02;
       }
       if(!exploded&&k>=1){
@@ -369,7 +370,7 @@ function spawnHealAura(wx,wz){
 // v3.27 look, v3.32 implementation: all puffs live in two THREE.Points
 // clouds (normal + additive blending) with per-point colour, alpha,
 // size and rotation — 2 draw calls instead of up to 140 sprites.
-const SMOKE_MAX=220;
+const SMOKE_MAX=420;
 const smokePool=[];
 let __smoke=null;
 function __initSmoke(){
@@ -484,4 +485,66 @@ function spawnScorch(wx,wz,radius){
     update(dt){t+=dt;if(t>6)return false;if(t>4)mat.opacity=1-(t-4)/2;return true},
     dispose(){scene.remove(m);m.geometry.dispose();mat.dispose()}
   });
+}
+
+
+// ==================== v3.35: IMPACT / DEATH / SPELL FX ====================
+// Visual-only helpers called at existing combat events. They never touch
+// gameplay state. All use the pooled particles / smoke / rings above.
+function fxTrail(type,x,y,z,tick){
+  if(type==='proj_magic'){if(tick%2===0)spawnSmoke(x,y,z,0xb060ff,1,0.22,{additive:true,rise:0.05,spread:0.1,life:0.35,grow:0.4,alpha:0.85})}
+  else if(type==='proj_cannonball'){
+    spawnSmoke(x,y,z,0xff8a30,1,0.2,{additive:true,rise:0.05,spread:0.08,life:0.25,grow:0.6,alpha:0.9});
+    if(tick%3===0)spawnSmoke(x,y,z,0x4a4440,1,0.25,{rise:0.3,spread:0.15,life:0.8,grow:1.8,alpha:0.45});
+  }
+  else if(type==='proj_boulder'){if(tick%3===0)spawnSmoke(x,y,z,0xb8a888,1,0.2,{rise:0.05,spread:0.15,life:0.5,grow:1.2,alpha:0.35})}
+  else if(type==='proj_arrow'){if(tick%3===0)spawnSmoke(x,y,z,0xfff4d8,1,0.08,{additive:true,rise:0,spread:0.02,life:0.18,grow:0.2,alpha:0.5})}
+}
+function fxImpact(type,x,z,radius){
+  const r=Math.max(0.4,radius||0.5);
+  if(type==='proj_magic'){
+    spawnAuraPulse(x,z,r,0xc070ff,0.45);
+    spawnSmoke(x,0.35,z,0xb060ff,6,0.35,{additive:true,rise:0.4,spread:1.4,life:0.5,grow:1,alpha:0.8});
+    emitParticles(x,0.4,z,0xe0b0ff,14,90);
+  }else if(type==='proj_boulder'){
+    spawnAuraPulse(x,z,r*0.9,0xd8c8a0,0.4);
+    spawnSmoke(x,0.15,z,0xb8a888,8,0.45,{rise:0.25,spread:2.2,life:1.1,grow:1.6,alpha:0.5});
+    emitParticles(x,0.25,z,0x8a7a62,16,110);
+    spawnScorch(x,z,0.45);
+    if(typeof screenShake!=='undefined')screenShake=Math.max(screenShake,0.05);
+  }else if(type==='proj_cannonball'){
+    spawnAuraPulse(x,z,r*1.1,0xff9040,0.4);
+    spawnSmoke(x,0.3,z,0xff7a20,7,0.4,{additive:true,rise:0.5,spread:1.6,life:0.45,grow:1.4,alpha:0.9});
+    spawnSmoke(x,0.4,z,0x3e3834,6,0.5,{rise:0.8,spread:1.0,life:1.4,grow:2.2,alpha:0.5});
+    spawnScorch(x,z,0.55);
+    if(typeof screenShake!=='undefined')screenShake=Math.max(screenShake,0.08);
+  }else{ // arrow / single-target hit
+    spawnSmoke(x,0.45,z,0xfff0c0,2,0.14,{additive:true,rise:0.1,spread:0.6,life:0.2,grow:0.6,alpha:0.8});
+  }
+}
+// Unit death: dust puff + a team-coloured wisp rising; bosses get a finale.
+function fxDeath(x,z,owner,boss){
+  const team=owner===1?0x6a9aff:0xff6a82;
+  spawnSmoke(x,0.2,z,0xb8a888,boss?10:3,boss?0.9:0.35,{rise:0.3,spread:boss?2.4:0.9,life:boss?1.6:0.9,alpha:0.45});
+  spawnSmoke(x,0.5,z,team,boss?6:1,boss?0.6:0.22,{additive:true,rise:boss?1.2:0.9,spread:0.2,life:boss?1.4:0.9,grow:0.6,alpha:0.75});
+  if(boss){
+    spawnAuraPulse(x,z,3,team,0.8);spawnAuraPulse(x,z,1.8,0xffffff,0.5);
+    spawnImpactFlash(x,1.2,z,team,0.9);spawnScorch(x,z,1.4);
+    emitParticles(x,1.0,z,0xffd27a,40,180);
+    if(typeof screenShake!=='undefined')screenShake=Math.max(screenShake,0.45);
+  }
+}
+// Freeze: ring of ice spikes that erupt from the ground, then melt away.
+const __iceGeo=new THREE.ConeGeometry(0.09,0.5,5);__iceGeo.translate(0,0.25,0);
+function fxIceSpikes(x,z,radius){
+  const mat=new THREE.MeshStandardMaterial({color:0xbfe8ff,emissive:0x3a8acc,emissiveIntensity:0.8,roughness:0.15,metalness:0.1,transparent:true,opacity:0.92,flatShading:true});
+  const n=Math.round(10+radius*5),spikes=new THREE.InstancedMesh(__iceGeo,mat,n);spikes.frustumCulled=false;scene.add(spikes);
+  const d=new THREE.Object3D(),data=[];
+  for(let i=0;i<n;i++){const a=Math.random()*Math.PI*2,r=Math.sqrt(Math.random())*radius;data.push({x:x+Math.cos(a)*r,z:z+Math.sin(a)*r,s:0.6+Math.random()*1.2,tx:(Math.random()-0.5)*0.6,tz:(Math.random()-0.5)*0.6,delay:r/radius*0.25})}
+  let t=0;const L=1.6;
+  addVfx({update(dt){t+=dt;if(t>L)return false;
+    for(let i=0;i<n;i++){const q=data[i],k=Math.max(0,t-q.delay);const grow=Math.min(1,k/0.15),melt=t>L-0.5?(L-t)/0.5:1;
+      d.position.set(q.x,0,q.z);d.rotation.set(q.tx,0,q.tz);d.scale.set(q.s*grow,q.s*grow*melt,q.s*grow);d.updateMatrix();spikes.setMatrixAt(i,d.matrix)}
+    spikes.instanceMatrix.needsUpdate=true;mat.opacity=0.92*Math.min(1,(L-t)/0.4);return true},
+    dispose(){scene.remove(spikes);mat.dispose();spikes.dispose&&spikes.dispose()}});
 }

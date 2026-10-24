@@ -1060,6 +1060,40 @@ function buildLich(owner){
   return g;
 }
 
+// ==================== PROJECTILES ====================
+// Built along +z (the game lookAt()s them at the target). Pooled per
+// type, so they're neutral rather than team-coloured.
+function buildProjectile(type){
+  const M=artMats(1),g=new THREE.Group();
+  if(type==='proj_arrow'){
+    P(g,cyl(0.014,0.014,0.44,6),M.woodD,[0,0,0],[Math.PI/2,0,0]);
+    P(g,cone(0.036,0.1,6),M.steel,[0,0,0.26],[Math.PI/2,0,0]);
+    P(g,torus(0.017,0.006,4,10),M.gold,[0,0,0.2]);
+    for(let i=0;i<3;i++){const fg=G(g,[0,0,-0.17],null,[0,0,i*Math.PI*2/3]);P(fg,rbox(0.004,0.05,0.1,0.002,2),i?M.gold:M.trim,[0,0.03,0])}
+  }else if(type==='proj_magic'){
+    const core=mkMat(0xf4f0ff,{emissive:0xd8c0ff,emissiveIntensity:3.2}),shell=mkMat(0x8a5aff,{emissive:0x6a2aff,emissiveIntensity:2.2});
+    const rune=mkMat(0x9ae0ff,{emissive:0x4ac0ff,emissiveIntensity:2.4});
+    P(g,ell(0.07,0.07,0.07,10,8),core);
+    const o=new THREE.OctahedronGeometry(0.13,0);o.scale(1,1.35,1);P(g,o,shell);
+    const r1=P(g,torus(0.2,0.012,5,24),rune,[0,0,0],[Math.PI/2,0,0]);r1.userData.spin='ring1';
+    const r2=P(g,torus(0.17,0.01,5,22),rune,[0,0,0],[0.4,0.6,0]);r2.userData.spin='ring2';
+  }else if(type==='proj_boulder'){
+    const geo=new THREE.DodecahedronGeometry(0.16,1),p=geo.attributes.position,R=artRng(5);
+    const off=new Map();for(let i=0;i<p.count;i++){const k=[p.getX(i),p.getY(i),p.getZ(i)].map(v=>v.toFixed(3)).join();if(!off.has(k))off.set(k,0.85+R()*0.3);const f=off.get(k);p.setXYZ(i,p.getX(i)*f,p.getY(i)*f,p.getZ(i)*f)}
+    geo.computeVertexNormals();
+    P(g,geo,M.blockD);P(g,new THREE.DodecahedronGeometry(0.07,0),M.block2,[0.1,0.08,0.04]);
+    P(g,new THREE.DodecahedronGeometry(0.05,0),M.fur,[-0.09,0.1,-0.03]);
+  }else{ // proj_cannonball
+    const heat=mkMat(0xffa040,{emissive:0xff5010,emissiveIntensity:2.6});
+    P(g,ell(0.115,0.115,0.115,14,10),M.ironD);
+    P(g,torus(0.116,0.012,5,24),heat,[0,0,0],[0,Math.PI/2,0]);
+    P(g,torus(0.116,0.012,5,24),heat,[0,0,0],[Math.PI/2,0,0]);
+    const glow=new THREE.Mesh(new THREE.SphereGeometry(0.19,12,9),new THREE.MeshBasicMaterial({color:0xff7a30,transparent:true,opacity:0.35,depthWrite:false,blending:THREE.AdditiveBlending}));
+    g.add(glow);
+  }
+  return g;
+}
+
 // ==================== REGISTRY + ENTRY POINTS ====================
 const ART={
   tower:{turret:{levels:3,build:buildArrowBastion},magic:{levels:3,build:buildArcaneSpire},catapult:{levels:3,build:buildStonebreaker},bombard:{levels:3,build:buildIronThunder}},
@@ -1090,6 +1124,8 @@ function artHasLevels(type){return !!(ART.tower[type]&&ART.tower[type].levels>1)
   const _wall=createWall,_barr=createBarricade;
   createWall=function(owner){try{return ART.build.wall(owner)}catch(e){console.warn('[art] wall',e);return _wall(owner)}};
   createBarricade=function(owner){try{return ART.build.barricade(owner)}catch(e){console.warn('[art] barricade',e);return _barr(owner)}};
+  const _proj=createProjectileModel;
+  createProjectileModel=function(type){try{return buildProjectile(type)}catch(e){console.warn('[art] projectile',type,e);return _proj(type)}};
   createCastle=function(owner){
     try{return ART.castle.build(owner)}catch(e){console.warn('[art] castle',e);return _castle(owner)}
   };

@@ -562,7 +562,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
   </div>
   <div class="menu-foot">
     <div class="foot-hints"><span><span class="key">&uarr;</span><span class="key">&darr;</span> Navigate</span><span><span class="key">Enter</span> Select</span><span><span class="key round">A</span> Confirm</span></div>
-    <div class="foot-ver">Castle Siege <b>v3.34</b> &bull; Build 2026-10-24</div>
+    <div class="foot-ver">Castle Siege <b>v3.35</b> &bull; Build 2026-10-24</div>
   </div>
 </div>
 
@@ -3271,6 +3271,7 @@ function dealDamage(enemy,dmg){
   if(enemy.hp<=0){
     enemy.alive=false;killer.credits+=enemy.reward;killer.kills++;
     const ep=pixelToWorld(enemy.x,enemy.y);
+    fxDeath(ep.x,ep.z,enemy.owner,enemy.type==='troll'||enemy.type==='dragon'||enemy.type==='lich');
     emitParticles(ep.x,0.3,ep.z,parseInt(enemy.color.replace('#',''),16),20,120);
     emitParticles(ep.x,0.5,ep.z,0xffffff,5,40);
     sndHit();
@@ -3320,6 +3321,7 @@ function useSpecial(player,pNum){
     for(const e of enemies){if(!e.alive||e.owner!==enemyTeam)continue;if(dist(cx,cy,e.x,e.y)/T<=spec.radius)e.slowTimer=spec.duration}
     emitParticles(wp.x,0.3,wp.z,0xaaeeff,25,60);
     spawnAuraPulse(wp.x,wp.z,spec.radius,0x99ddff,0.8);
+    fxIceSpikes(wp.x,wp.z,spec.radius*0.85);
     spawnSmoke(wp.x,0.2,wp.z,0xcceeff,8,1.0,{rise:0.15,spread:3,life:1.2,alpha:0.4});
   }else if(spec.id==='heal'){
     player.castleHP=Math.min(player.maxHP,player.castleHP+spec.amount);
@@ -3627,6 +3629,7 @@ function updateCombat(dt){
           e.combatTarget.alive=false;const killer=e.combatTarget.owner===1?players[2]:players[1];
           killer.credits+=e.combatTarget.reward;killer.kills++;
           const ep=pixelToWorld(e.combatTarget.x,e.combatTarget.y);
+          fxDeath(ep.x,ep.z,e.combatTarget.owner,['troll','dragon','lich'].includes(e.combatTarget.type));
           emitParticles(ep.x,0.3,ep.z,parseInt(e.combatTarget.color.replace('#',''),16),18,100);emitParticles(ep.x,0.5,ep.z,0xffffff,4,35);sndHit();
           e.combatTarget=null;
         }
@@ -3773,7 +3776,9 @@ function updateCombat(dt){
           emitParticles(wp.x,0.4,wp.z,0xffddff,12,80);
           emitParticles(wp.x,0.4,wp.z,0x9933ff,10,60);
           spawnImpactFlash(wp.x,0.4,wp.z,0xcc66ff,0.4);
+          fxImpact(p.type,wp.x,wp.z,p.splash);
         }else if(p.type==='proj_boulder'){
+          fxImpact(p.type,wp.x,wp.z,p.splash);
           emitParticles(wp.x,0.3,wp.z,0xa89866,18,90);
           emitParticles(wp.x,0.3,wp.z,0x665a4a,14,60);
           emitParticles(wp.x,0.3,wp.z,0x999988,10,70);
@@ -3783,10 +3788,12 @@ function updateCombat(dt){
           emitParticles(wp.x,0.3,wp.z,0xff8800,14,80);
           emitParticles(wp.x,0.3,wp.z,0x333333,8,50);
           spawnImpactFlash(wp.x,0.4,wp.z,0xff6600,0.55);
+          fxImpact(p.type,wp.x,wp.z,p.splash);
         }
       }else if(p.target&&p.target.alive){
         dealDamage(p.target,p.dmg);
         const wp=pixelToWorld(p.tx,p.ty);
+        fxImpact(p.type==='proj_cannonball'?'proj_cannonball':'hit',wp.x,wp.z,0.5);
         if(p.type==='proj_arrow'){
           emitParticles(wp.x,0.4,wp.z,0xffee88,6,50);
           emitParticles(wp.x,0.4,wp.z,0xcc4444,3,35);
@@ -4308,6 +4315,10 @@ function acquireEnemyMesh(type,owner){
     }
     return mesh;
   }
+  return __buildEnemyMesh(type,owner);
+}
+function __buildEnemyMesh(type,owner){
+  const k=__enemyKey(type,owner);
   const mesh=createEnemyModel(type,owner);
   // v3.31: team-coloured rim light so armies read at a glance.
   setModelRim(mesh,owner===1?0x7ab4ff:0xff7a88,0.62);
@@ -4330,6 +4341,26 @@ function acquireEnemyMesh(type,owner){
   mesh.userData._baseScale=mesh.scale.x;
   mesh.rotation.order='YXZ';
   return mesh;
+}
+// v3.35: pre-build the coming wave's unit meshes during the build phase,
+// at most one per frame, so the wave never pays the ~10ms model build
+// cost per spawn mid-battle.
+let __warmNeedT=0,__warmNeed=null;
+function __poolWarmTick(dt){
+  if(gameState!=='build')return;
+  __warmNeedT-=dt;
+  if(__warmNeedT<=0||!__warmNeed){
+    __warmNeedT=1;__warmNeed=[];
+    const nw=waveNum+1,base={goblin:6+nw*3,orc:Math.max(0,nw-1)*2,darkKnight:Math.max(0,nw-3)*2,archer:Math.max(0,nw-3)*2};
+    for(const o of[1,2])for(const t of['goblin','orc','darkKnight','archer','troll','dragon','lich']){
+      const want=Math.min(POOL_CAP,(base[t]||0)+(players[o].enemyQueue[t]||0));
+      const have=(__enemyPool.get(__enemyKey(t,o))||[]).length;
+      if(want>have)__warmNeed.push([t,o,want-have]);
+    }
+  }
+  const job=__warmNeed[0];if(!job)return;
+  const m=__buildEnemyMesh(job[0],job[1]);scene.add(m);m.visible=false;releaseEnemyMesh(m);
+  if(--job[2]<=0)__warmNeed.shift();
 }
 function releaseEnemyMesh(mesh){
   const k=mesh.userData._poolKey;
@@ -4519,6 +4550,15 @@ function syncEnemies(){
         mesh.userData._wasTinted=false;
       }
     }
+    // v3.35: boss phases (visual only) — glowing parts burn brighter as
+    // HP falls; below a third the boss sheds embers.
+    if(isBoss){
+      if(!mesh.userData.glowMats){mesh.userData.glowMats=(mesh.userData.tintMats||[]).filter(m=>m.emissive&&m.emissive.getHex()!==0).map(m=>({m,b:m.emissiveIntensity}))}
+      const k=1-Math.max(0,e.hp/e.maxHp);
+      for(const gm of mesh.userData.glowMats)gm.m.emissiveIntensity=gm.b*(1+k*1.4);
+      if(k>0.66){e._emberT=(e._emberT||0)-__lastRawDt;if(e._emberT<=0){e._emberT=0.12;
+        spawnSmoke(wp.x+rnd(-0.5,0.5),rnd(1.2,3)+(e.flying?1.1:0),wp.z+rnd(-0.5,0.5),e.type==='lich'?0xb060ff:0xff7a20,1,0.25,{additive:true,rise:0.9,spread:0.3,life:0.7,grow:0.5,alpha:0.85})}}
+    }
     // v3.24: HP bar — only show when damaged (below max HP).
     // Position above the enemy, scale fg bar width proportional to HP%.
     // v3.32: HP bars are two instanced draws for the whole army
@@ -4649,18 +4689,9 @@ function syncProjectiles(){
         mesh.userData.light.intensity=2.0+Math.sin(now*22+p._birth*7)*0.6+Math.random()*0.3;
       }
     }
-    // Emit trailing particles per type (sparse, one per few frames)
-    if(!p._trailTick){p._trailTick=0}
-    p._trailTick++;
-    if(p._trailTick%2===0){
-      if(p.type==='proj_magic')emitParticles(wp.x,yOff,wp.z,0xcc66ff,1,8);
-      else if(p.type==='proj_cannonball'){
-        emitParticles(wp.x,yOff,wp.z,0xff6600,1,6);
-        if(p._trailTick%4===0)emitParticles(wp.x,yOff,wp.z,0x333333,1,4);
-      }
-      else if(p.type==='proj_boulder'&&p._trailTick%3===0)emitParticles(wp.x,yOff,wp.z,0xa89866,1,6);
-      else if(p.type==='proj_arrow'&&p._trailTick%6===0)emitParticles(wp.x,yOff,wp.z,0xddccaa,1,3);
-    }
+    // v3.35: soft pooled trails per projectile type
+    p._trailTick=(p._trailTick||0)+1;
+    fxTrail(p.type,wp.x,yOff,wp.z,p._trailTick);
   }
   // Remove dead — no Set allocation; check p.alive directly.
   // PERF v3.0: return mesh to pool instead of disposing.
@@ -5208,6 +5239,7 @@ function gameLoop(){
   // display rate. Sync functions only read positions that the sim
   // sets, so rendering between sim ticks shows the last sim state.
   __batchTick();
+  __poolWarmTick(rawDt);
   if(gameState!=='title'&&gameState!=='paused'){
     syncBuildings();syncTowers();syncEnemies();syncProjectiles();updateCursors();
     updateParticles(rawDt);updateDmgNumbers(rawDt);updateVfx(rawDt);updateSmoke(rawDt);updateCastleFx(rawDt);
