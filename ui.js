@@ -154,6 +154,7 @@ function uiNavPoll(){
 // ==================== WAVE BANNERS ====================
 const WAVE_NAMES=['First Blood','Mist Upon the Fields','The Bloodied Sun','The Gathering Storm','Into the Dark',
   'The Witching Hour','Shadows Linger','Before the Dawn','First Light','The Final Siege'];
+const ENDLESS_NAMES=['Beyond the Last Dawn','No Quarter','The Long Night Returns','Iron and Ash','The Grinding Years','Banners Without End','Old Bones, New Blades','The Siege Eternal'];
 const WAVE_TIMES=['High Noon','Afternoon','Dusk','Storm at Nightfall','Nightfall','Midnight','Deep Night','Small Hours','Dawn','Morning'];
 let __bannerT=null;
 function uiBanner(kicker,title,sub,danger){
@@ -167,7 +168,12 @@ function uiBanner(kicker,title,sub,danger){
 }
 function uiWaveBanner(w){
   const i=Math.max(0,Math.min(WAVE_NAMES.length-1,w-1));
-  uiBanner(w>=MAX_WAVES?'Final Wave':`Wave ${w} of ${MAX_WAVES}`,WAVE_NAMES[i],WAVE_TIMES[i],w>=MAX_WAVES);
+  if(isEndless()&&w>MAX_WAVES){
+    const champ=endlessChampion(w);
+    uiBanner(`Endless \u00B7 Wave ${w}`,champ?'Champions Take the Field':ENDLESS_NAMES[(w-MAX_WAVES-1)%ENDLESS_NAMES.length],`Foes grow stronger \u00B7 HP +${Math.round((endlessHpMult(w)-1)*100)}%`,champ);
+    return;
+  }
+  uiBanner(w>=MAX_WAVES&&!isEndless()?'Final Wave':isEndless()?`Wave ${w} \u00B7 Endless`:`Wave ${w} of ${MAX_WAVES}`,WAVE_NAMES[i],WAVE_TIMES[i],w>=MAX_WAVES&&!isEndless());
 }
 function uiBuildBanner(){
   const w=waveNum+1;
@@ -296,7 +302,7 @@ function uiWaveEnd(){
 }
 
 // ==================== GAME OVER ====================
-function uiGameOver(winner,score,best,isNewBest){
+function uiGameOver(winner,score,best,isNewBest,ex){ex=ex||{};
   const ov=document.getElementById('gameover-ov');
   const p1=players[1],p2=players[2];
   const draw=winner==='draw';
@@ -305,7 +311,8 @@ function uiGameOver(winner,score,best,isNewBest){
   if(gameMode==='1p'){
     title=draw?'Stalemate':p1won?'Victory':'Defeat';
     sub=draw?'Neither crown would yield.':p1won?(p2.castleHP<=0?'The warlord\'s keep lies in ruin.':'Your keep stands taller at the final dawn.'):(p1.castleHP<=0?'Your walls have fallen. The realm mourns.':'The warlord outlasted you.');
-    kicker=`After ${waveNum} wave${waveNum===1?'':'s'} \u00B7 ${diffProfile().label}`;
+    kicker=isEndless()?`Endless \u00B7 reached wave ${waveNum} \u00B7 ${diffProfile().label}${ex.newWave?' \u00B7 \u2605 new record':ex.bestWave?` \u00B7 record ${ex.bestWave}`:''}`
+      :`After ${waveNum} wave${waveNum===1?'':'s'} \u00B7 ${diffProfile().label}`;
   }else{
     title=draw?'Stalemate':p1won?'Blue Triumphs':'Red Triumphs';
     sub=draw?'Neither crown would yield.':(p1won?'The Blue Crown':'The Red Crown')+' holds the field.';
@@ -330,6 +337,11 @@ function uiGameOver(winner,score,best,isNewBest){
   ];
   const cmp=document.getElementById('go-cmp');
   cmp.innerHTML=rows.map(([lab,a,b])=>`<div class="cmp"><span class="v l">${a.toLocaleString()}</span><span class="bar l"><i></i></span><span class="lab">${lab}</span><span class="bar r"><i></i></span><span class="v r">${b.toLocaleString()}</span></div>`).join('');
+  // v3.41: each side's most valuable tower (by kills, then damage)
+  const mvp=pn=>{let b=null;for(const t of towers)if(t.owner===pn&&(!b||(t.kills||0)>(b.kills||0)||((t.kills||0)===(b.kills||0)&&(t.dmgDone||0)>(b.dmgDone||0))))b=t;return b&&(b.kills||b.dmgDone)?b:null};
+  const mv=(t,side)=>t?`<div class="mv ${side}"><span class="mk">MVP tower</span><span class="mn">${TOWER_DATA.find(d=>d.id===t.type).name} \u00B7 Lv${t.level||1}</span><span class="ms">${t.kills||0} kills \u00B7 ${Math.round(t.dmgDone||0).toLocaleString()} dmg</span></div>`:`<div class="mv ${side}"></div>`;
+  const m1=mvp(1),m2=mvp(2);
+  document.getElementById('go-mvp').innerHTML=(m1||m2)?mv(m1,'l')+mv(m2,'r'):'';
   setTimeout(()=>{
     const bars=cmp.querySelectorAll('.cmp');
     rows.forEach(([,a,b],i)=>{const m=Math.max(1,a,b);bars[i].querySelector('.bar.l i').style.width=(a/m*100)+'%';bars[i].querySelector('.bar.r i').style.width=(b/m*100)+'%'});
@@ -408,7 +420,9 @@ function uiCloseSettings(){
 // ==================== v3.37: DIFFICULTY PICKER ====================
 function uiSyncDifficulty(){
   document.querySelectorAll('.diff-btn').forEach(b=>b.classList.toggle('sel',b.dataset.d===difficulty));
-  const d=document.getElementById('diff-desc');if(d)d.textContent=diffProfile().desc+(diffProfile().score!==1?` Score ×${diffProfile().score}.`:'');
+  document.querySelectorAll('.len-btn').forEach(b=>b.classList.toggle('sel',(b.dataset.e==='1')===endless));
+  const d=document.getElementById('diff-desc');if(d){let bw=0;try{bw=parseInt(localStorage.getItem('castleSiege_endlessWave_'+difficulty)||'0',10)}catch(e){}
+    d.textContent=diffProfile().desc+(diffProfile().score!==1?` Score ×${diffProfile().score}.`:'')+(endless?` Endless: survive as long as you can${bw?` — record wave ${bw}`:''}.`:'')}
   const n=document.getElementById('lobby-p2-name');if(n&&gameMode==='1p')n.textContent='The '+diffProfile().name;
   const dv=document.getElementById('lobby-p2-dev');if(dv&&gameMode==='1p')dv.textContent='AI Opponent \u2022 '+diffProfile().label;
 }
