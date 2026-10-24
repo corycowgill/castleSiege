@@ -590,7 +590,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#07060a}
   </div>
   <div class="menu-foot">
     <div class="foot-hints"><span><span class="key">&uarr;</span><span class="key">&darr;</span> Navigate</span><span><span class="key">Enter</span> Select</span><span><span class="key round">A</span> Confirm</span></div>
-    <div class="foot-ver">Castle Siege <b>v3.28</b> &bull; Build 2026-10-24</div>
+    <div class="foot-ver">Castle Siege <b>v3.29</b> &bull; Build 2026-10-24</div>
   </div>
 </div>
 
@@ -698,7 +698,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#07060a}
         <li>+250 gold between waves, +10% interest on savings (max 100)</li>
         <li>Place a tower on your own tower to upgrade it (max Lv3)</li>
         <li>Arrows show each army's route during the build phase</li>
-        <li>Enemies can break walls &middot; <span class="key">Esc</span> pauses the game</li>
+        <li>Enemies can break walls &middot; <span class="key">Esc</span> pauses &middot; <span class="key">M</span> mutes</li>
         </ul></div>
     </div>
     <p class="help-back">Press any key or click to go back</p>
@@ -797,6 +797,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#07060a}
     <h2>Paused</h2>
     <button class="btn primary" id="btn-resume">Resume</button>
     <button class="btn" id="btn-pause-help">How to Play</button>
+    <button class="btn" id="btn-sound">Sound: On <span class="key">M</span></button>
     <button class="btn" id="btn-restart">Restart Battle</button>
     <button class="btn" id="btn-quit">Main Menu</button>
   </div>
@@ -913,34 +914,173 @@ function xToCol(x){return Math.floor(x/T)}
 function yToRow(y){return Math.floor((y-GAME_Y)/T)}
 
 // ==================== AUDIO ENGINE ====================
+// v3.29: rebuilt audio engine.
+//  - One AudioContext for the whole session. initAudio() used to build
+//    a fresh context on every call (and the lobby called it per game),
+//    so contexts piled up until the browser refused to make more.
+//  - Everything routes through bus gains -> master -> limiter, so a
+//    full battle can't clip, and music/sfx/mute are single knobs.
+//  - Music plays from decoded AudioBuffers: gapless loops, crossfades,
+//    and it can start from timers (lobby fade, Play Again) because the
+//    context is unlocked on the first gesture. HTMLAudio stays as a
+//    fallback when fetch() isn't available (e.g. opened via file://).
+//  - Per-sound rate limits + a voice cap keep 20 towers from turning
+//    into white noise.
 let audioCtx=null;
-function initAudio(){try{audioCtx=new(window.AudioContext||window.webkitAudioContext)()}catch(e){}}
-function playSound(freq,dur,type,vol){
-  if(!audioCtx)return;const o=audioCtx.createOscillator(),g=audioCtx.createGain();
-  o.type=type||'square';o.frequency.value=freq;g.gain.value=vol||0.1;
-  g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+dur);
-  o.connect(g);g.connect(audioCtx.destination);o.start();o.stop(audioCtx.currentTime+dur);
+let __master=null,__sfxBus=null,__musicBus=null,__noiseBuf=null;
+const AUDIO={muted:false,music:0.5,sfx:0.8,duck:1};
+try{const sv=JSON.parse(localStorage.getItem('castleSiege_audio')||'{}');if(typeof sv.muted==='boolean')AUDIO.muted=sv.muted}catch(e){}
+function __saveAudio(){try{localStorage.setItem('castleSiege_audio',JSON.stringify({muted:AUDIO.muted}))}catch(e){}}
+function initAudio(){
+  if(audioCtx){if(audioCtx.state==='suspended'&&!document.hidden)audioCtx.resume().catch(()=>{});return}
+  try{audioCtx=new(window.AudioContext||window.webkitAudioContext)()}catch(e){audioCtx=null;return}
+  const lim=audioCtx.createDynamicsCompressor();
+  lim.threshold.value=-10;lim.knee.value=8;lim.ratio.value=12;lim.attack.value=0.003;lim.release.value=0.2;
+  __master=audioCtx.createGain();__master.connect(lim);lim.connect(audioCtx.destination);
+  __sfxBus=audioCtx.createGain();__sfxBus.connect(__master);
+  __musicBus=audioCtx.createGain();__musicBus.connect(__master);
+  const n=audioCtx.sampleRate;__noiseBuf=audioCtx.createBuffer(1,n,n);
+  const d=__noiseBuf.getChannelData(0);for(let i=0;i<n;i++)d[i]=Math.random()*2-1;
+  __applyAudioLevels(true);
+  __loadTracks();
+  if(audioCtx.state==='suspended')audioCtx.resume().catch(()=>{});
 }
-function sndShoot(){playSound(800,0.1,'square',0.05)}
-function sndHit(){playSound(200,0.15,'sawtooth',0.08)}
-function sndBuild(){playSound(400,0.2,'triangle',0.1)}
-function sndSpecial(){playSound(150,0.5,'sawtooth',0.12)}
-function sndWaveStart(){playSound(600,0.3,'square',0.1);setTimeout(()=>playSound(800,0.3,'square',0.1),150)}
-function sndVictory(){for(let i=0;i<5;i++)setTimeout(()=>playSound(400+i*100,0.3,'triangle',0.1),i*150)}
-function sndWallHit(){playSound(120,0.2,'sawtooth',0.1);playSound(80,0.15,'square',0.08)}
-function sndMelee(){playSound(300+Math.random()*200,0.08,'sawtooth',0.04)}
+function __applyAudioLevels(instant){
+  if(!audioCtx)return;
+  const t=audioCtx.currentTime,set=(p,v)=>{p.cancelScheduledValues(t);if(instant)p.setValueAtTime(v,t);else{p.setValueAtTime(p.value,t);p.linearRampToValueAtTime(v,t+0.25)}};
+  set(__master.gain,AUDIO.muted?0:1);
+  set(__sfxBus.gain,AUDIO.sfx);
+  set(__musicBus.gain,AUDIO.music*AUDIO.duck);
+  for(const k in __tracks){const el=__tracks[k].el;if(el)el.volume=AUDIO.muted?0:AUDIO.music*AUDIO.duck}
+}
+function setMuted(m){AUDIO.muted=m;__saveAudio();__applyAudioLevels(false)}
+function toggleMute(){setMuted(!AUDIO.muted);return AUDIO.muted}
+// Lower the music under the pause menu.
+function setMusicDuck(on){AUDIO.duck=on?0.35:1;__applyAudioLevels(false)}
+// Unlock audio on the first real user gesture (autoplay policy).
+for(const ev of['pointerdown','keydown','touchstart']){
+  window.addEventListener(ev,()=>{initAudio();__unlockFallback()},{capture:true,passive:true});
+}
+// Don't keep playing in a background tab.
+document.addEventListener('visibilitychange',()=>{
+  if(!audioCtx)return;
+  if(document.hidden){audioCtx.suspend().catch(()=>{});for(const k in __tracks){const el=__tracks[k].el;if(el&&!el.paused){el.pause();el._resume=true}}}
+  else{audioCtx.resume().catch(()=>{});for(const k in __tracks){const el=__tracks[k].el;if(el&&el._resume){el._resume=false;el.play().catch(()=>{})}}}
+});
 
-let musicPlaying=false;
-const bgMusic=new Audio('Where_the_Anvil_Falls.mp3');
-bgMusic.loop=true;bgMusic.volume=0.5;
-const titleMusic=new Audio('Banners_of_the_Iron_Hold.mp3');
-titleMusic.loop=true;titleMusic.volume=0.5;
-function startMusic(){
-  if(musicPlaying)return;musicPlaying=true;
-  titleMusic.pause();
-  bgMusic.currentTime=0;bgMusic.play().catch(()=>{});
+// ---------- music ----------
+const __tracks={
+  title:{url:'Banners_of_the_Iron_Hold.mp3',buf:null,el:null,loading:false},
+  battle:{url:'Where_the_Anvil_Falls.mp3',buf:null,el:null,loading:false},
+};
+let __curTrack=null,__curSrc=null,__curGain=null,__wantTrack=null;
+function __loadTracks(){
+  for(const k in __tracks){
+    const tr=__tracks[k];if(tr.loading||tr.buf)continue;tr.loading=true;
+    fetch(tr.url).then(r=>{if(!r.ok)throw new Error(r.status);return r.arrayBuffer()})
+      .then(ab=>new Promise((res,rej)=>audioCtx.decodeAudioData(ab,res,rej)))
+      .then(buf=>{tr.buf=buf;if(__wantTrack===k&&__curTrack!==k)playMusic(k)})
+      .catch(()=>{__useFallback(tr);if(__wantTrack===k&&__curTrack!==k)playMusic(k)});
+  }
 }
-function stopMusic(){musicPlaying=false;bgMusic.pause();}
+function __useFallback(tr){
+  if(tr.el)return;
+  tr.el=new Audio(tr.url);tr.el.loop=true;tr.el.volume=AUDIO.muted?0:AUDIO.music*AUDIO.duck;
+}
+let __fallbackUnlocked=false;
+function __unlockFallback(){
+  // iOS only lets an <audio> element play from a timer after it has
+  // been started once inside a gesture; prime any fallback elements.
+  if(__fallbackUnlocked)return;
+  const els=Object.values(__tracks).map(t=>t.el).filter(Boolean);
+  if(!els.length)return;__fallbackUnlocked=true;
+  for(const el of els){if(el.paused&&el!==(__tracks[__curTrack]||{}).el){el.muted=true;el.play().then(()=>{el.pause();el.muted=false}).catch(()=>{el.muted=false})}}
+}
+function playMusic(name,fade){
+  __wantTrack=name;
+  if(!audioCtx)initAudio();
+  if(!audioCtx)return;
+  const tr=__tracks[name];if(!tr)return;
+  if(__curTrack===name)return;
+  if(!tr.buf&&!tr.el)return; // starts when loaded (see __loadTracks)
+  __fadeOutMusic(fade??0.8);
+  __curTrack=name;
+  if(tr.buf){
+    const src=audioCtx.createBufferSource();src.buffer=tr.buf;src.loop=true;
+    const g=audioCtx.createGain();const t=audioCtx.currentTime;
+    g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(1,t+(fade??0.8));
+    src.connect(g);g.connect(__musicBus);src.start();
+    __curSrc=src;__curGain=g;
+  }else{
+    tr.el.currentTime=0;tr.el.volume=AUDIO.muted?0:AUDIO.music*AUDIO.duck;tr.el.play().catch(()=>{});
+  }
+}
+function stopMusic(fade){__wantTrack=null;__fadeOutMusic(fade??0.6)}
+function __fadeOutMusic(f){
+  if(__curSrc&&audioCtx){
+    const src=__curSrc,g=__curGain,t=audioCtx.currentTime;
+    g.gain.cancelScheduledValues(t);g.gain.setValueAtTime(g.gain.value,t);g.gain.linearRampToValueAtTime(0,t+f);
+    try{src.stop(t+f+0.05)}catch(e){}
+  }
+  for(const k in __tracks){const el=__tracks[k].el;if(el&&k===__curTrack)el.pause()}
+  __curSrc=null;__curGain=null;__curTrack=null;
+}
+function startMusic(){playMusic('battle')}
+function playTitleMusic(){playMusic('title',1.2)}
+let musicPlaying=false; // legacy flag (unused)
+
+// ---------- sound effects ----------
+// Rate limit per sound key + global voice cap.
+const __sfxLast={};let __voices=0;const MAX_VOICES=28;
+function __gate(key,gap){
+  if(!audioCtx||!__sfxBus||AUDIO.muted)return false;
+  if(audioCtx.state!=='running')return false;
+  const t=audioCtx.currentTime;
+  if(key&&__sfxLast[key]!==undefined&&t-__sfxLast[key]<gap)return false;
+  if(__voices>=MAX_VOICES)return false;
+  if(key)__sfxLast[key]=t;return true;
+}
+function __track(node,end){__voices++;node.onended=()=>{__voices--}}
+// Tone with a click-free attack/decay. opts: {to: end freq, at: delay, attack}
+function playSound(freq,dur,type,vol,opts){
+  if(!__gate(opts&&opts.key,opts&&opts.gap||0))return;
+  const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+  const t=audioCtx.currentTime+((opts&&opts.at)||0),a=(opts&&opts.attack)||0.004;
+  o.type=type||'square';o.frequency.setValueAtTime(freq,t);
+  if(opts&&opts.to)o.frequency.exponentialRampToValueAtTime(Math.max(20,opts.to),t+dur);
+  g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vol||0.1,t+a);
+  g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  o.connect(g);g.connect(__sfxBus);o.start(t);o.stop(t+dur+0.02);__track(o);
+}
+// Filtered noise burst — impacts, rubble, whooshes.
+function playNoise(dur,vol,filter,freq,opts){
+  if(!__gate(opts&&opts.key,opts&&opts.gap||0))return;
+  const s=audioCtx.createBufferSource(),f=audioCtx.createBiquadFilter(),g=audioCtx.createGain();
+  const t=audioCtx.currentTime+((opts&&opts.at)||0);
+  s.buffer=__noiseBuf;s.playbackRate.value=0.6+Math.random()*0.8;
+  f.type=filter||'lowpass';f.frequency.setValueAtTime(freq||1200,t);
+  if(opts&&opts.to)f.frequency.exponentialRampToValueAtTime(opts.to,t+dur);
+  f.Q.value=(opts&&opts.q)||0.8;
+  g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vol||0.1,t+0.004);
+  g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  s.connect(f);f.connect(g);g.connect(__sfxBus);
+  s.start(t,Math.random()*0.5);s.stop(t+dur+0.02);__track(s);
+}
+function sndShoot(){playNoise(0.06,0.05,'highpass',2500,{key:'shoot',gap:0.045});playSound(900,0.07,'triangle',0.025,{to:500,key:'shoot2',gap:0.045})}
+function sndHit(){playNoise(0.22,0.14,'lowpass',900,{key:'hit',gap:0.05,to:120});playSound(170,0.2,'sine',0.12,{to:55,key:'hit2',gap:0.05})}
+function sndBuild(){playNoise(0.08,0.12,'bandpass',700,{q:2});playSound(392,0.12,'triangle',0.08);playSound(587,0.18,'triangle',0.07,{at:0.07})}
+function sndSpecial(){playNoise(0.6,0.12,'bandpass',300,{to:3000,q:1.5});playSound(110,0.55,'sawtooth',0.06,{to:440})}
+function sndWaveStart(){
+  // two-note war horn
+  playSound(196,0.45,'sawtooth',0.07,{attack:0.04});playSound(196*1.5,0.45,'triangle',0.05,{attack:0.04});
+  playSound(262,0.7,'sawtooth',0.07,{at:0.32,attack:0.05});playSound(392,0.7,'triangle',0.05,{at:0.32,attack:0.05});
+}
+function sndVictory(){[392,494,587,784].forEach((f,i)=>{playSound(f,0.5,'triangle',0.09,{at:i*0.14});playSound(f*2,0.4,'sine',0.03,{at:i*0.14})})}
+function sndDefeat(){[392,349,311,233].forEach((f,i)=>playSound(f,0.6,'sawtooth',0.05,{at:i*0.28,attack:0.03}));playNoise(1.6,0.08,'lowpass',400,{at:0.9,to:80})}
+function sndWallHit(){playNoise(0.3,0.16,'lowpass',700,{key:'wall',gap:0.08,to:150});playSound(90,0.25,'sine',0.12,{to:45,key:'wall2',gap:0.08})}
+function sndMelee(){playNoise(0.05,0.05,'bandpass',3000+Math.random()*1500,{q:6,key:'melee',gap:0.06});playSound(1200+Math.random()*600,0.05,'square',0.012,{key:'melee2',gap:0.06})}
+// Called when the game ends: right jingle for the local player.
+function sndGameEnd(won){(won?sndVictory:sndDefeat)()}
 
 // ==================== GRID & PATHFINDING ====================
 let grid=[];
@@ -1080,9 +1220,11 @@ const players=[null,
 let mouseClicked=false,mouseRightClicked=false,middleClicked=false,scrollDelta=0;
 let mouseX=0,mouseY=0;
 const keys={},keyPressed={};
-const gameKeys=new Set(['KeyW','KeyA','KeyS','KeyD','Space','KeyQ','KeyE','KeyR','KeyF','KeyZ','KeyT','KeyP','KeyH','Tab','Enter','Escape','ArrowUp','ArrowDown','ArrowLeft','ArrowRight']);
+const gameKeys=new Set(['KeyM','KeyW','KeyA','KeyS','KeyD','Space','KeyQ','KeyE','KeyR','KeyF','KeyZ','KeyT','KeyP','KeyH','Tab','Enter','Escape','ArrowUp','ArrowDown','ArrowLeft','ArrowRight']);
 window.addEventListener('keydown',(e)=>{if(!audioCtx)initAudio();if(gameKeys.has(e.code))e.preventDefault();if(!keys[e.code])keyPressed[e.code]=true;keys[e.code]=true});
 window.addEventListener('keyup',(e)=>{keys[e.code]=false});
+// v3.29: M toggles mute from anywhere.
+window.addEventListener('keydown',(e)=>{if(e.code==='KeyM'&&!e.repeat){const m=toggleMute();if(typeof uiToast==='function')uiToast(1,m?'Sound muted \u00B7 M to unmute':'Sound on','gold');if(typeof uiSyncSoundBtn==='function')uiSyncSoundBtn()}});
 function consumeKey(code){if(keyPressed[code]){keyPressed[code]=false;return true}return false}
 
 // ==================== 3D COORDINATE HELPERS ====================
@@ -2802,7 +2944,8 @@ function initHUD(){
   },{capture:true});
   document.getElementById('btn-lobby-back').addEventListener('click',lobbyBack);
   document.getElementById('btn-resume').addEventListener('click',uiResume);
-  document.getElementById('btn-restart').addEventListener('click',()=>{uiFade(()=>{document.getElementById('pause-ov').style.display='none';restartGame()})});
+  document.getElementById('btn-sound').addEventListener('click',()=>{toggleMute();uiSyncSoundBtn();uiSfx('select')});
+  document.getElementById('btn-restart').addEventListener('click',()=>{uiFade(()=>{document.getElementById('pause-ov').style.display='none';setMusicDuck(false);restartGame()})});
   document.getElementById('btn-quit').addEventListener('click',uiReturnToMenu);
   document.getElementById('btn-go-again').addEventListener('click',()=>uiFade(restartGame));
   document.getElementById('btn-go-menu').addEventListener('click',uiReturnToMenu);
@@ -3676,9 +3819,9 @@ function updateCombat(dt){
   for(let i=projectiles.length-1;i>=0;i--){if(!projectiles[i].alive)projectiles.splice(i,1)}
 
   // Check end conditions
-  if(players[1].castleHP<=0||players[2].castleHP<=0){gameState='gameover';stopMusic();sndVictory();showGameOver();return}
+  if(players[1].castleHP<=0||players[2].castleHP<=0){gameState='gameover';stopMusic(1.5);sndGameEnd(gameMode==='2p'||players[2].castleHP<=0&&players[1].castleHP>0);showGameOver();return}
   if(spawnQueue1.length===0&&spawnQueue2.length===0&&enemies.length===0){
-    if(waveNum>=MAX_WAVES){gameState='gameover';stopMusic();sndVictory();showGameOver()}
+    if(waveNum>=MAX_WAVES){gameState='gameover';stopMusic(1.5);sndGameEnd(gameMode==='2p'||players[1].castleHP>=players[2].castleHP);showGameOver()}
     else{gameState='waveEnd';waveEndTimer=3;uiWaveEnd();showScreen('waveEnd')}
   }
 }
@@ -3726,7 +3869,7 @@ function restartGame(){
   players[2].castleHP=CASTLE_HP;players[2].maxHP=CASTLE_HP;players[2].credits=START_CREDITS;
   players[2].specials=3;players[2].ready=false;players[2].selectedIdx=0;players[2].kills=0;players[2].totalDmgDealt=0;
   players[2].enemyQueue={goblin:0,orc:0,darkKnight:0,archer:0,troll:0,dragon:0,lich:0};players[2].cursor={c:30,r:9};
-  stopMusic();startMusic();gameState='build';buildTimer=BUILD_TIME;
+  stopMusic(0.3);startMusic();gameState='build';buildTimer=BUILD_TIME;
   aiBuildTimer=0;aiSpecialTimer=0;
   document.getElementById('pause-ov').style.display='none';
   showScreen('game');
@@ -4853,7 +4996,7 @@ function updateTitle(){
     __lobbyLaunching=true;uiSfx('select');
     setTimeout(()=>uiFade(()=>{
       __lobbyLaunching=false;
-      initAudio();startMusic();gameState='build';buildTimer=BUILD_TIME;applyTimeOfDay(0);
+      startMusic();gameState='build';buildTimer=BUILD_TIME;applyTimeOfDay(0);
       players[1].ready=false;players[2].ready=false;showScreen('game');uiBuildBanner();
     }),450);
   }
@@ -5069,7 +5212,7 @@ function init(){
   function dismissWelcome(){
     if(welcomeEl.style.display==='none')return;
     if(!audioCtx)initAudio();
-    titleMusic.currentTime=0;titleMusic.play().catch(()=>{});
+    playTitleMusic();
     uiSfx('select');
     uiFade(()=>{
       welcomeEl.style.display='none';

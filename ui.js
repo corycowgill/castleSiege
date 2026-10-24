@@ -7,7 +7,8 @@
 //   gameState, gameMode, isMobile, waveNum, MAX_WAVES, players, camera,
 //   CAM_BASE, camZoom, setCameraZoom, playSound, audioCtx, BUILD_OPTS,
 //   TOWER_DATA, ENEMY_DATA, BOSS_DATA, SPECIAL_DATA, showScreen,
-//   restartGame, stopMusic, startMusic, titleMusic, applyTimeOfDay
+//   restartGame, stopMusic, startMusic, playTitleMusic, setMusicDuck,
+//   toggleMute, AUDIO, applyTimeOfDay
 
 // ==================== ICONS ====================
 function uiIcon(id,cls){return `<svg class="ico${cls?' '+cls:''}" viewBox="0 0 24 24"><use href="#i-${id}"/></svg>`}
@@ -229,24 +230,29 @@ function uiPause(){
   document.getElementById('pause-ov').style.display='flex';
   document.getElementById('btn-resume').classList.add('focus');
   uiNavSet('#pause-ov .btn');uiSfx('back');
+  setMusicDuck(true);uiSyncSoundBtn();
+}
+function uiSyncSoundBtn(){
+  const b=document.getElementById('btn-sound');
+  if(b)b.innerHTML=`Sound: ${AUDIO.muted?'Off':'On'} <span class="key">M</span>`;
 }
 function uiResume(){
   if(gameState!=='paused')return;
   gameState=__pausedFrom||'build';__pausedFrom=null;
   document.getElementById('pause-ov').style.display='none';
   document.querySelectorAll('#pause-ov .btn').forEach(b=>b.classList.remove('focus'));
-  uiSfx('select');
+  setMusicDuck(false);uiSfx('select');
 }
 
 // ==================== MAIN MENU RETURN ====================
 function uiReturnToMenu(){
   uiFade(()=>{
-    document.getElementById('pause-ov').style.display='none';
+    document.getElementById('pause-ov').style.display='none';setMusicDuck(false);
     restartGame();stopMusic();applyTimeOfDay(0.22);
     gameState='modeselect';showScreen('modeselect');
     uiNavSet('#main-menu .menu-item',document.getElementById('menu-desc'));
     players[1].ready=false;players[2].ready=false;
-    try{titleMusic.currentTime=0;titleMusic.play().catch(()=>{})}catch(e){}
+    playTitleMusic();
   });
 }
 
