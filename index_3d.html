@@ -490,6 +490,26 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
   .toasts{bottom:128px}
   #wave-banner{top:22%}
 }
+/* v3.37: settings + difficulty */
+#settings-ov{position:fixed;inset:0;z-index:420;display:none;align-items:center;justify-content:center;pointer-events:auto;
+  background:rgba(4,3,3,.72);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);animation:fadeIn .2s both}
+.settings-panel{width:min(460px,92vw)}
+.set-row{all:unset;box-sizing:border-box;display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;margin:2px 0;cursor:pointer;
+  border:1px solid transparent;font-family:var(--f-display);font-weight:700;font-size:clamp(11px,1.1vw,14px);letter-spacing:.14em;text-transform:uppercase;color:var(--parch);transition:background .2s,border-color .2s}
+.set-row:hover,.set-row.focus{background:rgba(217,178,95,.1);border-color:var(--line)}
+.set-row .lab{flex:1;text-align:left}
+.set-row .arr{color:var(--gold-d);padding:0 4px;font-size:1.1em}
+.set-row.focus .arr{color:var(--gold-b)}
+.set-row .val{min-width:7.5em;text-align:center;color:var(--gold-b)}
+.set-row .bar{width:90px;height:6px;background:rgba(255,255,255,.08);position:relative}
+.set-row .bar i{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,var(--gold-d),var(--gold-b))}
+.set-hint{margin-top:12px;font-family:var(--f-display);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--mute)}
+.diff-row{grid-column:1/-1;display:flex;gap:6px;margin-bottom:6px}
+.diff-btn{flex:1;flex-direction:column;justify-content:center;padding:.6em .4em!important;gap:2px!important;font-size:clamp(10px,1vw,13px)!important}
+.diff-btn small{font-family:var(--f-body);font-style:italic;text-transform:none;letter-spacing:.04em;font-size:.85em;color:var(--parch-d)}
+.diff-btn.sel{color:#140e05;background:linear-gradient(180deg,#f6dc8e,#c9993f 60%,#9a7128);border-color:#ffe9a8}
+.diff-btn.sel small{color:#3a2a10}
+.diff-keys{font-size:.85em!important;opacity:.8}
 /* fade-to-black used for screen transitions */
 #fade{position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;z-index:10000;transition:opacity .35s ease}
 #fade.on{opacity:1}
@@ -555,14 +575,27 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
         <span class="mi-idx">II</span><span class="mi-label">Versus</span><span class="mi-sub">Local 2 Player</span></button>
       <button class="menu-item" id="btn-menu-help" data-desc="Towers, armies, bosses, specials and the rules of war.">
         <span class="mi-idx">III</span><span class="mi-label">How to Play</span><span class="mi-sub">Reference</span></button>
+      <button class="menu-item" id="btn-menu-settings" data-desc="Volume, graphics quality, screen shake and damage numbers.">
+        <span class="mi-idx">IV</span><span class="mi-label">Settings</span><span class="mi-sub">Options</span></button>
       <a class="menu-item" id="btn-menu-guide" href="guide.html" data-desc="Inspect every tower, soldier and boss in the illustrated field guide.">
-        <span class="mi-idx">IV</span><span class="mi-label">Field Guide</span><span class="mi-sub">Bestiary</span></a>
+        <span class="mi-idx">V</span><span class="mi-label">Field Guide</span><span class="mi-sub">Bestiary</span></a>
     </nav>
     <p class="menu-desc" id="menu-desc">Hold your keep against a scheming AI warlord across ten waves, from noon to the final dawn.</p>
   </div>
   <div class="menu-foot">
     <div class="foot-hints"><span><span class="key">&uarr;</span><span class="key">&darr;</span> Navigate</span><span><span class="key">Enter</span> Select</span><span><span class="key round">A</span> Confirm</span></div>
-    <div class="foot-ver">Castle Siege <b>v3.36</b> &bull; Build 2026-10-24</div>
+    <div class="foot-ver">Castle Siege <b>v3.37</b> &bull; Build 2026-10-24</div>
+  </div>
+</div>
+
+<!-- SETTINGS (outside hud-root so it can sit above the main menu) -->
+<div id="settings-ov">
+  <div class="pause-panel settings-panel panel frame">
+    <div class="kicker">Options</div>
+    <h2>Settings</h2>
+    <div id="settings-rows"></div>
+    <button class="btn primary" id="btn-settings-done">Done <span class="key">Esc</span></button>
+    <p class="set-hint"><span class="key">&uarr;</span><span class="key">&darr;</span> choose &nbsp; <span class="key">&larr;</span><span class="key">&rarr;</span> adjust</p>
   </div>
 </div>
 
@@ -671,6 +704,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
         <li>Place a tower on your own tower to upgrade it (max Lv3)</li>
         <li>Arrows show each army's route during the build phase</li>
         <li>Enemies can break walls &middot; <span class="key">Esc</span> pauses &middot; <span class="key">M</span> mutes</li>
+        <li>Campaign: pick Easy, Normal or Hard in the lobby (score &times;0.75 / &times;1 / &times;1.5)</li>
         </ul></div>
     </div>
     <p class="help-back">Press any key or click to go back</p>
@@ -769,8 +803,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
     <h2>Paused</h2>
     <button class="btn primary" id="btn-resume">Resume</button>
     <button class="btn" id="btn-pause-help">How to Play</button>
-    <button class="btn" id="btn-sound">Sound: On <span class="key">M</span></button>
-    <button class="btn" id="btn-gfx">Graphics: High</button>
+    <button class="btn" id="btn-pause-settings">Settings</button>
     <button class="btn" id="btn-restart">Restart Battle</button>
     <button class="btn" id="btn-quit">Main Menu</button>
   </div>
@@ -1198,7 +1231,7 @@ const gameKeys=new Set(['KeyM','KeyW','KeyA','KeyS','KeyD','Space','KeyQ','KeyE'
 window.addEventListener('keydown',(e)=>{if(!audioCtx)initAudio();if(gameKeys.has(e.code))e.preventDefault();if(!keys[e.code])keyPressed[e.code]=true;keys[e.code]=true});
 window.addEventListener('keyup',(e)=>{keys[e.code]=false});
 // v3.29: M toggles mute from anywhere.
-window.addEventListener('keydown',(e)=>{if(e.code==='KeyM'&&!e.repeat){const m=toggleMute();if(typeof uiToast==='function')uiToast(1,m?'Sound muted \u00B7 M to unmute':'Sound on','gold');if(typeof uiSyncSoundBtn==='function')uiSyncSoundBtn()}});
+window.addEventListener('keydown',(e)=>{if(e.code==='KeyM'&&!e.repeat){const m=toggleMute();if(typeof uiToast==='function')uiToast(1,m?'Sound muted \u00B7 M to unmute':'Sound on','gold');if(typeof uiSyncSoundBtn==='function')uiSyncSoundBtn();if(typeof uiSettingsOpen==='function'&&uiSettingsOpen())uiRenderSettings()}});
 function consumeKey(code){if(keyPressed[code]){keyPressed[code]=false;return true}return false}
 
 // ==================== 3D COORDINATE HELPERS ====================
@@ -2918,12 +2951,9 @@ function initHUD(){
   },{capture:true});
   document.getElementById('btn-lobby-back').addEventListener('click',lobbyBack);
   document.getElementById('btn-resume').addEventListener('click',uiResume);
-  document.getElementById('btn-sound').addEventListener('click',()=>{toggleMute();uiSyncSoundBtn();uiSfx('select')});
-  document.getElementById('btn-gfx').addEventListener('click',()=>{
-    __post.enabled=!__post.enabled;__post.auto=false;__post._slow=0;
-    try{localStorage.setItem('castleSiege_gfx',__post.enabled?'high':'low')}catch(e){}
-    uiSyncSoundBtn();uiSfx('select');
-  });
+  document.getElementById('btn-pause-settings').addEventListener('click',()=>uiOpenSettings('pause'));
+  document.getElementById('btn-menu-settings').addEventListener('click',()=>uiOpenSettings('menu'));
+  document.getElementById('btn-settings-done').addEventListener('click',uiCloseSettings);
   document.getElementById('btn-restart').addEventListener('click',()=>{uiFade(()=>{document.getElementById('pause-ov').style.display='none';setMusicDuck(false);restartGame()})});
   document.getElementById('btn-quit').addEventListener('click',uiReturnToMenu);
   document.getElementById('btn-go-again').addEventListener('click',()=>uiFade(restartGame));
@@ -3054,7 +3084,7 @@ function updateHUD(){
       (pn===1?h.p1specCt:h.p2specCt).innerHTML=[0,1,2].map(i=>`<i class="${i<pl.specials?'':'spent'}"></i>`).join('');
     }
   }
-  __st(h.p2label,gameMode==='1p'?'Warlord':'Red Crown');
+  __st(h.p2label,gameMode==='1p'?'Warlord \u00B7 '+diffProfile().label:'Red Crown');
   __st(h.p1label,'Blue Crown');
 
   if(gameState==='build'){
@@ -3427,7 +3457,8 @@ function startBuild(){
     for(const pn of[1,2]){
       const pl=players[pn];
       const interest=interestFor(pl.credits);
-      pl.credits+=250+interest;pl.specials=3;
+      const bonus=gameMode==='1p'&&pn===2?Math.round(250*diffProfile().income):250;
+      pl.credits+=bonus+interest;pl.specials=3;
       if(interest>0){const cw=tileToWorld(pn===1?1:38,9);spawnDmgNumber(cw.x,1.8,cw.z,'+$'+interest+' INTEREST','#ffd700')}
     }
   }
@@ -3825,11 +3856,13 @@ function showGameOver(){
   else winner=players[1].castleHP>players[2].castleHP?1:players[1].castleHP<players[2].castleHP?2:'draw';
   // v3.25: score formula: waves×1000 + kills×50 + damage/10 + castleHP remaining
   const p1=players[1];
-  const score=waveNum*1000+p1.kills*50+Math.round(p1.totalDmgDealt/10)+Math.max(0,Math.ceil(p1.castleHP));
+  // v3.37: campaign score scales with difficulty; best is kept per difficulty.
+  const mult=gameMode==='1p'?diffProfile().score:1;
+  const score=Math.round((waveNum*1000+p1.kills*50+Math.round(p1.totalDmgDealt/10)+Math.max(0,Math.ceil(p1.castleHP)))*mult);
   // Persist best score in localStorage
   let best=null,isNew=false;
   try{
-    const key='castleSiege_bestScore';
+    const key='castleSiege_bestScore'+(gameMode==='1p'&&difficulty!=='normal'?'_'+difficulty:'');
     best=parseInt(localStorage.getItem(key)||'0',10);
     if(score>best){localStorage.setItem(key,String(score));isNew=true}
   }catch(e){best=null}
@@ -3860,6 +3893,7 @@ function restartGame(){
   players[2].castleHP=CASTLE_HP;players[2].maxHP=CASTLE_HP;players[2].credits=START_CREDITS;
   players[2].specials=3;players[2].ready=false;players[2].selectedIdx=0;players[2].kills=0;players[2].totalDmgDealt=0;
   players[2].enemyQueue={goblin:0,orc:0,darkKnight:0,archer:0,troll:0,dragon:0,lich:0};players[2].cursor={c:30,r:9};
+  applyDifficultyStart();
   stopMusic(0.3);startMusic();gameState='build';buildTimer=BUILD_TIME;
   aiBuildTimer=0;aiSpecialTimer=0;
   document.getElementById('pause-ov').style.display='none';
@@ -4864,22 +4898,44 @@ function updateCastleFx(dt){
 
 // ==================== AI PLAYER (P2 in 1P mode) ====================
 let aiBuildTimer=0, aiSpecialTimer=0, aiReady=false;
+// v3.37: Campaign difficulty. Only the AI opponent changes — player
+// units, towers and the Versus mode are untouched.
+//   act:     seconds between AI build decisions
+//   income:  multiplier on the AI's starting gold and wave bonus
+//   boss:    first wave the AI may buy bosses, and the chance per action
+//   ready:   seconds left when it readies up / gold left it may keep
+const DIFFICULTY={
+  easy:  {name:'Squire', label:'Easy',  act:[1.4,2.6],income:0.85,bossWave:5,bossChance:0.08,special:[6,12],readyAt:15,keep:150,score:0.75,
+          desc:'A cautious lord. Slow to build, rarely calls bosses.'},
+  normal:{name:'Knight', label:'Normal',act:[0.8,2.0],income:1.0, bossWave:3,bossChance:0.15,special:[3,8], readyAt:10,keep:60, score:1,
+          desc:'A seasoned commander. Builds along your route and fields bosses from wave 3.'},
+  hard:  {name:'Warlord',label:'Hard',  act:[0.35,0.8],income:1.25,bossWave:2,bossChance:0.3,special:[2,5],readyAt:4, keep:40, score:1.5,
+          desc:'Ruthless. Spends every coin, upgrades relentlessly and hurls bosses from wave 2.'},
+};
+let difficulty=(()=>{try{const d=localStorage.getItem('castleSiege_difficulty');return DIFFICULTY[d]?d:'normal'}catch(e){return'normal'}})();
+function setDifficulty(d){if(!DIFFICULTY[d])return;difficulty=d;try{localStorage.setItem('castleSiege_difficulty',d)}catch(e){}}
+function diffProfile(){return DIFFICULTY[difficulty]||DIFFICULTY.normal}
+// Starting gold for the AI at the beginning of a campaign match.
+function applyDifficultyStart(){players[2].credits=gameMode==='1p'?Math.round(START_CREDITS*diffProfile().income):START_CREDITS}
 
 function aiUpdate(dt){
   const ai=players[2];
   if(gameState==='build'){
     aiBuildTimer-=dt;
+    const D=diffProfile();
     if(aiBuildTimer<=0){
-      aiBuildTimer=rnd(0.8,2.0);
+      aiBuildTimer=rnd(D.act[0],D.act[1]);
       aiDoBuildAction(ai);
+      // hard AI with a war chest acts twice
+      if(difficulty==='hard'&&ai.credits>500)aiDoBuildAction(ai);
     }
-    // AI readies up when timer < 10s or has spent most credits
-    if(buildTimer<10||ai.credits<60)ai.ready=true;
+    // AI readies up when time is short or it has spent down its gold
+    if(buildTimer<D.readyAt||ai.credits<D.keep)ai.ready=true;
   }
   if(gameState==='combat'){
     aiSpecialTimer-=dt;
     if(aiSpecialTimer<=0&&ai.specials>0){
-      aiSpecialTimer=rnd(3,8);
+      aiSpecialTimer=rnd(diffProfile().special[0],diffProfile().special[1]);
       aiUseSpecial(ai);
     }
   }
@@ -4937,7 +4993,7 @@ function aiDoBuildAction(ai){
   // enough credits, starting from wave 3). Makes 1P mode more
   // threatening in the mid-late game. Picks the most expensive
   // boss it can afford for maximum impact.
-  if(waveNum>=3&&Math.random()<0.15){
+  if(waveNum>=diffProfile().bossWave&&Math.random()<diffProfile().bossChance){
     const affordableBoss=BOSS_DATA.filter(b=>ai.credits>=b.cost);
     if(affordableBoss.length){
       const boss=affordableBoss[affordableBoss.length-1]; // most expensive
@@ -5185,7 +5241,7 @@ function updateTitle(){
     __lobbyLaunching=true;uiSfx('select');
     setTimeout(()=>uiFade(()=>{
       __lobbyLaunching=false;
-      startMusic();gameState='build';buildTimer=BUILD_TIME;applyTimeOfDay(0);
+      startMusic();gameState='build';buildTimer=BUILD_TIME;applyTimeOfDay(0);applyDifficultyStart();
       players[1].ready=false;players[2].ready=false;showScreen('game');uiBuildBanner();
     }),450);
   }
@@ -5221,7 +5277,8 @@ function gameLoop(){
     if(document.getElementById('welcome-screen').style.display==='none'&&document.getElementById('help-screen').style.display!=='flex')uiNavPoll();
     Object.keys(keyPressed).forEach(k=>keyPressed[k]=false);
   }else if(gameState==='paused'){
-    if(document.getElementById('help-screen').style.display!=='flex'){
+    if(uiSettingsOpen())uiNavPoll();
+    else if(document.getElementById('help-screen').style.display!=='flex'){
       if(consumeKey('Escape')||consumeKey('KeyP'))uiResume();
       else uiNavPoll();
     }
@@ -5231,6 +5288,9 @@ function gameLoop(){
     uiUpdateMenuCamera(rawDt);
     if(consumeKey('Escape')){lobbyBack();Object.keys(keyPressed).forEach(k=>keyPressed[k]=false)}
     if(consumeKey('KeyH'))openHelp('title');
+    if(gameMode==='1p'){const ks=Object.keys(DIFFICULTY),i=ks.indexOf(difficulty);
+      if(consumeKey('ArrowLeft')){setDifficulty(ks[Math.max(0,i-1)]);uiSyncDifficulty();uiSfx('hover')}
+      if(consumeKey('ArrowRight')){setDifficulty(ks[Math.min(ks.length-1,i+1)]);uiSyncDifficulty();uiSfx('hover')}}
     // Title input (run every frame — no fixed-step sim needed here)
     if(consumeKey('Space'))players[1].ready=true;
     if(mouseClicked){if(!audioCtx)initAudio();if(gameMode==='2p')players[2].ready=true;else players[1].ready=true}
@@ -5280,7 +5340,7 @@ function gameLoop(){
 
   // Screen shake effect (visual only — uses raw render dt)
   if(screenShake>0&&camera){
-    const shakeIntensity=screenShake*0.15;
+    const shakeIntensity=screenShake*0.15*(SETTINGS.shake?1:0);
     camera.position.x=CAM_BASE.x+(Math.random()-0.5)*shakeIntensity;
     camera.position.z=CAM_BASE.z/camZoom+(Math.random()-0.5)*shakeIntensity;
     screenShake-=rawDt||0.016;
@@ -5381,7 +5441,8 @@ function init(){
   initScene(container);
   // v3.31: bloom + colour grade (auto-disables on slow GPUs).
   __post=createPost(renderer);
-  try{const g=localStorage.getItem('castleSiege_gfx');if(g){__post.auto=false;if(g==='low')__post.enabled=false}}catch(e){}
+  try{const g=localStorage.getItem('castleSiege_gfx');if(g&&!localStorage.getItem('castleSiege_settings')){SETTINGS.gfx=g}}catch(e){}
+  uiApplySettings(true);
   setTimeout(__warmShaders,50);
   createTerrain();
   createScenery();
@@ -5426,7 +5487,10 @@ function init(){
     }
     setHTML('lobby-p2-name','The Warlord');
     setHTML('lobby-p2-dev','AI Opponent &bull; Ruthless');
-    setHTML('lobby-p2-keys','<span class="note">Builds towers along your army\'s route, mazes with walls, upgrades its best defenses and hurls bosses at you from wave 3.</span>');
+    setHTML('lobby-p2-keys','<div class="diff-row">'+Object.entries(DIFFICULTY).map(([k,d])=>`<button class="btn diff-btn" data-d="${k}">${d.label}<small>${d.name}</small></button>`).join('')+
+      '</div><span class="note" id="diff-desc"></span><span class="note diff-keys"><span class="key">&larr;</span><span class="key">&rarr;</span> change difficulty</span>');
+    document.querySelectorAll('.diff-btn').forEach(b=>b.addEventListener('click',()=>{setDifficulty(b.dataset.d);uiSyncDifficulty();uiSfx('select')}));
+    uiSyncDifficulty();
     document.getElementById('title-p2-ready').classList.add('is-ready');
     // Update HUD hints
     if(!isMobile){

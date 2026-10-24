@@ -119,6 +119,22 @@ function uiNavActivate(){const cur=__nav.items[__nav.idx];if(cur){uiSfx('select'
 // Keyboard + gamepad driver; call once per frame while a nav list is live.
 let __navPadPrev={};
 function uiNavPoll(){
+  if(__settingsOpen){
+    // settings: up/down choose, left/right adjust, Enter cycles, Esc closes
+    if(consumeKey('Escape')){uiCloseSettings();return}
+    const cur=__nav.items[__nav.idx];
+    const adj=d=>{if(cur&&cur._adjust){cur._adjust(d);uiSfx('hover')}};
+    if(consumeKey('ArrowLeft')||consumeKey('KeyA'))adj(-1);
+    if(consumeKey('ArrowRight')||consumeKey('KeyD'))adj(1);
+    if(consumeKey('ArrowUp')||consumeKey('KeyW'))uiNavMove(-1);
+    if(consumeKey('ArrowDown')||consumeKey('KeyS'))uiNavMove(1);
+    if(consumeKey('Enter')||consumeKey('Space'))uiNavActivate();
+    const gp=getGamepad();
+    if(gp){const b=i=>gp.buttons[i]&&gp.buttons[i].pressed&&!__navPadPrev[i];
+      if(b(12))uiNavMove(-1);if(b(13))uiNavMove(1);if(b(14))adj(-1);if(b(15))adj(1);if(b(0))uiNavActivate();if(b(1))uiCloseSettings();
+      const np={};for(let i=0;i<gp.buttons.length;i++)np[i]=gp.buttons[i].pressed;__navPadPrev=np}
+    return;
+  }
   if(consumeKey('ArrowUp')||consumeKey('KeyW'))uiNavMove(-1);
   if(consumeKey('ArrowDown')||consumeKey('KeyS'))uiNavMove(1);
   if(consumeKey('ArrowLeft')||consumeKey('KeyA'))uiNavMove(-1);
@@ -289,7 +305,7 @@ function uiGameOver(winner,score,best,isNewBest){
   if(gameMode==='1p'){
     title=draw?'Stalemate':p1won?'Victory':'Defeat';
     sub=draw?'Neither crown would yield.':p1won?(p2.castleHP<=0?'The warlord\'s keep lies in ruin.':'Your keep stands taller at the final dawn.'):(p1.castleHP<=0?'Your walls have fallen. The realm mourns.':'The warlord outlasted you.');
-    kicker=`After ${waveNum} wave${waveNum===1?'':'s'}`;
+    kicker=`After ${waveNum} wave${waveNum===1?'':'s'} \u00B7 ${diffProfile().label}`;
   }else{
     title=draw?'Stalemate':p1won?'Blue Triumphs':'Red Triumphs';
     sub=draw?'Neither crown would yield.':(p1won?'The Blue Crown':'The Red Crown')+' holds the field.';
@@ -320,4 +336,78 @@ function uiGameOver(winner,score,best,isNewBest){
   },1200);
   document.getElementById('btn-go-again').classList.add('focus');document.getElementById('btn-go-menu').classList.remove('focus');
   uiNavSet('#gameover-ov .btn');
+}
+
+
+// ==================== v3.37: SETTINGS ====================
+const SETTINGS={music:0.5,sfx:0.8,gfx:'high',shake:true,dmg:true};
+try{Object.assign(SETTINGS,JSON.parse(localStorage.getItem('castleSiege_settings')||'{}'))}catch(e){}
+function uiSaveSettings(){try{localStorage.setItem('castleSiege_settings',JSON.stringify(SETTINGS))}catch(e){}}
+function uiApplySettings(init){
+  if(typeof AUDIO!=='undefined'){AUDIO.music=SETTINGS.music;AUDIO.sfx=SETTINGS.sfx;if(typeof __applyAudioLevels==='function')__applyAudioLevels(!!init)}
+  if(typeof __post!=='undefined'&&__post){
+    let saved=false;try{saved=!!localStorage.getItem('castleSiege_settings')||!!localStorage.getItem('castleSiege_gfx')}catch(e){}
+    if(saved||!init){__post.auto=false;__post._slow=0;__post.enabled=SETTINGS.gfx==='high'}
+  }
+}
+// Hide plain damage numbers when disabled (gold rewards and castle hits
+// are strings and always show).
+(function(){const _sdn=spawnDmgNumber;spawnDmgNumber=function(x,y,z,text,color){if(!SETTINGS.dmg&&typeof text==='number')return;return _sdn(x,y,z,text,color)}})();
+const SETTING_ROWS=[
+  {k:'music',label:'Music',kind:'pct'},
+  {k:'sfx',label:'Effects',kind:'pct'},
+  {k:'muted',label:'Sound',kind:'mute'},
+  {k:'gfx',label:'Graphics',kind:'opt',opts:['high','low'],names:{high:'High',low:'Low (faster)'}},
+  {k:'shake',label:'Screen shake',kind:'bool'},
+  {k:'dmg',label:'Damage numbers',kind:'bool'},
+];
+let __settingsOpen=false,__settingsFrom='menu';
+function uiSettingsOpen(){return __settingsOpen}
+function __settingVal(r){
+  if(r.kind==='pct')return Math.round(SETTINGS[r.k]*100)+'%';
+  if(r.kind==='mute')return AUDIO.muted?'Off':'On';
+  if(r.kind==='bool')return SETTINGS[r.k]?'On':'Off';
+  return r.names[SETTINGS[r.k]];
+}
+function __settingAdjust(r,d){
+  if(r.kind==='pct')SETTINGS[r.k]=Math.round(Math.max(0,Math.min(1,SETTINGS[r.k]+d*0.1))*10)/10;
+  else if(r.kind==='mute'){toggleMute()}
+  else if(r.kind==='bool')SETTINGS[r.k]=!SETTINGS[r.k];
+  else{const i=r.opts.indexOf(SETTINGS[r.k]);SETTINGS[r.k]=r.opts[(i+(d<0?r.opts.length-1:1))%r.opts.length]}
+  uiSaveSettings();uiApplySettings(false);uiRenderSettings();
+}
+function uiRenderSettings(){
+  const host=document.getElementById('settings-rows');
+  if(!host.childElementCount){
+    for(const r of SETTING_ROWS){
+      const b=document.createElement('button');b.className='set-row';b.dataset.k=r.k;
+      b.innerHTML=`<span class="lab">${r.label}</span>${r.kind==='pct'?'<span class="bar"><i></i></span>':''}<span class="arr" data-d="-1">&#9664;</span><span class="val"></span><span class="arr" data-d="1">&#9654;</span>`;
+      b._adjust=d=>__settingAdjust(r,d);
+      b.addEventListener('click',ev=>{const a=ev.target.closest('.arr');__settingAdjust(r,a?+a.dataset.d:1);uiSfx('hover')});
+      host.appendChild(b);
+    }
+  }
+  for(const b of host.children){const r=SETTING_ROWS.find(x=>x.k===b.dataset.k);b.querySelector('.val').textContent=__settingVal(r);
+    const bar=b.querySelector('.bar i');if(bar)bar.style.width=(SETTINGS[r.k]*100)+'%'}
+}
+function uiOpenSettings(from){
+  __settingsFrom=from||'menu';__settingsOpen=true;uiRenderSettings();
+  document.getElementById('settings-ov').style.display='flex';
+  document.querySelectorAll('#settings-ov .set-row,#settings-ov .btn').forEach(e=>e.classList.remove('focus'));
+  document.querySelector('#settings-ov .set-row').classList.add('focus');
+  uiNavSet('#settings-ov .set-row, #btn-settings-done');uiSfx('select');
+}
+function uiCloseSettings(){
+  if(!__settingsOpen)return;__settingsOpen=false;
+  document.getElementById('settings-ov').style.display='none';uiSfx('back');
+  if(__settingsFrom==='pause')uiNavSet('#pause-ov .btn');
+  else uiNavSet('#main-menu .menu-item',document.getElementById('menu-desc'));
+}
+
+// ==================== v3.37: DIFFICULTY PICKER ====================
+function uiSyncDifficulty(){
+  document.querySelectorAll('.diff-btn').forEach(b=>b.classList.toggle('sel',b.dataset.d===difficulty));
+  const d=document.getElementById('diff-desc');if(d)d.textContent=diffProfile().desc+(diffProfile().score!==1?` Score ×${diffProfile().score}.`:'');
+  const n=document.getElementById('lobby-p2-name');if(n&&gameMode==='1p')n.textContent='The '+diffProfile().name;
+  const dv=document.getElementById('lobby-p2-dev');if(dv&&gameMode==='1p')dv.textContent='AI Opponent \u2022 '+diffProfile().label;
 }
