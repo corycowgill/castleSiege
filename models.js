@@ -21,7 +21,25 @@
 //     - a gentle saturation lift on the final lit colour.
 //  Per-material knobs live in material.userData.sty (rim colour/strength,
 //  AO), so units can carry a team-coloured rim without new programs.
-const STYLE={sat:1.14,aoMin:0.58,aoH:0.9,rim:0xfff0d0,rimK:0.28};
+const STYLE={sat:1.12,aoMin:0.62,aoH:0.9,rim:0xfff0d0,rimK:0.26};
+// v3.32: soft 4-band light ramp for the painted "toon" look (Zelda /
+// Warcraft style): lit side, two mid tones, and a shadow side that
+// keeps colour instead of falling to black. Linear filtering softens
+// the band edges so it reads painted rather than posterised.
+let __rampTex=null;
+function toonRamp(){
+  if(__rampTex)return __rampTex;
+  const N=64,d=new Uint8Array(N*4);
+  const stops=[[0.0,0.34],[0.30,0.34],[0.38,0.58],[0.62,0.58],[0.70,0.84],[0.86,0.84],[0.92,1.0],[1.0,1.0]];
+  for(let i=0;i<N;i++){
+    const x=i/(N-1);let v=1;
+    for(let k=0;k<stops.length-1;k++){const [x0,v0]=stops[k],[x1,v1]=stops[k+1];if(x>=x0&&x<=x1){v=v0+(v1-v0)*((x-x0)/Math.max(1e-6,x1-x0));break}}
+    const b=Math.round(v*255);d[i*4]=d[i*4+1]=d[i*4+2]=b;d[i*4+3]=255;
+  }
+  __rampTex=new THREE.DataTexture(d,N,1,THREE.RGBAFormat);
+  __rampTex.magFilter=__rampTex.minFilter=THREE.LinearFilter;__rampTex.needsUpdate=true;
+  return __rampTex;
+}
 const __styColor=new THREE.Color(),__hsl={h:0,s:0,l:0};
 function stylizeColor(hex){
   __styColor.set(hex).getHSL(__hsl);
@@ -44,6 +62,7 @@ function stylizeMaterial(m,opts){
     uAoMin:{value:o.aoMin??STYLE.aoMin},
     uAoH:{value:o.aoH??STYLE.aoH},
     uSat:{value:STYLE.sat},
+    uSpec:{value:o.spec??0.0},
   };
   m.onBeforeCompile=(sh)=>{
     Object.assign(sh.uniforms,m.userData.sty);
@@ -51,13 +70,21 @@ function stylizeMaterial(m,opts){
       .replace('#include <common>','#include <common>\nvarying float vStyWorldY;')
       .replace('#include <project_vertex>','#include <project_vertex>\nvStyWorldY=(modelMatrix*vec4(transformed,1.0)).y;');
     sh.fragmentShader=sh.fragmentShader
-      .replace('#include <common>','#include <common>\nvarying float vStyWorldY;\nuniform vec3 uRim;uniform float uRimK,uAoMin,uAoH,uSat;')
+      .replace('#include <common>','#include <common>\nvarying float vStyWorldY;\nuniform vec3 uRim;uniform float uRimK,uAoMin,uAoH,uSat,uSpec;')
       .replace('#include <opaque_fragment>',`
         {
           vec3 styV=normalize(vViewPosition);
           float styF=pow(1.0-clamp(dot(normal,styV),0.0,1.0),2.6);
           // wrap light: lift the darkest faces with a tint of albedo
-          outgoingLight+=diffuseColor.rgb*0.10;
+          outgoingLight+=diffuseColor.rgb*0.06;
+          // crisp stylized highlight from the sun (metal/gold/armour)
+          #if NUM_DIR_LIGHTS > 0
+          if(uSpec>0.0){
+            vec3 styH=normalize(directionalLights[0].direction+styV);
+            float styS=pow(max(dot(normal,styH),0.0),48.0);
+            outgoingLight+=directionalLights[0].color*uSpec*smoothstep(0.35,0.55,styS)*(0.35+0.65*diffuseColor.rgb);
+          }
+          #endif
           outgoingLight+=uRim*uRimK*styF*(0.55+0.45*diffuseColor.rgb);
           float styAo=mix(uAoMin,1.0,smoothstep(0.0,uAoH,vStyWorldY));
           outgoingLight*=styAo;
@@ -81,9 +108,14 @@ function setModelRim(root,color,k){
 function mkMat(color,opts={}){
   const o={...opts};
   if(o.emissive!==undefined&&o.emissiveIntensity===undefined)o.emissiveIntensity=1;
-  const m=new THREE.MeshStandardMaterial({color:stylizeColor(color),flatShading:true,roughness:0.82,...o});
-  // emissive parts (windows, runes, fire) stay as authored — they glow.
-  return stylizeMaterial(m);
+  // v3.32: toon shading (cheaper than PBR, and the stylized look we want).
+  // Metalness/roughness become a stylized highlight strength instead.
+  const metal=o.metalness||0,rough=o.roughness??0.82;
+  delete o.metalness;delete o.roughness;delete o.envMapIntensity;delete o.flatShading;
+  // highlights only on metal; tinted by albedo so dark iron stays dark
+  const spec=metal>0.25?Math.min(0.75,metal*0.8):0;
+  const m=new THREE.MeshToonMaterial({color:stylizeColor(color),gradientMap:toonRamp(),...o});
+  return stylizeMaterial(m,{spec});
 }
 // ==================== v3.31: PAINTED TEXTURES ====================
 // Small procedural canvas textures, near-white so they multiply with
@@ -140,6 +172,42 @@ function texWood(){return __canvasTex('wood',(g,S)=>{
     g.fillStyle='rgba(255,255,255,0.18)';g.fillRect(i*pw+3,0,2,S);
   }
 })}
+// v3.32: rebuild curved primitives with more segments (scaled by size)
+// so silhouettes read round instead of faceted. 4-sided cones/cylinders
+// are deliberate pyramids/prisms and are left alone; tiny details keep
+// their low counts to protect the triangle budget.
+function smoothGeometry(root,maxSeg){
+  const MX=maxSeg||16;
+  root.traverse(o=>{
+    if(!o.isMesh||!o.geometry||o.geometry.userData._smooth)return;
+    const g=o.geometry,P=g.parameters,t=g.type;if(!P)return;
+    let ng=null;
+    if(t==='CylinderGeometry'||t==='ConeGeometry'){
+      const r=Math.max(P.radiusTop??0,P.radiusBottom??P.radius??0);
+      if(P.radialSegments<6||r<0.025)return;
+      const seg=Math.min(MX,Math.max(P.radialSegments,Math.round(8+r*22)));
+      if(seg<=P.radialSegments)return;
+      ng=t==='ConeGeometry'?new THREE.ConeGeometry(P.radius,P.height,seg,P.heightSegments,P.openEnded,P.thetaStart,P.thetaLength)
+        :new THREE.CylinderGeometry(P.radiusTop,P.radiusBottom,P.height,seg,P.heightSegments,P.openEnded,P.thetaStart,P.thetaLength);
+    }else if(t==='SphereGeometry'){
+      if(P.radius<0.03||P.widthSegments<6)return;
+      const ws=Math.min(MX,Math.max(P.widthSegments,Math.round(8+P.radius*26)));
+      const hs=Math.min(Math.round(MX*0.6),Math.max(P.heightSegments,Math.round(ws*0.6)));
+      if(ws<=P.widthSegments&&hs<=P.heightSegments)return;
+      ng=new THREE.SphereGeometry(P.radius,ws,hs,P.phiStart,P.phiLength,P.thetaStart,P.thetaLength);
+    }else if(t==='TorusGeometry'){
+      // only rings big enough to read as round (belts and earrings stay low-poly)
+      if(P.radius<0.06)return;
+      const tub=Math.min(Math.round(MX*1.5),Math.max(P.tubularSegments,Math.round(12+P.radius*50)));
+      const rad=Math.min(8,Math.max(P.radialSegments,6));
+      if(tub<=P.tubularSegments&&rad<=P.radialSegments)return;
+      ng=new THREE.TorusGeometry(P.radius,P.tube,rad,tub,P.arc);
+    }
+    if(ng){ng.userData._smooth=true;g.dispose();o.geometry=ng}
+  });
+  // (Toon materials shade smoothly from vertex normals; boxes keep their
+  // hard edges because each face has its own normals.)
+}
 // Rescale UVs of textured Box/Cylinder/Cone meshes to world units.
 function applyWorldUVs(root,tile){
   const k=1/(tile||1);
@@ -628,7 +696,7 @@ function createCastle(owner){
 
   // Position group so center is at origin
   g.position.set(-CW/2,0,-CD/2);
-  applyWorldUVs(g,0.9);
+  smoothGeometry(g);applyWorldUVs(g,0.9);
   const wrapper=new THREE.Group();wrapper.add(g);
   return wrapper;
 }
@@ -1294,7 +1362,7 @@ function createTower(type,owner){
     g.add(mkMesh(new THREE.BoxGeometry(0.015,0.003,0.003),scorch2).translateX(-0.1).translateY(0.6).translateZ(0.1).rotateZ(-Math.PI/4));
 
   }
-  applyWorldUVs(g,0.55);
+  smoothGeometry(g);applyWorldUVs(g,0.55);
   return g;
 }
 
@@ -1439,7 +1507,7 @@ function createWall(owner){
     g.add(mkMesh(new THREE.DodecahedronGeometry(0.028,0),dark).translateX(rbx+0.05).translateY(0.1).translateZ(rbz-0.03));
   }
 
-  applyWorldUVs(g,0.5);return g;
+  smoothGeometry(g);applyWorldUVs(g,0.5);return g;
 }
 function createBarricade(owner){
   const g=new THREE.Group();
@@ -1591,7 +1659,7 @@ function createBarricade(owner){
     g.add(mkMesh(new THREE.ConeGeometry(0.004,0.015,3),mkMat(0x3a2a1a)).translateX(tax).translateY(tay+0.01).translateZ(0.06).rotateX(0.3));
   }
 
-  applyWorldUVs(g,0.5);return g;
+  smoothGeometry(g);applyWorldUVs(g,0.5);return g;
 }
 
 // ==================== ENEMY MODELS ====================
@@ -3402,6 +3470,7 @@ function createEnemyModel(type,owner){
   // Scale up for visibility. v3.14: bosses get a larger scale (3.8x)
   // so they tower over regular enemies (2.2x) — ~1.7x bigger silhouette.
   const __bossScale=(type==='troll'||type==='dragon'||type==='lich')?3.8:2.2;
+  smoothGeometry(g,__bossScale>3?14:10);
   g.scale.set(__bossScale,__bossScale,__bossScale);
   return g;
 }
@@ -3615,5 +3684,5 @@ function createProjectileModel(type){
       .translateX(-0.55).translateY(0.06));
     // PERF: no PointLight on projectile — glow is emissive-only.
   }
-  return g;
+  smoothGeometry(g);return g;
 }

@@ -12,54 +12,111 @@
 // Requires THREE to be loaded first.
 
 // ==================== PARTICLE SYSTEM ====================
+// v3.32: one InstancedMesh for all sparks/debris (was 300 separate
+// meshes, each its own draw call + material). Particles fade by
+// shrinking, so no per-instance opacity is needed.
+const PARTICLE_MAX=600;
 const particlePool=[];const PARTICLE_GEO=new THREE.BoxGeometry(0.03,0.03,0.03);
+let __pMesh=null;const __pDummy=new THREE.Object3D(),__pCol=new THREE.Color();
 function initParticles(){
-  for(let i=0;i<300;i++){
-    const m=new THREE.MeshStandardMaterial({color:0xffffff,emissive:0x000000,emissiveIntensity:0.3,transparent:true,flatShading:true});
-    const mesh=new THREE.Mesh(PARTICLE_GEO,m);mesh.visible=false;scene.add(mesh);
-    particlePool.push({mesh,active:false,vx:0,vy:0,vz:0,life:0,maxLife:0});
+  const m=new THREE.MeshStandardMaterial({color:0xffffff,emissive:0x222222,flatShading:true,roughness:0.6});
+  __pMesh=new THREE.InstancedMesh(PARTICLE_GEO,m,PARTICLE_MAX);
+  __pMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  __pMesh.setColorAt(0,__pCol.set(0xffffff));__pMesh.instanceColor.setUsage(THREE.DynamicDrawUsage);
+  __pMesh.count=0;__pMesh.frustumCulled=false;scene.add(__pMesh);
+  __initFlashLights(); // fixed light count from frame one
+  for(let i=0;i<PARTICLE_MAX;i++)particlePool.push({active:false,x:0,y:0,z:0,vx:0,vy:0,vz:0,life:0,maxLife:0,s:1,color:new THREE.Color()});
+}
+let __pCursor=0;
+function emitParticles(wx,wy,wz,color,count,spread){
+  let spawned=0;
+  for(let n=0;n<PARTICLE_MAX&&spawned<count;n++){
+    const p=particlePool[__pCursor];__pCursor=(__pCursor+1)%PARTICLE_MAX;
+    if(p.active)continue;
+    p.active=true;p.x=wx;p.y=wy;p.z=wz;p.color.set(color);
+    const sp=spread/T;
+    p.vx=(Math.random()-0.5)*sp*2;p.vy=Math.random()*sp*2+sp*0.5;p.vz=(Math.random()-0.5)*sp*2;
+    p.maxLife=0.4+Math.random()*0.6;p.life=p.maxLife;p.s=0.5+Math.random();spawned++;
   }
 }
+function updateParticles(dt){
+  if(!__pMesh)return;
+  let n=0;
+  for(let i=0;i<PARTICLE_MAX;i++){
+    const p=particlePool[i];if(!p.active)continue;
+    p.life-=dt;if(p.life<=0){p.active=false;continue}
+    p.vy-=3.0*dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.z+=p.vz*dt;
+    const k=p.s*(p.life/p.maxLife);
+    __pDummy.position.set(p.x,p.y,p.z);__pDummy.scale.set(k,k,k);__pDummy.updateMatrix();
+    __pMesh.setMatrixAt(n,__pDummy.matrix);__pMesh.setColorAt(n,p.color);n++;
+  }
+  __pMesh.count=n;
+  if(n){__pMesh.instanceMatrix.needsUpdate=true;__pMesh.instanceColor.needsUpdate=true}
+}
+
+// ==================== FLASH LIGHT POOL ====================
+// v3.32: a fixed set of point lights that flashes borrow. Adding and
+// removing lights changes the scene's light count, which makes three.js
+// recompile every lit shader — the main source of mid-battle hitches
+// (18 -> 49 programs in a 20-frame benchmark). Lights here are always
+// present; idle ones just sit at intensity 0.
+const FLASH_LIGHTS=4;const __flashLights=[];
+function __initFlashLights(){
+  for(let i=0;i<FLASH_LIGHTS;i++){const l=new THREE.PointLight(0xffffff,0,6,1.5);l.position.set(0,-50,0);scene.add(l);__flashLights.push({l,t:0,life:1,peak:0})}
+}
+function flashLight(x,y,z,color,peak,dist,life){
+  if(!__flashLights.length)__initFlashLights();
+  // steal the dimmest (or finished) slot
+  let best=__flashLights[0];
+  for(const f of __flashLights){const cur=f.t>=f.life?0:f.peak*(1-f.t/f.life);const bc=best.t>=best.life?0:best.peak*(1-best.t/best.life);if(cur<bc)best=f}
+  best.l.color.set(color);best.l.distance=dist;best.l.position.set(x,y,z);best.t=0;best.life=life;best.peak=peak;best.l.intensity=peak;
+  return best;
+}
+function __updateFlashLights(dt){
+  for(const f of __flashLights){
+    if(f.t>=f.life){if(f.l.intensity!==0)f.l.intensity=0;continue}
+    f.t+=dt;f.l.intensity=Math.max(0,f.peak*(1-f.t/f.life));
+  }
+}
+// Shared flash geometry (was a new SphereGeometry per shot).
+const __flashGeo=new THREE.SphereGeometry(1,12,10);
+
 // Short-lived flash sphere for muzzle/impact flashes.
 // Uses an emissive sphere + point light that fades over ~0.3s.
 function spawnMuzzleFlash(wx,wy,wz,color,size){
-  const mat=new THREE.MeshStandardMaterial({color,emissive:color,emissiveIntensity:3.0,transparent:true,opacity:1,depthWrite:false});
-  const core=new THREE.Mesh(new THREE.SphereGeometry(size||0.25,12,10),mat);
-  core.position.set(wx,wy,wz);scene.add(core);
-  const light=new THREE.PointLight(color,3.5,(size||0.25)*10,1.5);
-  light.position.set(wx,wy,wz);scene.add(light);
+  const mat=new THREE.MeshBasicMaterial({color,transparent:true,opacity:1,depthWrite:false,blending:THREE.AdditiveBlending});
+  const core=new THREE.Mesh(__flashGeo,mat);const r0=size||0.25;
+  core.position.set(wx,wy,wz);core.scale.setScalar(r0);scene.add(core);
+  flashLight(wx,wy,wz,color,3.5,r0*10,0.28);
   let t=0;
   addVfx({
     update(dt){
       t+=dt;
       const k=t/0.28;
       if(k>=1){return false}
-      core.scale.setScalar(1+k*1.8);
+      core.scale.setScalar(r0*(1+k*1.8));
       mat.opacity=1-k;
-      mat.emissiveIntensity=3.0*(1-k);
-      light.intensity=3.5*(1-k);
       return true;
     },
     dispose(){
-      scene.remove(core);scene.remove(light);
-      core.geometry.dispose();mat.dispose();
+      scene.remove(core);mat.dispose();
     }
   });
 }
 function spawnImpactFlash(wx,wy,wz,color,size){
   // Bigger, slower flash for projectile impacts. Two overlapping spheres.
-  const outerMat=new THREE.MeshBasicMaterial({color,transparent:true,opacity:0.55,depthWrite:false});
-  const outer=new THREE.Mesh(new THREE.SphereGeometry(size||0.4,14,12),outerMat);
-  outer.position.set(wx,wy,wz);scene.add(outer);
-  const coreMat=new THREE.MeshStandardMaterial({color:0xffffff,emissive:color,emissiveIntensity:4.0,transparent:true,opacity:1,depthWrite:false});
-  const core=new THREE.Mesh(new THREE.SphereGeometry((size||0.4)*0.5,14,12),coreMat);
-  core.position.set(wx,wy,wz);scene.add(core);
-  const light=new THREE.PointLight(color,5.0,(size||0.4)*14,1.5);
-  light.position.set(wx,wy,wz);scene.add(light);
-  // Expanding shockwave ring
+  const R=size||0.4;
+  const outerMat=new THREE.MeshBasicMaterial({color,transparent:true,opacity:0.55,depthWrite:false,blending:THREE.AdditiveBlending});
+  const outer=new THREE.Mesh(__flashGeo,outerMat);
+  outer.position.set(wx,wy,wz);outer.scale.setScalar(R);scene.add(outer);
+  const coreMat=new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:1,depthWrite:false,blending:THREE.AdditiveBlending});
+  const core=new THREE.Mesh(__flashGeo,coreMat);
+  core.position.set(wx,wy,wz);core.scale.setScalar(R*0.5);scene.add(core);
+  flashLight(wx,wy,wz,color,5.0,R*14,0.45);
+  // Expanding shockwave ring (shared ring geometry, scaled)
   const ringMat=new THREE.MeshBasicMaterial({color,transparent:true,opacity:0.7,side:THREE.DoubleSide,depthWrite:false});
-  const ring=new THREE.Mesh(new THREE.RingGeometry((size||0.4)*0.3,(size||0.4)*0.5,24),ringMat);
-  ring.rotation.x=-Math.PI/2;ring.position.set(wx,wy-0.05,wz);scene.add(ring);
+  const ring=new THREE.Mesh(__ringGeo,ringMat);
+  ring.position.set(wx,wy-0.05,wz);ring.scale.setScalar(R*0.5);scene.add(ring);
   let t=0;
   addVfx({
     update(dt){
@@ -67,64 +124,53 @@ function spawnImpactFlash(wx,wy,wz,color,size){
       const k=t/0.45;
       if(k>=1){return false}
       const expand=1+k*2.5;
-      outer.scale.setScalar(expand);
-      core.scale.setScalar(1+k*1.2);
+      outer.scale.setScalar(R*expand);
+      core.scale.setScalar(R*0.5*(1+k*1.2));
       outerMat.opacity=0.55*(1-k);
       coreMat.opacity=1-k;
-      coreMat.emissiveIntensity=4.0*(1-k*0.8);
-      light.intensity=5.0*(1-k);
-      ring.scale.setScalar(1+k*4);
+      ring.scale.setScalar(R*0.5*(1+k*4));
       ringMat.opacity=0.7*(1-k);
       return true;
     },
     dispose(){
-      scene.remove(outer);scene.remove(core);scene.remove(light);scene.remove(ring);
-      outer.geometry.dispose();core.geometry.dispose();ring.geometry.dispose();
+      scene.remove(outer);scene.remove(core);scene.remove(ring);
       outerMat.dispose();coreMat.dispose();ringMat.dispose();
     }
   });
 }
-function emitParticles(wx,wy,wz,color,count,spread){
-  let spawned=0;
-  for(let i=0;i<particlePool.length&&spawned<count;i++){
-    const p=particlePool[i];if(p.active)continue;
-    p.active=true;p.mesh.visible=true;p.mesh.position.set(wx,wy,wz);
-    p.mesh.material.color.set(color);p.mesh.material.emissive.set(color);p.mesh.material.opacity=1;
-    const sp=spread/T;
-    p.vx=(Math.random()-0.5)*sp*2;p.vy=Math.random()*sp*2+sp*0.5;p.vz=(Math.random()-0.5)*sp*2;
-    p.maxLife=0.4+Math.random()*0.6;p.life=p.maxLife;
-    const s=0.5+Math.random();p.mesh.scale.set(s,s,s);spawned++;
-  }
-}
-function updateParticles(dt){
-  for(const p of particlePool){
-    if(!p.active)continue;p.life-=dt;
-    if(p.life<=0){p.active=false;p.mesh.visible=false;continue}
-    p.vy-=3.0*dt;p.mesh.position.x+=p.vx*dt;p.mesh.position.y+=p.vy*dt;p.mesh.position.z+=p.vz*dt;
-    p.mesh.material.opacity=p.life/p.maxLife;
-    const s=p.life/p.maxLife;p.mesh.scale.set(s,s,s);
-  }
-}
-
 // ==================== DAMAGE NUMBERS ====================
-const dmgNumbers=[];
-function spawnDmgNumber(wx,wy,wz,text,color){
+// v3.32: textures are cached by text+colour (numbers repeat constantly)
+// and sprites/materials are pooled. Previously every number allocated a
+// canvas, a GPU texture and a material, then threw them away 1s later.
+const dmgNumbers=[];const __dnTex=new Map();const __dnFree=[];
+function __dnTexture(text,color){
+  const key=text+'|'+color;let t=__dnTex.get(key);
+  if(t){__dnTex.delete(key);__dnTex.set(key,t);return t} // LRU touch
   const c=document.createElement('canvas');c.width=128;c.height=64;
   const ctx=c.getContext('2d');ctx.font='bold 40px Arial';ctx.textAlign='center';ctx.textBaseline='middle';
   ctx.strokeStyle='#000';ctx.lineWidth=4;ctx.strokeText(text,64,32);
   const col=new THREE.Color(color);
   ctx.fillStyle=`rgb(${Math.floor(col.r*255)},${Math.floor(col.g*255)},${Math.floor(col.b*255)})`;
   ctx.fillText(text,64,32);
-  const tex=new THREE.CanvasTexture(c);
-  const sprite=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true,depthTest:false}));
-  sprite.position.set(wx,wy,wz);sprite.scale.set(0.5,0.25,1);scene.add(sprite);
-  dmgNumbers.push({sprite,tex,age:0,driftX:(Math.random()-0.5)*0.3});
+  t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;
+  __dnTex.set(key,t);
+  if(__dnTex.size>160){const k0=__dnTex.keys().next().value;const old=__dnTex.get(k0);
+    if(!dmgNumbers.some(d=>d.sprite.material.map===old)){old.dispose();__dnTex.delete(k0)}}
+  return t;
+}
+function spawnDmgNumber(wx,wy,wz,text,color){
+  const tex=__dnTexture(String(text),color);
+  let sprite=__dnFree.pop();
+  if(!sprite){sprite=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true,depthTest:false}));scene.add(sprite)}
+  sprite.material.map=tex;sprite.material.opacity=1;sprite.visible=true;
+  sprite.position.set(wx,wy,wz);sprite.scale.set(0.5,0.25,1);
+  dmgNumbers.push({sprite,age:0,driftX:(Math.random()-0.5)*0.3});
 }
 function updateDmgNumbers(dt){
   for(let i=dmgNumbers.length-1;i>=0;i--){
     const d=dmgNumbers[i];d.age+=dt;d.sprite.position.y+=0.8*dt;d.sprite.position.x+=d.driftX*dt;
     const t=d.age/1.0;if(t>0.4)d.sprite.material.opacity=Math.max(0,1-(t-0.4)/0.6);
-    if(d.age>=1.0){scene.remove(d.sprite);d.sprite.material.dispose();d.tex.dispose();dmgNumbers.splice(i,1)}
+    if(d.age>=1.0){d.sprite.visible=false;__dnFree.push(d.sprite);dmgNumbers[i]=dmgNumbers[dmgNumbers.length-1];dmgNumbers.pop()}
   }
 }
 
@@ -132,6 +178,7 @@ function updateDmgNumbers(dt){
 const vfx=[];
 function addVfx(obj){vfx.push(obj)}
 function updateVfx(dt){
+  __updateFlashLights(dt);
   for(let i=vfx.length-1;i>=0;i--){
     const v=vfx[i];
     if(v.update(dt)===false){if(v.dispose)v.dispose();vfx.splice(i,1)}
@@ -216,7 +263,7 @@ function spawnLightningBolt(wx,wz){
   emitParticles(wx,0.6,wz,0xffffff,6,50);
   // v3.27: a bright flash so the strike lights up the battlefield,
   // plus a forked side branch so the bolt isn't a single thin line.
-  const flash=new THREE.PointLight(0xbbddff,8,9,1.5);flash.position.set(wx,2.5,wz);scene.add(flash);
+  const flash=flashLight(wx,2.5,wz,0xbbddff,8,9,0.35).l;
   const bp=[];const bi=3+Math.floor(Math.random()*3);
   bp.push(pts[bi].clone());
   const bdx=(Math.random()-0.5)*2.2,bdz=(Math.random()-0.5)*2.2;
@@ -232,10 +279,10 @@ function spawnLightningBolt(wx,wz){
       if(k>=1)return false;
       mat.opacity=1-k;mat2.opacity=0.9*(1-k);
       // flicker the flash like a real strike
-      flash.intensity=8*(1-k)*(k<0.3&&Math.random()<0.4?0.3:1);
+      if(k<0.3&&Math.random()<0.4)flash.intensity*=0.3;
       return true;
     },
-    dispose(){scene.remove(line);scene.remove(line2);scene.remove(branch);scene.remove(flash);geo.dispose();bgeo.dispose();line2.geometry.dispose();mat.dispose();mat2.dispose()}
+    dispose(){scene.remove(line);scene.remove(line2);scene.remove(branch);geo.dispose();bgeo.dispose();line2.geometry.dispose();mat.dispose();mat2.dispose()}
   });
 }
 
@@ -318,61 +365,83 @@ function spawnHealAura(wx,wz){
   });
 }
 
-// ==================== v3.27: SOFT SMOKE / DUST PUFFS ====================
-// Pooled camera-facing sprites with a soft radial texture. The cube
-// particles above read well as sparks and debris but not as smoke, so
-// dust (build/sell), wall rubble, castle fires and impacts use these.
-const SMOKE_POOL_SIZE=140;
+// ==================== SOFT SMOKE / DUST PUFFS ====================
+// v3.27 look, v3.32 implementation: all puffs live in two THREE.Points
+// clouds (normal + additive blending) with per-point colour, alpha,
+// size and rotation — 2 draw calls instead of up to 140 sprites.
+const SMOKE_MAX=220;
 const smokePool=[];
-let __smokeTex=null;
-function __makeSmokeTex(){
+let __smoke=null;
+function __initSmoke(){
   const c=document.createElement('canvas');c.width=c.height=64;
   const ctx=c.getContext('2d');
   const g=ctx.createRadialGradient(32,32,2,32,32,31);
-  g.addColorStop(0,'rgba(255,255,255,0.9)');
-  g.addColorStop(0.45,'rgba(255,255,255,0.45)');
-  g.addColorStop(1,'rgba(255,255,255,0)');
+  g.addColorStop(0,'rgba(255,255,255,0.9)');g.addColorStop(0.45,'rgba(255,255,255,0.45)');g.addColorStop(1,'rgba(255,255,255,0)');
   ctx.fillStyle=g;ctx.fillRect(0,0,64,64);
-  const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;return t;
-}
-function __initSmoke(){
-  __smokeTex=__makeSmokeTex();
-  for(let i=0;i<SMOKE_POOL_SIZE;i++){
-    const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:__smokeTex,transparent:true,depthWrite:false,opacity:0}));
-    sp.visible=false;scene.add(sp);
-    smokePool.push({sp,active:false,vx:0,vy:0,vz:0,life:0,maxLife:1,size:1,grow:1,alpha:0.6});
-  }
+  const tex=new THREE.CanvasTexture(c);
+  const mk=(additive)=>{
+    const geo=new THREE.BufferGeometry();
+    geo.setAttribute('position',new THREE.BufferAttribute(new Float32Array(SMOKE_MAX*3),3).setUsage(THREE.DynamicDrawUsage));
+    geo.setAttribute('color',new THREE.BufferAttribute(new Float32Array(SMOKE_MAX*3),3).setUsage(THREE.DynamicDrawUsage));
+    geo.setAttribute('aAlpha',new THREE.BufferAttribute(new Float32Array(SMOKE_MAX),1).setUsage(THREE.DynamicDrawUsage));
+    geo.setAttribute('aSize',new THREE.BufferAttribute(new Float32Array(SMOKE_MAX),1).setUsage(THREE.DynamicDrawUsage));
+    geo.setAttribute('aRot',new THREE.BufferAttribute(new Float32Array(SMOKE_MAX),1).setUsage(THREE.DynamicDrawUsage));
+    geo.setDrawRange(0,0);
+    const mat=new THREE.ShaderMaterial({
+      uniforms:{tMap:{value:tex},uScale:{value:600}},
+      transparent:true,depthWrite:false,blending:additive?THREE.AdditiveBlending:THREE.NormalBlending,vertexColors:true,
+      vertexShader:`attribute float aAlpha,aSize,aRot;uniform float uScale;varying vec3 vC;varying float vA,vR;
+        void main(){vC=color;vA=aAlpha;vR=aRot;vec4 mv=modelViewMatrix*vec4(position,1.0);gl_Position=projectionMatrix*mv;gl_PointSize=aSize*uScale/max(0.1,-mv.z);}`,
+      fragmentShader:`uniform sampler2D tMap;varying vec3 vC;varying float vA,vR;
+        void main(){vec2 p=gl_PointCoord-0.5;float c=cos(vR),s=sin(vR);p=mat2(c,-s,s,c)*p+0.5;vec4 t=texture2D(tMap,p);gl_FragColor=vec4(vC,t.a*vA);if(gl_FragColor.a<0.004)discard;}`
+    });
+    const pts=new THREE.Points(geo,mat);pts.frustumCulled=false;pts.renderOrder=3;scene.add(pts);return pts;
+  };
+  __smoke={normal:mk(false),add:mk(true)};
+  for(let i=0;i<SMOKE_MAX;i++)smokePool.push({active:false,add:false,x:0,y:0,z:0,vx:0,vy:0,vz:0,life:0,maxLife:1,size:1,grow:1,alpha:0.6,rot:0,col:new THREE.Color()});
 }
 // size = starting world size; rising + expanding + fading over ~1-2s.
 function spawnSmoke(wx,wy,wz,color,count,size,opts){
-  if(!__smokeTex)__initSmoke();
+  if(!__smoke)__initSmoke();
   opts=opts||{};
   let spawned=0;
   for(let i=0;i<smokePool.length&&spawned<count;i++){
     const p=smokePool[i];if(p.active)continue;
-    p.active=true;p.sp.visible=true;
-    p.sp.position.set(wx+(Math.random()-0.5)*size*0.6,wy,wz+(Math.random()-0.5)*size*0.6);
-    p.sp.material.color.set(color);
-    p.sp.material.blending=opts.additive?THREE.AdditiveBlending:THREE.NormalBlending;
+    p.active=true;p.add=!!opts.additive;
+    p.x=wx+(Math.random()-0.5)*size*0.6;p.y=wy;p.z=wz+(Math.random()-0.5)*size*0.6;
+    p.col.set(color);
     p.vx=(Math.random()-0.5)*(opts.spread??0.6);p.vz=(Math.random()-0.5)*(opts.spread??0.6);
     p.vy=(opts.rise??0.5)+Math.random()*0.4;
     p.maxLife=p.life=(opts.life??1.1)+Math.random()*0.6;
     p.size=size*(0.7+Math.random()*0.6);p.grow=opts.grow??1.8;p.alpha=opts.alpha??0.55;
-    p.sp.material.rotation=Math.random()*Math.PI*2;
+    p.rot=Math.random()*Math.PI*2;
     spawned++;
   }
 }
 function updateSmoke(dt){
+  if(!__smoke)return;
+  // keep point size consistent with the camera's projection/resolution
+  if(typeof renderer!=='undefined'&&typeof camera!=='undefined'){
+    const h=renderer.domElement.height,sc=h/(2*Math.tan(camera.fov*Math.PI/360));
+    __smoke.normal.material.uniforms.uScale.value=sc;__smoke.add.material.uniforms.uScale.value=sc;
+  }
+  const n={normal:0,add:0};
   for(const p of smokePool){
     if(!p.active)continue;
     p.life-=dt;
-    if(p.life<=0){p.active=false;p.sp.visible=false;continue}
+    if(p.life<=0){p.active=false;continue}
     const k=1-p.life/p.maxLife;
-    p.sp.position.x+=p.vx*dt;p.sp.position.y+=p.vy*dt;p.sp.position.z+=p.vz*dt;
-    p.vx*=0.98;p.vz*=0.98;
-    const s=p.size*(1+k*p.grow);p.sp.scale.set(s,s,1);
-    // quick fade-in, long fade-out
-    p.sp.material.opacity=p.alpha*Math.min(1,k*6)*(1-k);
+    p.x+=p.vx*dt;p.y+=p.vy*dt;p.z+=p.vz*dt;p.vx*=0.98;p.vz*=0.98;
+    const tgt=p.add?__smoke.add:__smoke.normal,key=p.add?'add':'normal',i=n[key]++;
+    const A=tgt.geometry.attributes;
+    A.position.array[i*3]=p.x;A.position.array[i*3+1]=p.y;A.position.array[i*3+2]=p.z;
+    A.color.array[i*3]=p.col.r;A.color.array[i*3+1]=p.col.g;A.color.array[i*3+2]=p.col.b;
+    A.aAlpha.array[i]=p.alpha*Math.min(1,k*6)*(1-k);
+    A.aSize.array[i]=p.size*(1+k*p.grow);A.aRot.array[i]=p.rot;
+  }
+  for(const key of ['normal','add']){
+    const g=__smoke[key].geometry;g.setDrawRange(0,n[key]);
+    if(n[key])for(const a of ['position','color','aAlpha','aSize','aRot'])g.attributes[a].needsUpdate=true;
   }
 }
 

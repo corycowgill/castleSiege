@@ -103,5 +103,11 @@ function createPost(renderer){
     compMat.uniforms.tScene.value=rtScene.texture;compMat.uniforms.tBloom.value=rtA.texture;compMat.uniforms.uBloom.value=P.bloom;
     pass(compMat,null);
   };
+  // Compile every material in the scene for the post-processing path
+  // (HDR target, no tone mapping) so first use doesn't hitch mid-battle.
+  P.compile=function(scene,camera){
+    if(!P.enabled){renderer.compile(scene,camera);return}
+    P.resize();renderer.setRenderTarget(rtScene);renderer.compile(scene,camera);renderer.setRenderTarget(null);
+  };
   return P;
 }

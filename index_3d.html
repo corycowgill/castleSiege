@@ -561,7 +561,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
   </div>
   <div class="menu-foot">
     <div class="foot-hints"><span><span class="key">&uarr;</span><span class="key">&darr;</span> Navigate</span><span><span class="key">Enter</span> Select</span><span><span class="key round">A</span> Confirm</span></div>
-    <div class="foot-ver">Castle Siege <b>v3.31</b> &bull; Build 2026-10-24</div>
+    <div class="foot-ver">Castle Siege <b>v3.32</b> &bull; Build 2026-10-24</div>
   </div>
 </div>
 
@@ -2978,6 +2978,10 @@ function showScreen(name){
   if(cursor2Mesh)cursor2Mesh.visible=gameMode==='2p'&&(name==='game'||name==='waveEnd');
 }
 
+// v3.32: write DOM only when the value changes (was every frame, which
+// invalidates layout for the whole HUD at display refresh rate).
+function __st(el,v){v=String(v);if(el._t!==v){el._t=v;el.textContent=v}}
+function __sw(el,v){if(el._w!==v){el._w=v;el.style.width=v}}
 function updateHUD(){
   const p1=players[1],p2=players[2];
   // PERF v3.13: initialize HUD element cache on first call. Previously
@@ -3033,8 +3037,8 @@ function updateHUD(){
   for(const pn of[1,2]){
     const pl=players[pn],pct=Math.max(0,pl.castleHP/pl.maxHP*100)+'%';
     const bar=pn===1?h.p1hpBar:h.p2hpBar,txt=pn===1?h.p1hpText:h.p2hpText;
-    if(bar.style.width!==pct){bar.style.width=pct;h.ghost[pn].style.width=pct}
-    txt.textContent=Math.max(0,Math.ceil(pl.castleHP))+' / '+pl.maxHP;
+    if(bar._w!==pct){bar._w=pct;bar.style.width=pct;h.ghost[pn].style.width=pct}
+    __st(txt,Math.max(0,Math.ceil(pl.castleHP))+' / '+pl.maxHP);
     h.hpC[pn].classList.toggle('low',pl.castleHP/pl.maxHP<0.3);
     // Credits tick toward the real value and flash on change.
     const cEl=pn===1?h.p1credits:h.p2credits;
@@ -3043,17 +3047,17 @@ function updateHUD(){
       h.cr[pn]+=diff*Math.min(1,dtH*12);if(Math.abs(pl.credits-h.cr[pn])<1)h.cr[pn]=pl.credits;
       cEl.classList.toggle('up',diff>0);cEl.classList.toggle('down',diff<0);h.crT[pn]=0.35;
     }else if(h.crT[pn]>0){h.crT[pn]-=dtH;if(h.crT[pn]<=0)cEl.classList.remove('up','down')}
-    cEl.textContent='$'+Math.round(h.cr[pn]);
+    __st(cEl,'$'+Math.round(h.cr[pn]));
     if(h.spec[pn]!==pl.specials){
       h.spec[pn]=pl.specials;
       (pn===1?h.p1specCt:h.p2specCt).innerHTML=[0,1,2].map(i=>`<i class="${i<pl.specials?'':'spent'}"></i>`).join('');
     }
   }
-  h.p2label.textContent=gameMode==='1p'?'Warlord':'Red Crown';
-  h.p1label.textContent='Blue Crown';
+  __st(h.p2label,gameMode==='1p'?'Warlord':'Red Crown');
+  __st(h.p1label,'Blue Crown');
 
   if(gameState==='build'){
-    h.phaseInfo.textContent='Build Phase';
+    __st(h.phaseInfo,'Build Phase');
     h.phaseTimer.style.display='';
     // v3.22: wave preview — show what's coming so the player can plan.
     // Uses the same formula as startWave.
@@ -3063,28 +3067,28 @@ function updateHUD(){
     const ndk=Math.max(0,nw-3)*2;
     const na=Math.max(0,nw-3)*2;
     const parts=[nb+' Goblins'];if(no)parts.push(no+' Orcs');if(ndk)parts.push(ndk+' Knights');if(na)parts.push(na+' Archers');
-    h.phaseTimer.textContent=`${Math.ceil(buildTimer)}s \u00B7 Next: ${parts.join(', ')}`;
-    h.barFill.style.width=Math.max(0,buildTimer/BUILD_TIME*100)+'%';
+    __st(h.phaseTimer,`${Math.ceil(buildTimer)}s \u00B7 Next: ${parts.join(', ')}`);
+    __sw(h.barFill,Math.max(0,buildTimer/BUILD_TIME*100)+'%');
     h.bar.classList.toggle('urgent',buildTimer<10);
   }else if(gameState==='combat'){
-    h.phaseInfo.textContent=`Wave ${waveNum} / ${MAX_WAVES}${__combatSpeed>1?' \u25B6\u25B6':''}`;
+    __st(h.phaseInfo,`Wave ${waveNum} / ${MAX_WAVES}${__combatSpeed>1?' \u25B6\u25B6':''}`);
     // PERF v3.13: inline alive counter avoids per-frame filter alloc.
     let aliveCount=0;
     for(let i=0;i<enemies.length;i++)if(enemies[i].alive)aliveCount++;
     const left=aliveCount+spawnQueue1.length+spawnQueue2.length;
-    h.phaseTimer.textContent=`${left} enemies remain \u00B7 T: ${__combatSpeed>1?'1x':'2x'} speed`;
-    h.barFill.style.width=(__waveTotal?Math.min(100,left/__waveTotal*100):0)+'%';
+    __st(h.phaseTimer,`${left} enemies remain \u00B7 T: ${__combatSpeed>1?'1x':'2x'} speed`);
+    __sw(h.barFill,(__waveTotal?Math.min(100,left/__waveTotal*100):0)+'%');
     h.bar.classList.remove('urgent');
   }else if(gameState==='gameover'){
-    h.phaseInfo.textContent='Siege Ended';h.phaseTimer.textContent=`${waveNum} waves fought`;h.barFill.style.width='0%';
+    __st(h.phaseInfo,'Siege Ended');__st(h.phaseTimer,`${waveNum} waves fought`);__sw(h.barFill,'0%');
   }else if(gameState==='waveEnd'){
-    h.phaseInfo.textContent=`Wave ${waveNum} Survived`;
-    h.phaseTimer.textContent='Regrouping\u2026';
-    h.barFill.style.width='0%';
-    h.weTimerT.textContent=`Next build phase in ${Math.ceil(waveEndTimer)}s`;
-    h.weTimerBar.style.width=Math.max(0,waveEndTimer/3*100)+'%';
+    __st(h.phaseInfo,`Wave ${waveNum} Survived`);
+    __st(h.phaseTimer,'Regrouping\u2026');
+    __sw(h.barFill,'0%');
+    __st(h.weTimerT,`Next build phase in ${Math.ceil(waveEndTimer)}s`);
+    __sw(h.weTimerBar,Math.max(0,waveEndTimer/3*100)+'%');
     if(!h.weReward)h.weReward=document.getElementById('we-reward');
-    h.weReward.textContent=`+250 gold \u00B7 interest +$${interestFor(p1.credits)} / +$${interestFor(p2.credits)} \u00B7 specials recharged`;
+    __st(h.weReward,`+250 gold \u00B7 interest +$${interestFor(p1.credits)} / +$${interestFor(p2.credits)} \u00B7 specials recharged`);
   }
 
   // v3.28: grey out what each player can't afford.
@@ -3149,7 +3153,7 @@ function updateHUD(){
       h.p2buildOpts.style.opacity='1';
       h.p2specials.style.opacity='1';
       h.btnP2ready.style.display='';
-      h.btnP2ready.textContent='Ready';
+      __st(h.btnP2ready,'Ready');
       // Highlight P1's selection on P2 panel too
       for(let i=0;i<h.p2buildOptEls.length;i++){
         const el=h.p2buildOptEls[i];
@@ -4063,6 +4067,7 @@ function __cacheEnemyMeshRefs(mesh){
         if(m.color&&!seenMats.has(m)){
           seenMats.add(m);
           if(!m._origColor)m._origColor=m.color.clone();
+          if(m.emissive&&!m._origEmissive)m._origEmissive=m.emissive.clone();
           tintMats.push(m);
         }
       }
@@ -4088,11 +4093,24 @@ function __mergeGeos(entries){
   for(const e of entries){
     let g=e.geometry.index?e.geometry.toNonIndexed():e.geometry.clone();
     g.applyMatrix4(e.matrix);
+    if(e.color){
+      // v3.32: bake the source material's colour per vertex so pieces
+      // that differ only in colour share one draw call. Already-baked
+      // geometry (re-merged by the scenery batcher) keeps its colours,
+      // multiplied by the (usually white) material colour.
+      const n=g.attributes.position.count,ca=new Float32Array(n*3),src=g.attributes.color;
+      for(let i=0;i<n;i++){
+        const r=src?src.getX(i):1,gg=src?src.getY(i):1,b=src?src.getZ(i):1;
+        ca[i*3]=r*e.color.r;ca[i*3+1]=gg*e.color.g;ca[i*3+2]=b*e.color.b;
+      }
+      g.setAttribute('color',new THREE.BufferAttribute(ca,3));
+    }
+    if(!g.attributes.uv){const n=g.attributes.position.count;g.setAttribute('uv',new THREE.BufferAttribute(new Float32Array(n*2),2))}
     baked.push(g);
   }
   if(baked.length===1)return baked[0];
   const out=new THREE.BufferGeometry();
-  const names=['position','normal','uv'];
+  const names=['position','normal','uv','color'];
   for(const name of names){
     const first=baked[0].attributes[name];
     if(!first)continue;
@@ -4124,6 +4142,27 @@ function __mergeGeos(entries){
 // per-limb walk/attack animation still works — we merge WITHIN each
 // limb and WITHIN the root-body separately, attaching the merged
 // results as direct children of their owner.
+// v3.32: materials that differ only in base colour are the same "class"
+// once colour lives in vertex colours.
+function __matClass(m){
+  const e=m.emissive?m.emissive.getHex():0;
+  const st=m.userData&&m.userData.sty;
+  return `${m.type}|${m.roughness??-1}|${m.metalness??-1}|${e}|${m.emissiveIntensity??0}|${m.transparent?1:0}|${m.opacity??1}|${m.flatShading?1:0}|${m.side}|${m.map?m.map.uuid:''}|${st?st.uRim.value.getHex()+':'+st.uRimK.value:''}`;
+}
+function __vertexColorMat(src){
+  // v3.32: scenery still authored as PBR joins the toon style when batched.
+  if(src.isMeshStandardMaterial&&typeof toonRamp==='function'){
+    const t=new THREE.MeshToonMaterial({color:0xffffff,vertexColors:true,map:src.map||null,gradientMap:toonRamp(),side:src.side});
+    if(typeof stylizeMaterial==='function')stylizeMaterial(t,{rimK:0.16,aoMin:0.72});
+    return t;
+  }
+  const m=src.clone();
+  m.color.setRGB(1,1,1);m.vertexColors=true;
+  m.userData={};
+  const st=src.userData&&src.userData.sty;
+  if(st&&typeof stylizeMaterial==='function')stylizeMaterial(m,{rim:st.uRim.value.getHex(),rimK:st.uRimK.value,aoMin:st.uAoMin.value,aoH:st.uAoH.value});
+  return m;
+}
 function __mergeEnemyModel(root){
   // Neutralize the root's per-enemy facing/scale so merge-relative
   // matrices bake only sub-geometry offsets, not the per-instance
@@ -4157,8 +4196,9 @@ function __mergeEnemyModel(root){
     const mat=Array.isArray(c.material)?c.material[0]:c.material;
     if(!groups.has(owner))groups.set(owner,new Map());
     const byMat=groups.get(owner);
-    if(!byMat.has(mat))byMat.set(mat,[]);
-    byMat.get(mat).push({geometry:c.geometry,matrix:rel});
+    const cls=__matClass(mat);
+    if(!byMat.has(cls))byMat.set(cls,{mat,entries:[]});
+    byMat.get(cls).entries.push({geometry:c.geometry,matrix:rel,color:mat.color});
     toRemove.push(c);
   });
 
@@ -4169,10 +4209,10 @@ function __mergeEnemyModel(root){
 
   // Build one merged Mesh per (owner, material).
   for(const[owner,byMat] of groups){
-    for(const[mat,entries] of byMat){
+    for(const[cls,{mat,entries}] of byMat){
       const merged=__mergeGeos(entries);
       if(!merged)continue;
-      const m=new THREE.Mesh(merged,mat);
+      const m=new THREE.Mesh(merged,__vertexColorMat(mat));
       m.castShadow=true;m.receiveShadow=true;
       owner.add(m);
     }
@@ -4213,6 +4253,7 @@ function acquireEnemyMesh(type,owner){
       for(let i=0;i<tintMats.length;i++){
         const m=tintMats[i];
         if(m._origColor)m.color.copy(m._origColor);
+        if(m._origEmissive)m.emissive.copy(m._origEmissive);
       }
       mesh.userData._wasTinted=false;
     }
@@ -4231,6 +4272,9 @@ function acquireEnemyMesh(type,owner){
   // freezing skips ~10 per-enemy matrix composes per frame.
   __freezeMergedMeshes(mesh);
   mesh.userData._poolKey=k;
+  // v3.32: only bosses cast real shadows; regular units use the instanced
+  // contact shadows (halves their draw calls via the shadow pass).
+  if(!(type==='troll'||type==='dragon'||type==='lich'))mesh.traverse(c=>{if(c.isMesh)c.castShadow=false});
   // v3.27: remember model scale (spawn pop-in / death shrink animate
   // relative to it) and use yaw-first rotation so the death topple
   // tips along the unit's own facing.
@@ -4284,6 +4328,30 @@ function releaseProjMesh(mesh){
   pool.push(mesh);
 }
 
+const HP_MAX=400;let __hpBg=null,__hpFg=null,__hpN=0;
+const __hpQ=new THREE.Quaternion(),__hpM=new THREE.Matrix4(),__hpP=new THREE.Vector3(),__hpS=new THREE.Vector3(),__hpC=new THREE.Color(),__hpRight=new THREE.Vector3();
+function __hpInit(){
+  const mk=(color,order)=>{const m=new THREE.InstancedMesh(__hpBarGeo,new THREE.MeshBasicMaterial({color,transparent:true,opacity:order===999?0.6:1,depthTest:false,depthWrite:false,side:THREE.DoubleSide}),HP_MAX);
+    m.renderOrder=order;m.frustumCulled=false;m.count=0;m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);scene.add(m);return m};
+  __hpBg=mk(0x111111,999);__hpFg=mk(0xffffff,1000);
+  __hpFg.setColorAt(0,__hpC.set(0xffffff));
+}
+function __hpPush(x,y,z,w,pct){
+  if(!__hpBg)__hpInit();
+  if(__hpN>=HP_MAX)return;
+  if(__hpN===0){__hpQ.copy(camera.quaternion);__hpRight.set(1,0,0).applyQuaternion(__hpQ)}
+  __hpM.compose(__hpP.set(x,y,z),__hpQ,__hpS.set(w,1,1));__hpBg.setMatrixAt(__hpN,__hpM);
+  const off=-(w*(1-pct))/2;
+  __hpM.compose(__hpP.set(x+__hpRight.x*off,y+__hpRight.y*off,z+__hpRight.z*off),__hpQ,__hpS.set(Math.max(0.0001,w*pct),1,1));__hpFg.setMatrixAt(__hpN,__hpM);
+  __hpFg.setColorAt(__hpN,__hpC.setRGB(pct<0.5?1:1-(pct-0.5)*2,pct>0.5?1:pct*2,0.15));
+  __hpN++;
+}
+function __hpFlush(){
+  if(!__hpBg){return}
+  __hpBg.count=__hpFg.count=__hpN;
+  if(__hpN){__hpBg.instanceMatrix.needsUpdate=true;__hpFg.instanceMatrix.needsUpdate=true;__hpFg.instanceColor.needsUpdate=true}
+  __hpN=0;
+}
 function syncEnemies(){
   // PERF v2.6: iterate projMeshes/enemyMeshes by identity + check e.alive.
   // Avoid per-frame `new Set(enemies.filter(...))` allocation.
@@ -4381,51 +4449,39 @@ function syncEnemies(){
         const hk=Math.min(1,hitFlash/0.12);
         for(let i=0;i<tintMats.length;i++){
           const m=tintMats[i];
-          m.color.copy(m._origColor).lerp(__HIT_WHITE,hk*0.7);
+          m.color.copy(m._origColor);
+          if(m.emissive)m.emissive.copy(m._origEmissive).lerp(__HIT_WHITE,hk*0.55);
         }
         mesh.userData._wasTinted=true;
       }else if(e.slowTimer>0){
         for(let i=0;i<tintMats.length;i++){
           const m=tintMats[i];
           m.color.copy(m._origColor).lerp(__SLOW_TINT,0.35);
+          if(m.emissive)m.emissive.copy(m._origEmissive);
         }
         mesh.userData._wasTinted=true;
       }else if(mesh.userData._wasTinted){
         for(let i=0;i<tintMats.length;i++){
           const m=tintMats[i];
           m.color.copy(m._origColor);
+          if(m.emissive)m.emissive.copy(m._origEmissive);
         }
         mesh.userData._wasTinted=false;
       }
     }
     // v3.24: HP bar — only show when damaged (below max HP).
     // Position above the enemy, scale fg bar width proportional to HP%.
+    // v3.32: HP bars are two instanced draws for the whole army
+    // (were 2 meshes + a fresh material per damaged unit).
     if(e.hp<e.maxHp){
-      const bar=__ensureHpBar(e);
-      const wp2=pixelToWorld(e.x,e.y);
       const isBoss=(e.type==='troll'||e.type==='dragon'||e.type==='lich');
-      const barY=(isBoss?3.5:1.6)+(e.flying?1.1:0);
-      const barW=isBoss?1.8:0.7;
-      bar.bg.position.set(wp2.x,barY,wp2.z);
-      bar.bg.scale.set(barW,1,1);
-      bar.bg.lookAt(camera.position);
-      const pct=Math.max(0,e.hp/e.maxHp);
-      bar.fg.position.set(wp2.x-(barW*(1-pct))/2,barY,wp2.z);
-      bar.fg.scale.set(barW*pct,1,1);
-      bar.fg.lookAt(camera.position);
-      // Color: green → yellow → red
-      const r=pct<0.5?1:1-(pct-0.5)*2;
-      const g=pct>0.5?1:pct*2;
-      bar.fg.material.color.setRGB(r,g,0.15);
-    }else{
-      // At full HP — remove bar if it exists (shouldn't normally but
-      // handles heal edge cases).
-      __removeHpBar(e);
+      __hpPush(wp.x,(isBoss?3.5:1.6)+(e.flying?1.1:0),wp.z,isBoss?1.8:0.7,Math.max(0,e.hp/e.maxHp));
     }
   }
   // Remove dead — walk the map directly, no Set allocation.
   // PERF v3.0: return mesh to pool instead of disposing.
   __updateBlobShadows();
+  __hpFlush();
   // v3.27: killed units topple and sink instead of vanishing.
   for(const[e,mesh] of enemyMeshes){
     if(!e.alive){
@@ -5100,6 +5156,7 @@ function gameLoop(){
   // Sync 3D state every render frame so visuals stay smooth at
   // display rate. Sync functions only read positions that the sim
   // sets, so rendering between sim ticks shows the last sim state.
+  __batchTick();
   if(gameState!=='title'&&gameState!=='paused'){
     syncBuildings();syncTowers();syncEnemies();syncProjectiles();updateCursors();
     updateParticles(rawDt);updateDmgNumbers(rawDt);updateVfx(rawDt);updateSmoke(rawDt);updateCastleFx(rawDt);
@@ -5119,6 +5176,91 @@ function gameLoop(){
   __post.render(scene,camera);
 }
 
+// ==================== v3.32: STATIC SCENERY BATCHING ====================
+// The surrounding scenery was ~1,300 separate meshes = ~1,300 draw calls
+// every frame. Nothing records which pieces animate, so we observe: take
+// a snapshot of every candidate mesh (world matrix + material state),
+// let ~90 frames run behind the splash screen, then merge every mesh
+// that never changed into one world-space mesh per material class
+// (colour baked into vertex colours).
+let __sceneryRoots=null,__batchSnap=null,__batchFrame=0;
+function __matState(m){return [m.color?m.color.getHex():0,m.emissive?m.emissive.getHex():0,m.emissiveIntensity??0,m.opacity,m.visible].join(',')}
+function __batchCandidates(){
+  const out=[];
+  const skip=new Set([__skyDome,__stars,__rain].filter(Boolean));
+  for(const root of __sceneryRoots){
+    if(skip.has(root)||root.name==='terrain'||root.isLight)continue;
+    root.traverse(o=>{
+      if(!o.isMesh||o.isInstancedMesh||o.isSkinnedMesh||!o.geometry||!o.geometry.attributes.normal)return;
+      const m=o.material;if(!m||Array.isArray(m)||!m.isMaterial)return;
+      if(m.transparent||m.opacity<1||(m.emissive&&m.emissive.getHex()!==0&&(m.emissiveIntensity??1)>0))return;
+      if(!(m.isMeshStandardMaterial||m.isMeshLambertMaterial||m.isMeshPhongMaterial||m.isMeshToonMaterial))return;
+      if(m.map&&!m.map.userData.worldUV&&o.geometry.attributes.uv===undefined)return;
+      out.push(o);
+    });
+  }
+  return out;
+}
+function __batchSnapshot(){
+  scene.updateMatrixWorld(true);
+  __batchSnap=__batchCandidates().map(o=>({o,mw:o.matrixWorld.elements.slice(),ms:__matState(o.material),vis:o.visible&&__visChain(o)}));
+}
+function __visChain(o){for(let p=o;p;p=p.parent)if(!p.visible)return false;return true}
+function __batchApply(){
+  scene.updateMatrixWorld(true);
+  const groups=new Map();
+  for(const sn of __batchSnap){
+    const o=sn.o;
+    if(!o.parent||!sn.vis||!__visChain(o))continue;
+    const e=o.matrixWorld.elements;let moved=false;
+    for(let i=0;i<16;i++)if(Math.abs(e[i]-sn.mw[i])>1e-6){moved=true;break}
+    if(moved||__matState(o.material)!==sn.ms)continue;
+    const key=__matClass(o.material)+'|'+(o.castShadow?1:0)+(o.receiveShadow?1:0);
+    if(!groups.has(key))groups.set(key,{mat:o.material,cast:o.castShadow,recv:o.receiveShadow,entries:[],objs:[]});
+    const g=groups.get(key);g.entries.push({geometry:o.geometry,matrix:o.matrixWorld.clone(),color:o.material.color});g.objs.push(o);
+  }
+  let before=0,after=0;
+  for(const g of groups.values()){
+    if(g.objs.length<2)continue;
+    const geo=__mergeGeos(g.entries);if(!geo)continue;
+    const m=new THREE.Mesh(geo,__vertexColorMat(g.mat));
+    m.castShadow=g.cast;m.receiveShadow=g.recv;m.matrixAutoUpdate=false;m.updateMatrix();
+    scene.add(m);
+    for(const o of g.objs){o.parent.remove(o)}
+    before+=g.objs.length;after++;
+  }
+  // Drop now-empty group shells so the scene graph traversal is cheap too.
+  for(const root of __sceneryRoots){
+    // only plain Group shells — never lights, cameras or renderables
+    if(!root.parent||root.type!=='Group')continue;
+    let hasMesh=false;root.traverse(o=>{if(o!==root&&(o.isMesh||o.isLight||o.isPoints||o.isLine||o.isSprite))hasMesh=true});
+    if(!hasMesh)scene.remove(root);
+  }
+  __batchSnap=null;
+  console.info(`[batch] merged ${before} static scenery meshes into ${after}`);
+}
+function __batchTick(){
+  if(__batchFrame<0)return;
+  __batchFrame++;
+  if(__batchFrame===2)__batchSnapshot();
+  else if(__batchFrame===92){__batchApply();__batchFrame=-1}
+}
+
+// v3.32: shader warm-up. Build one of every unit (both teams) and every
+// tower, compile, then hand the units to the mesh pool so the first wave
+// reuses them. Without this ~20 programs compiled the moment wave 1
+// spawned — a visible hitch right when the action starts.
+function __warmShaders(){
+  const tmp=[];
+  for(const o of[1,2]){
+    for(const t of['goblin','orc','darkKnight','archer','troll','dragon','lich']){const m=acquireEnemyMesh(t,o);m.position.set(0,-40,0);if(!m.parent)scene.add(m);m.visible=true;tmp.push(['e',m])}
+    for(const t of TOWER_DATA){const m=createTower(t.id,o);setModelRim(m,o===1?0xa8ccff:0xffb0b8,0.34);__canonicalizeEnemyMaterials(m);__mergeEnemyModel(m);m.position.set(0,-40,0);scene.add(m);tmp.push(['t',m])}
+    const w=createWall(o);__canonicalizeEnemyMaterials(w);__mergeEnemyModel(w);w.position.set(0,-40,0);scene.add(w);tmp.push(['t',w]);
+  }
+  try{__post.compile(scene,camera)}catch(e){console.warn('[warmup]',e)}
+  for(const [k,m] of tmp){if(k==='e')releaseEnemyMesh(m);else scene.remove(m)}
+}
+
 // ==================== INIT ====================
 function init(){
   const container=document.getElementById('game-container');
@@ -5126,11 +5268,13 @@ function init(){
   // v3.31: bloom + colour grade (auto-disables on slow GPUs).
   __post=createPost(renderer);
   try{const g=localStorage.getItem('castleSiege_gfx');if(g){__post.auto=false;if(g==='low')__post.enabled=false}}catch(e){}
+  setTimeout(__warmShaders,50);
   createTerrain();
   createScenery();
   createAtmosphere();
   createExtraScenery();
   createBattlefieldDecals(); // v3.12
+  __sceneryRoots=scene.children.slice(); // v3.32: candidates for static batching
   initGrid();
   addCastles();
   initParticles();
