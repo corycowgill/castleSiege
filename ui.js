@@ -243,6 +243,8 @@ function uiPause(){
 function uiSyncSoundBtn(){
   const b=document.getElementById('btn-sound');
   if(b)b.innerHTML=`Sound: ${AUDIO.muted?'Off':'On'} <span class="key">M</span>`;
+  const gb=document.getElementById('btn-gfx');
+  if(gb&&typeof __post!=='undefined'&&__post)gb.textContent=`Graphics: ${__post.enabled?'High':'Low'}`;
 }
 function uiResume(){
   if(gameState!=='paused')return;

@@ -15,6 +15,7 @@
 <script src="three.min.js"></script>
 <script src="models.js"></script>
 <script src="vfx.js"></script>
+<script src="post.js"></script>
 <script src="icons.js"></script>
 <script src="ui.js"></script>
 <style>
@@ -560,7 +561,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
   </div>
   <div class="menu-foot">
     <div class="foot-hints"><span><span class="key">&uarr;</span><span class="key">&darr;</span> Navigate</span><span><span class="key">Enter</span> Select</span><span><span class="key round">A</span> Confirm</span></div>
-    <div class="foot-ver">Castle Siege <b>v3.30</b> &bull; Build 2026-10-24</div>
+    <div class="foot-ver">Castle Siege <b>v3.31</b> &bull; Build 2026-10-24</div>
   </div>
 </div>
 
@@ -768,6 +769,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
     <button class="btn primary" id="btn-resume">Resume</button>
     <button class="btn" id="btn-pause-help">How to Play</button>
     <button class="btn" id="btn-sound">Sound: On <span class="key">M</span></button>
+    <button class="btn" id="btn-gfx">Graphics: High</button>
     <button class="btn" id="btn-restart">Restart Battle</button>
     <button class="btn" id="btn-quit">Main Menu</button>
   </div>
@@ -1205,7 +1207,7 @@ function worldToTile(x,z){return{col:Math.floor(x-GRID_OX), row:Math.floor(z-GRI
 function pixelToWorld(px,py){return{x:px/T+GRID_OX, y:0, z:(py-GAME_Y)/T+GRID_OZ}}
 
 // ==================== THREE.JS SCENE SETUP ====================
-let scene,camera,renderer,clock;
+let scene,camera,renderer,clock,__post=null;
 let camZoom=1.0;
 let screenShake=0;
 // v3.7: references to the lighting rig so applyTimeOfDay() can drive
@@ -2916,6 +2918,11 @@ function initHUD(){
   document.getElementById('btn-lobby-back').addEventListener('click',lobbyBack);
   document.getElementById('btn-resume').addEventListener('click',uiResume);
   document.getElementById('btn-sound').addEventListener('click',()=>{toggleMute();uiSyncSoundBtn();uiSfx('select')});
+  document.getElementById('btn-gfx').addEventListener('click',()=>{
+    __post.enabled=!__post.enabled;__post.auto=false;__post._slow=0;
+    try{localStorage.setItem('castleSiege_gfx',__post.enabled?'high':'low')}catch(e){}
+    uiSyncSoundBtn();uiSfx('select');
+  });
   document.getElementById('btn-restart').addEventListener('click',()=>{uiFade(()=>{document.getElementById('pause-ov').style.display='none';setMusicDuck(false);restartGame()})});
   document.getElementById('btn-quit').addEventListener('click',uiReturnToMenu);
   document.getElementById('btn-go-again').addEventListener('click',()=>uiFade(restartGame));
@@ -3917,6 +3924,7 @@ function syncTowers(){
   for(const t of towers){
     if(!towerMeshes.has(t)){
       const mesh=createTower(t.type,t.owner);
+      setModelRim(mesh,t.owner===1?0xa8ccff:0xffb0b8,0.34);
       // v3.3: canonicalize + merge towers too. createTower now produces
       // ~60 sub-meshes per tower (doubled for v3.3 detail); the merge
       // pipeline collapses them to ~1 draw call per canonical material
@@ -4005,7 +4013,9 @@ let __lastRawDt=0.016; // v3.23: exposed for syncEnemies hit-flash decay
 function __matSig(m){
   const c=m.color?m.color.getHex():0;
   const e=m.emissive?m.emissive.getHex():0;
-  return `${m.type}|${c}|${m.roughness??-1}|${m.metalness??-1}|${e}|${m.emissiveIntensity??0}|${m.transparent?1:0}|${m.opacity??1}|${m.flatShading?1:0}`;
+  // v3.31: textures and stylized rim settings are part of identity too.
+  const st=m.userData&&m.userData.sty;
+  return `${m.type}|${c}|${m.roughness??-1}|${m.metalness??-1}|${e}|${m.emissiveIntensity??0}|${m.transparent?1:0}|${m.opacity??1}|${m.flatShading?1:0}|${m.map?m.map.uuid:''}|${st?st.uRim.value.getHex()+':'+st.uRimK.value:''}`;
 }
 function __canonicalizeEnemyMaterials(mesh){
   const cache=new Map();
@@ -4209,6 +4219,8 @@ function acquireEnemyMesh(type,owner){
     return mesh;
   }
   const mesh=createEnemyModel(type,owner);
+  // v3.31: team-coloured rim light so armies read at a glance.
+  setModelRim(mesh,owner===1?0x7ab4ff:0xff7a88,0.62);
   __canonicalizeEnemyMaterials(mesh);
   __mergeEnemyModel(mesh); // v3.1: collapse ~50 sub-meshes to ~10 per enemy
   __cacheEnemyMeshRefs(mesh);
@@ -4299,7 +4311,11 @@ function syncEnemies(){
       e._spawnT=Math.min(1,e._spawnT+__lastRawDt/0.3);
       const k=e._spawnT,ob=1+2.2*Math.pow(k-1,3)+1.2*Math.pow(k-1,2);
       mesh.scale.setScalar(base*Math.max(0.05,ob));
-    }else if(mesh.scale.x!==base)mesh.scale.setScalar(base);
+    }else{
+      // v3.31: stylized squash & stretch in step with the walk bob.
+      const sq=e.flying?0:Math.sin(e._anim*2)*0.045*(e.combatTarget?1.6:1);
+      mesh.scale.set(base*(1-sq*0.5),base*(1+sq),base*(1-sq*0.5));
+    }
     // Face movement/attack direction
     const aimT=e.combatTarget&&e.combatTarget.alive?e.combatTarget:(e._atkT>0&&e._aimAt&&e._aimAt.alive?e._aimAt:null);
     if(aimT){
@@ -4409,6 +4425,7 @@ function syncEnemies(){
   }
   // Remove dead — walk the map directly, no Set allocation.
   // PERF v3.0: return mesh to pool instead of disposing.
+  __updateBlobShadows();
   // v3.27: killed units topple and sink instead of vanishing.
   for(const[e,mesh] of enemyMeshes){
     if(!e.alive){
@@ -4420,6 +4437,30 @@ function syncEnemies(){
   updateCorpses(__lastRawDt);
 }
 
+// v3.31: soft contact shadows under every unit (one instanced draw).
+// The sun's shadow map is too coarse at this field size to ground
+// small units, so each gets a dark blob that shrinks when it lifts.
+let __blobs=null;const __blobDummy=new THREE.Object3D();
+function __updateBlobShadows(){
+  if(!__blobs){
+    const c=document.createElement('canvas');c.width=c.height=64;const g=c.getContext('2d');
+    const gr=g.createRadialGradient(32,32,2,32,32,31);gr.addColorStop(0,'rgba(0,0,0,0.75)');gr.addColorStop(0.55,'rgba(0,0,0,0.38)');gr.addColorStop(1,'rgba(0,0,0,0)');
+    g.fillStyle=gr;g.fillRect(0,0,64,64);
+    const geo=new THREE.PlaneGeometry(1,1);geo.rotateX(-Math.PI/2);
+    __blobs=new THREE.InstancedMesh(geo,new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(c),transparent:true,depthWrite:false,opacity:0.8}),400);
+    __blobs.frustumCulled=false;__blobs.renderOrder=1;scene.add(__blobs);
+  }
+  let n=0;
+  for(const e of enemies){
+    if(!e.alive||n>=400)continue;
+    const wp=pixelToWorld(e.x,e.y);
+    const boss=e.type==='troll'||e.type==='dragon'||e.type==='lich';
+    const sz=(boss?1.7:0.62)*(e.flying?0.8:1)*Math.min(1,e._spawnT+0.2);
+    __blobDummy.position.set(wp.x,0.025,wp.z);__blobDummy.scale.set(sz,1,sz*0.85);__blobDummy.updateMatrix();
+    __blobs.setMatrixAt(n++,__blobDummy.matrix);
+  }
+  __blobs.count=n;__blobs.instanceMatrix.needsUpdate=true;
+}
 // v3.27: death animation. Corpses tip over (forward or back), then
 // sink into the ground and shrink before the mesh returns to the pool.
 const __corpses=[];
@@ -5075,13 +5116,16 @@ function gameLoop(){
     if(screenShake<=0){screenShake=0;setCameraZoom(camZoom)}
   }
 
-  renderer.render(scene,camera);
+  __post.render(scene,camera);
 }
 
 // ==================== INIT ====================
 function init(){
   const container=document.getElementById('game-container');
   initScene(container);
+  // v3.31: bloom + colour grade (auto-disables on slow GPUs).
+  __post=createPost(renderer);
+  try{const g=localStorage.getItem('castleSiege_gfx');if(g){__post.auto=false;if(g==='low')__post.enabled=false}}catch(e){}
   createTerrain();
   createScenery();
   createAtmosphere();

@@ -8,18 +8,172 @@
 //
 // Requires THREE to be loaded first (both callers load three.min.js above).
 
-function mkMat(color,opts={}){return new THREE.MeshStandardMaterial({color,flatShading:true,...opts})}
+// ==================== v3.31: STYLIZED MATERIAL SYSTEM ====================
+// Every model is built from mkMat() materials, so the stylized look is
+// applied here once and lifts castles, towers, walls, units and
+// projectiles together (game and field guide alike):
+//  1. Palette: colours are pushed warmer and more saturated (stone greys
+//     become sun-warmed sandstone, team colours get punchier).
+//  2. Shader (via onBeforeCompile, one shared program):
+//     - soft rim light (fresnel) so silhouettes pop off the ground,
+//     - wrap-around "painted" light: shadowed sides keep some colour,
+//     - fake ambient occlusion darkening toward the ground (world Y),
+//     - a gentle saturation lift on the final lit colour.
+//  Per-material knobs live in material.userData.sty (rim colour/strength,
+//  AO), so units can carry a team-coloured rim without new programs.
+const STYLE={sat:1.14,aoMin:0.58,aoH:0.9,rim:0xfff0d0,rimK:0.28};
+const __styColor=new THREE.Color(),__hsl={h:0,s:0,l:0};
+function stylizeColor(hex){
+  __styColor.set(hex).getHSL(__hsl);
+  let {h,s,l}=__hsl;
+  if(s<0.12){
+    // near-greys: warm them toward sandstone/slate depending on value
+    h=l>0.32?0.09:0.6; s=Math.max(s,l>0.32?0.16:0.08);
+  }else{
+    s=Math.min(1,s*1.18+0.04);
+  }
+  l=Math.min(0.92,l*1.06+0.02);
+  return __styColor.setHSL(h,s,l).getHex();
+}
+function stylizeMaterial(m,opts){
+  if(!m||m.userData.sty)return m;
+  const o=opts||{};
+  m.userData.sty={
+    uRim:{value:new THREE.Color(o.rim??STYLE.rim)},
+    uRimK:{value:o.rimK??STYLE.rimK},
+    uAoMin:{value:o.aoMin??STYLE.aoMin},
+    uAoH:{value:o.aoH??STYLE.aoH},
+    uSat:{value:STYLE.sat},
+  };
+  m.onBeforeCompile=(sh)=>{
+    Object.assign(sh.uniforms,m.userData.sty);
+    sh.vertexShader=sh.vertexShader
+      .replace('#include <common>','#include <common>\nvarying float vStyWorldY;')
+      .replace('#include <project_vertex>','#include <project_vertex>\nvStyWorldY=(modelMatrix*vec4(transformed,1.0)).y;');
+    sh.fragmentShader=sh.fragmentShader
+      .replace('#include <common>','#include <common>\nvarying float vStyWorldY;\nuniform vec3 uRim;uniform float uRimK,uAoMin,uAoH,uSat;')
+      .replace('#include <opaque_fragment>',`
+        {
+          vec3 styV=normalize(vViewPosition);
+          float styF=pow(1.0-clamp(dot(normal,styV),0.0,1.0),2.6);
+          // wrap light: lift the darkest faces with a tint of albedo
+          outgoingLight+=diffuseColor.rgb*0.10;
+          outgoingLight+=uRim*uRimK*styF*(0.55+0.45*diffuseColor.rgb);
+          float styAo=mix(uAoMin,1.0,smoothstep(0.0,uAoH,vStyWorldY));
+          outgoingLight*=styAo;
+          float styL=dot(outgoingLight,vec3(0.299,0.587,0.114));
+          outgoingLight=mix(vec3(styL),outgoingLight,uSat);
+        }
+        #include <opaque_fragment>`);
+  };
+  m.customProgramCacheKey=()=>'cs-stylized';
+  return m;
+}
+// Recolour a model's rim (e.g. team colour on units). Safe to call on
+// merged/canonicalised models; only touches stylized materials.
+function setModelRim(root,color,k){
+  root.traverse(c=>{
+    if(!c.isMesh)return;
+    const ms=Array.isArray(c.material)?c.material:[c.material];
+    for(const m of ms){if(m&&m.userData.sty){m.userData.sty.uRim.value.set(color);if(k!==undefined)m.userData.sty.uRimK.value=k}}
+  });
+}
+function mkMat(color,opts={}){
+  const o={...opts};
+  if(o.emissive!==undefined&&o.emissiveIntensity===undefined)o.emissiveIntensity=1;
+  const m=new THREE.MeshStandardMaterial({color:stylizeColor(color),flatShading:true,roughness:0.82,...o});
+  // emissive parts (windows, runes, fire) stay as authored — they glow.
+  return stylizeMaterial(m);
+}
+// ==================== v3.31: PAINTED TEXTURES ====================
+// Small procedural canvas textures, near-white so they multiply with
+// each material's colour (palette stays in mkMat). UVs are rescaled to
+// world size by applyWorldUVs() so bricks/tiles keep a constant scale
+// whatever the size of the box or cone they sit on.
+const __TEX={};
+function __canvasTex(key,draw,size){
+  if(__TEX[key])return __TEX[key];
+  const c=document.createElement('canvas');c.width=c.height=size||256;
+  draw(c.getContext('2d'),c.width);
+  const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=4;
+  t.userData.worldUV=true;__TEX[key]=t;return t;
+}
+function __rnd(seed){let x=Math.sin(seed*12.9898)*43758.5453;return x-Math.floor(x)}
+function texStone(){return __canvasTex('stone',(g,S)=>{
+  g.fillStyle='#8f8576';g.fillRect(0,0,S,S); // mortar
+  const rows=4,rh=S/rows;let n=0;
+  for(let r=0;r<rows;r++){
+    const cols=r%2?3:2,off=r%2?0:S/4,bw=S/(r%2?3:2)/ (r%2?1:1);
+    for(let i=-1;i<=cols;i++){
+      const x=off+i*(S/cols),w=S/cols;n++;
+      const v=0.86+__rnd(n)*0.14,warm=__rnd(n+7)*10;
+      const base=[236*v+warm,228*v+warm*0.5,212*v];
+      g.fillStyle=`rgb(${base.map(c=>c|0).join(',')})`;
+      g.beginPath();g.roundRect(x+3,r*rh+3,w-6,rh-6,6);g.fill();
+      // painted bevel: light top edge, shaded bottom edge
+      g.fillStyle='rgba(255,255,255,0.28)';g.fillRect(x+6,r*rh+4,w-12,3);
+      g.fillStyle='rgba(60,45,30,0.22)';g.fillRect(x+6,r*rh+rh-8,w-12,4);
+      // a few chips
+      for(let k=0;k<3;k++){g.fillStyle='rgba(90,75,60,0.18)';g.beginPath();g.arc(x+8+__rnd(n*3+k)*(w-16),r*rh+8+__rnd(n*5+k)*(rh-16),1.5+__rnd(n+k)*2.5,0,7);g.fill()}
+    }
+  }
+})}
+function texShingle(){return __canvasTex('shingle',(g,S)=>{
+  g.fillStyle='#6a5a52';g.fillRect(0,0,S,S);
+  const rows=6,rh=S/rows,cols=6,cw=S/cols;let n=0;
+  for(let r=rows;r>=-1;r--){
+    for(let i=-1;i<=cols;i++){
+      n++;const x=i*cw+(r%2?cw/2:0),y=r*rh;const v=0.85+__rnd(n)*0.15;
+      g.fillStyle=`rgb(${(240*v)|0},${(232*v)|0},${(226*v)|0})`;
+      g.beginPath();g.moveTo(x+2,y);g.lineTo(x+cw-2,y);g.lineTo(x+cw-2,y+rh*0.7);g.quadraticCurveTo(x+cw/2,y+rh*1.25,x+2,y+rh*0.7);g.closePath();g.fill();
+      g.fillStyle='rgba(255,255,255,0.22)';g.fillRect(x+5,y+2,cw-10,3);
+    }
+  }
+})}
+function texWood(){return __canvasTex('wood',(g,S)=>{
+  const planks=4,pw=S/planks;
+  for(let i=0;i<planks;i++){
+    const v=0.84+__rnd(i+3)*0.16;g.fillStyle=`rgb(${(238*v)|0},${(222*v)|0},${(200*v)|0})`;g.fillRect(i*pw,0,pw,S);
+    g.strokeStyle='rgba(90,60,35,0.25)';g.lineWidth=2;
+    for(let k=0;k<5;k++){const x=i*pw+8+__rnd(i*9+k)*(pw-16);g.beginPath();g.moveTo(x,0);g.bezierCurveTo(x+6,S*0.3,x-6,S*0.6,x+3,S);g.stroke()}
+    g.fillStyle='rgba(50,30,15,0.55)';g.fillRect(i*pw,0,3,S);
+    g.fillStyle='rgba(255,255,255,0.18)';g.fillRect(i*pw+3,0,2,S);
+  }
+})}
+// Rescale UVs of textured Box/Cylinder/Cone meshes to world units.
+function applyWorldUVs(root,tile){
+  const k=1/(tile||1);
+  root.traverse(o=>{
+    if(!o.isMesh||!o.geometry||!o.geometry.attributes.uv)return;
+    const m=o.material;if(!m||!m.map||!m.map.userData.worldUV)return;
+    const geo=o.geometry;if(geo.userData._wuv)return;geo.userData._wuv=true;
+    const uv=geo.attributes.uv,P=geo.parameters||{},t=geo.type;
+    if(t==='BoxGeometry'){
+      const dims=[[P.depth,P.height],[P.depth,P.height],[P.width,P.depth],[P.width,P.depth],[P.width,P.height],[P.width,P.height]];
+      const per=uv.count/6;
+      for(let f=0;f<6;f++)for(let i=0;i<per;i++){const j=f*per+i;uv.setXY(j,uv.getX(j)*dims[f][0]*k,uv.getY(j)*dims[f][1]*k)}
+    }else if(t==='CylinderGeometry'||t==='ConeGeometry'){
+      const r=Math.max(P.radiusTop??0,P.radiusBottom??P.radius??0.3);
+      const circ=Math.max(1,Math.round(2*Math.PI*r*k*2))/2; // whole tiles around
+      for(let j=0;j<uv.count;j++)uv.setXY(j,uv.getX(j)*circ,uv.getY(j)*P.height*k);
+    }else return;
+    uv.needsUpdate=true;
+  });
+}
 function mkMesh(geo,mat){const m=new THREE.Mesh(geo,mat);m.castShadow=true;m.receiveShadow=true;return m}
-function ownerAccent(o){return o===1?0x3366cc:0xcc3333}
+function ownerAccent(o){return o===1?0x2f6fe0:0xd8343c}
 
 // ==================== CASTLE MODEL ====================
 function createCastle(owner){
   const g=new THREE.Group();
-  const stone=mkMat(0x8a8a7a),stoneLight=mkMat(0x9a9a8a),dark=mkMat(0x6a6a5a),vdark=mkMat(0x5a5a4a);
+  const ST={map:texStone()};
+  const stone=mkMat(0x8a8a7a,ST),stoneLight=mkMat(0x9a9a8a,ST),dark=mkMat(0x6a6a5a,ST),vdark=mkMat(0x5a5a4a,ST);
   const accent=mkMat(ownerAccent(owner));
   const accentDark=mkMat(owner===1?0x224488:0x882222);
   const winMat=mkMat(0xFFDD44,{emissive:0xFFDD44,emissiveIntensity:0.8});
-  const roofMat=mkMat(0x6B3A1B);
+  // v3.31: team-coloured shingle roofs (stylized RTS read).
+  const roofMat=mkMat(owner===1?0x2c4f9e:0xa0303a,{map:texShingle(),roughness:0.7});
+  const finial=mkMat(0xf0c050,{metalness:0.7,roughness:0.3,emissive:0x5a3a08});
   const CW=2,CD=8,wallH=1.6,wallT=0.22;
 
   // Walls - thicker with stone block pattern
@@ -66,7 +220,8 @@ function createCastle(owner){
     // Tower top ledge
     g.add(mkMesh(new THREE.CylinderGeometry(towerR+0.08,towerR+0.04,0.08,8),vdark).translateX(cx).translateY(towerH+0.04).translateZ(cz));
     // Cone roof
-    g.add(mkMesh(new THREE.ConeGeometry(towerR+0.06,0.55,8),roofMat).translateX(cx).translateY(towerH+0.35).translateZ(cz));
+    g.add(mkMesh(new THREE.ConeGeometry(towerR+0.1,0.95,10),roofMat).translateX(cx).translateY(towerH+0.55).translateZ(cz));
+    g.add(mkMesh(new THREE.SphereGeometry(0.05,8,6),finial).translateX(cx).translateY(towerH+1.05).translateZ(cz));
     // Tower crenellations (4 merlons around rim)
     for(let a=0;a<4;a++){
       const ang=a*Math.PI/2+Math.PI/4;
@@ -106,7 +261,8 @@ function createCastle(owner){
     g.add(mkMesh(new THREE.BoxGeometry(0.08,0.18,0.12),dark).translateX(CW/2+keepW/2).translateY(keepH+0.17).translateZ(kz));
   }
   // Keep roof - pitched
-  g.add(mkMesh(new THREE.ConeGeometry(0.85,0.7,4),roofMat).translateX(CW/2).translateY(keepH+0.43).translateZ(CD/2).rotateY(Math.PI/4));
+  g.add(mkMesh(new THREE.ConeGeometry(0.92,1.15,4),roofMat).translateX(CW/2).translateY(keepH+0.62).translateZ(CD/2).rotateY(Math.PI/4));
+  g.add(mkMesh(new THREE.SphereGeometry(0.07,8,6),finial).translateX(CW/2).translateY(keepH+1.22).translateZ(CD/2));
 
   // Keep windows - arched style (two rows), now on the ±X faces so they look toward the opponent
   const keepFaceX = CW/2 + facing*(keepW/2 + 0.01); // front face (toward opponent)
@@ -472,6 +628,7 @@ function createCastle(owner){
 
   // Position group so center is at origin
   g.position.set(-CW/2,0,-CD/2);
+  applyWorldUVs(g,0.9);
   const wrapper=new THREE.Group();wrapper.add(g);
   return wrapper;
 }
@@ -486,8 +643,9 @@ function createTower(type,owner){
   g.add(mkMesh(new THREE.BoxGeometry(0.85,0.04,0.85),accentDark).translateY(0.08));
 
   if(type==='turret'){
-    const stone=mkMat(0x8a8a7a),dark=mkMat(0x6a6a5a),vdark=mkMat(0x5a5a4a);
-    const light=mkMat(0x9a9a8a);
+    const ST={map:texStone()};
+    const stone=mkMat(0x8a8a7a,ST),dark=mkMat(0x6a6a5a,ST),vdark=mkMat(0x5a5a4a,ST);
+    const light=mkMat(0x9a9a8a,ST);
     const tH=1.8; // Taller than before
     // Tower base - tapered
     g.add(mkMesh(new THREE.BoxGeometry(0.72,0.22,0.72),vdark).translateY(0.11));
@@ -511,7 +669,7 @@ function createTower(type,owner){
       g.add(mkMesh(new THREE.BoxGeometry(0.11,0.02,0.11),light).translateX(dx).translateY(tH+0.65).translateZ(dz));
     });
     // Conical inner roof over central keep
-    g.add(mkMesh(new THREE.ConeGeometry(0.22,0.35,8),mkMat(0x5a3a1a)).translateY(tH+0.75));
+    g.add(mkMesh(new THREE.ConeGeometry(0.26,0.55,10),mkMat(owner===1?0x2c4f9e:0xa0303a,{map:texShingle()})).translateY(tH+0.85));
     // Arrow slits on each face with warm glow
     [[ 0,0.28],[ 0,-0.28],[0.28,0],[-0.28,0]].forEach(([dx,dz])=>{
       g.add(mkMesh(new THREE.BoxGeometry(0.035,0.28,0.035),mkMat(0x1a1a1a)).translateX(dx).translateY(1.0).translateZ(dz));
@@ -647,10 +805,10 @@ function createTower(type,owner){
       g.add(mkMesh(new THREE.TorusGeometry(0.31,0.028,6,10),mkMat(0x9944CC,{emissive:0x6622AA,emissiveIntensity:0.5})).translateY(y).rotateX(Math.PI/2));
     });
     // 4-tier stepped conical roof
-    g.add(mkMesh(new THREE.ConeGeometry(0.4,0.2,10),mkMat(0x5a1d6e)).translateY(mH+0.42));
-    g.add(mkMesh(new THREE.ConeGeometry(0.32,0.2,10),mkMat(0x6a2d7e)).translateY(mH+0.55));
-    g.add(mkMesh(new THREE.ConeGeometry(0.22,0.2,10),mkMat(0x7b2d8e)).translateY(mH+0.68));
-    g.add(mkMesh(new THREE.ConeGeometry(0.12,0.2,10),mkMat(0x8b3d9e)).translateY(mH+0.82));
+    g.add(mkMesh(new THREE.ConeGeometry(0.4,0.2,10),mkMat(0x5a1d6e,{map:texShingle()})).translateY(mH+0.42));
+    g.add(mkMesh(new THREE.ConeGeometry(0.32,0.2,10),mkMat(0x6a2d7e,{map:texShingle()})).translateY(mH+0.55));
+    g.add(mkMesh(new THREE.ConeGeometry(0.22,0.2,10),mkMat(0x7b2d8e,{map:texShingle()})).translateY(mH+0.68));
+    g.add(mkMesh(new THREE.ConeGeometry(0.12,0.2,10),mkMat(0x8b3d9e,{map:texShingle()})).translateY(mH+0.82));
     // Crystal orb on top - much larger and more emissive
     g.add(mkMesh(new THREE.SphereGeometry(0.15,12,10),mkMat(0xDD88FF,{emissive:0xCC66FF,emissiveIntensity:2.0})).translateY(mH+1.0));
     // Inner bright core
@@ -770,7 +928,8 @@ function createTower(type,owner){
     });
 
   }else if(type==='catapult'){
-    const wood=mkMat(0x8B5A2B),woodD=mkMat(0x6B3A1B),woodL=mkMat(0xa07028),metal=mkMat(0x555555,{metalness:0.4}),iron=mkMat(0x2a2a2a,{metalness:0.55,roughness:0.4});
+    const WD={map:texWood()};
+    const wood=mkMat(0x8B5A2B,WD),woodD=mkMat(0x6B3A1B,WD),woodL=mkMat(0xa07028,WD),metal=mkMat(0x555555,{metalness:0.4}),iron=mkMat(0x2a2a2a,{metalness:0.55,roughness:0.4});
     // Platform - thicker, stepped
     g.add(mkMesh(new THREE.BoxGeometry(0.88,0.06,0.76),woodD).translateY(0.12));
     g.add(mkMesh(new THREE.BoxGeometry(0.8,0.1,0.7),wood).translateY(0.2));
@@ -955,7 +1114,8 @@ function createTower(type,owner){
     g.add(mkMesh(new THREE.SphereGeometry(0.014,5,4),mkMat(0xff8822,{emissive:0xff5500,emissiveIntensity:2.5})).translateX(-0.18).translateY(0.4).translateZ(0.22));
 
   }else if(type==='bombard'){
-    const stone=mkMat(0x8a8a7a),dark=mkMat(0x6a6a5a),light=mkMat(0x9a9a8a);
+    const ST={map:texStone()};
+    const stone=mkMat(0x8a8a7a,ST),dark=mkMat(0x6a6a5a,ST),light=mkMat(0x9a9a8a,ST);
     const metal=mkMat(0x2a2a2a,{metalness:0.7,roughness:0.25});
     const iron=mkMat(0x444,{metalness:0.5});
     const wood=mkMat(0x6b3a1b),woodL=mkMat(0x8b5a2b);
@@ -1134,6 +1294,7 @@ function createTower(type,owner){
     g.add(mkMesh(new THREE.BoxGeometry(0.015,0.003,0.003),scorch2).translateX(-0.1).translateY(0.6).translateZ(0.1).rotateZ(-Math.PI/4));
 
   }
+  applyWorldUVs(g,0.55);
   return g;
 }
 
@@ -1145,12 +1306,13 @@ function createWall(owner){
   const g1=(sc>>8&0xFF)*0.85+(oc>>8&0xFF)*0.15;
   const b1=(sc&0xFF)*0.85+(oc&0xFF)*0.15;
   const tinted=(Math.floor(r1)<<16)|(Math.floor(g1)<<8)|Math.floor(b1);
-  const dark=mkMat(0x6a6a5a),vdark=mkMat(0x5a5a4a);
+  const ST={map:texStone()};
+  const dark=mkMat(0x6a6a5a,ST),vdark=mkMat(0x5a5a4a,ST);
   const wallH=0.9;
   // Foundation
   g.add(mkMesh(new THREE.BoxGeometry(0.92,0.08,0.92),dark).translateY(0.04));
   // Main wall body - taller
-  g.add(mkMesh(new THREE.BoxGeometry(0.85,wallH,0.85),mkMat(tinted)).translateY(0.08+wallH/2));
+  g.add(mkMesh(new THREE.BoxGeometry(0.85,wallH,0.85),mkMat(tinted,ST)).translateY(0.08+wallH/2));
   // Stone block lines (horizontal grooves for texture)
   [0.25,0.5,0.75].forEach(frac=>{
     const y=0.08+wallH*frac;
@@ -1277,11 +1439,12 @@ function createWall(owner){
     g.add(mkMesh(new THREE.DodecahedronGeometry(0.028,0),dark).translateX(rbx+0.05).translateY(0.1).translateZ(rbz-0.03));
   }
 
-  return g;
+  applyWorldUVs(g,0.5);return g;
 }
 function createBarricade(owner){
   const g=new THREE.Group();
-  const wood=mkMat(0x8B5A2B),woodD=mkMat(0x6B3A1B),woodL=mkMat(0x9B6A3B);
+  const WD={map:texWood()};
+  const wood=mkMat(0x8B5A2B,WD),woodD=mkMat(0x6B3A1B,WD),woodL=mkMat(0x9B6A3B,WD);
   const metal=mkMat(0x555555,{metalness:0.3});
   // Base frame
   g.add(mkMesh(new THREE.BoxGeometry(0.88,0.06,0.88),mkMat(ownerAccent(owner))).translateY(0.03));
@@ -1428,7 +1591,7 @@ function createBarricade(owner){
     g.add(mkMesh(new THREE.ConeGeometry(0.004,0.015,3),mkMat(0x3a2a1a)).translateX(tax).translateY(tay+0.01).translateZ(0.06).rotateX(0.3));
   }
 
-  return g;
+  applyWorldUVs(g,0.5);return g;
 }
 
 // ==================== ENEMY MODELS ====================
