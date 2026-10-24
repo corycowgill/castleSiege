@@ -634,7 +634,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
   </div>
   <div class="menu-foot">
     <div class="foot-hints"><span><span class="key">&uarr;</span><span class="key">&darr;</span> Navigate</span><span><span class="key">Enter</span> Select</span><span><span class="key round">A</span> Confirm</span></div>
-    <div class="foot-ver">Castle Siege <b>v3.43</b> &bull; Build 2026-10-24</div>
+    <div class="foot-ver">Castle Siege <b>v3.44</b> &bull; Build 2026-10-24</div>
   </div>
 </div>
 
@@ -3379,11 +3379,14 @@ function cycleTargetMode(player,pNum){
   return true;
 }
 function dealDamage(enemy,dmg,src){
-  const actual=dmg*(1-enemy.armor);enemy.hp-=actual;
-  if(src)src.dmgDone=(src.dmgDone||0)+actual; // v3.39: per-tower stats for the inspector
+  const actual=dmg*(1-enemy.armor);
+  // v3.44: gold and stats count only the HP actually removed — overkill
+  // (a 1000-damage shell on an 80-HP orc) used to pay out in full.
+  const eff=Math.min(actual,Math.max(0,enemy.hp));enemy.hp-=actual;
+  if(src)src.dmgDone=(src.dmgDone||0)+eff; // v3.39: per-tower stats for the inspector
   const killer=enemy.owner===1?players[2]:players[1];
-  const dmgCredits=Math.floor(actual/5*(enemy.bountyMul||1));
-  if(dmgCredits>0){killer.credits+=dmgCredits;killer.totalDmgDealt+=actual}
+  const dmgCredits=Math.floor(eff/5*(enemy.bountyMul||1));
+  if(dmgCredits>0){killer.credits+=dmgCredits;killer.totalDmgDealt+=eff}
   const wp=pixelToWorld(enemy.x+rnd(-8,8),enemy.y-10);
   spawnDmgNumber(wp.x,0.5,wp.z,Math.round(actual)|0,'#ff4444');
   // v3.23: hit flash — mark the enemy so syncEnemies can briefly
