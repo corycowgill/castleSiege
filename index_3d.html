@@ -232,11 +232,15 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
 /* ---------- help ---------- */
 #help-screen{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;overflow-y:auto;padding:clamp(20px,4vh,40px) 0 70px;z-index:270;
   background:rgba(5,4,6,.82);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);animation:fadeIn .3s both}
-.help-content{width:min(960px,94vw);animation:screenIn .45s var(--ease-out) both}
+.help-content{width:min(1180px,95vw);animation:screenIn .45s var(--ease-out) both}
 .help-head{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:18px;gap:16px}
 .help-title{font-family:var(--f-display);font-weight:900;font-size:clamp(24px,3vw,40px);letter-spacing:.14em;text-transform:uppercase;color:var(--gold-b);
   text-shadow:0 0 22px rgba(217,178,95,.35),0 3px 0 #1a1206}
 .help-tables{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+/* v3.49: three tables across, the rules underneath in two columns, so the
+   whole codex fits one screen (any key closes it, so nothing can hide below) */
+@media(min-width:1000px){.help-tables{grid-template-columns:1.05fr 1.05fr .9fr}.help-section.rules{grid-column:1/-1}.help-section.rules .help-rules{columns:2;column-gap:32px}.help-rules li{break-inside:avoid}}
+@media(max-height:820px) and (min-width:1000px){.help-section{padding:12px 16px}.help-table td{padding:4px 8px}.help-rules li{padding:3px 0 3px 18px}.help-head{margin-bottom:10px}}
 .help-section{padding:16px 18px}
 .help-section h3{display:flex;align-items:center;gap:10px;color:var(--gold-b);font-family:var(--f-display);font-weight:700;font-size:clamp(11px,1.1vw,14px);
   margin-bottom:10px;text-transform:uppercase;letter-spacing:.28em;padding-bottom:8px;border-bottom:1px solid var(--line)}
@@ -404,7 +408,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
 #wave-banner.show .wb-sub{animation:fadeIn .8s .35s both}
 #wave-banner.danger .wb-title{color:#ffd0c8;text-shadow:0 0 30px rgba(255,80,60,.55),0 4px 0 #2a0808,0 10px 30px rgba(0,0,0,.9)}
 #wave-banner.danger .wb-line{background:linear-gradient(90deg,transparent,var(--bad),transparent)}
-#callouts{position:absolute;top:70px;left:0;right:0;display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none;z-index:21}
+#callouts{position:absolute;top:84px;left:0;right:0;display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none;z-index:21}
 .callout{display:flex;align-items:center;gap:10px;padding:7px 22px 7px 14px;font-family:var(--f-display);font-weight:700;font-size:clamp(11px,1.1vw,14px);letter-spacing:.2em;text-transform:uppercase;
   color:var(--parch);background:linear-gradient(90deg,transparent,rgba(10,7,5,.92) 15%,rgba(10,7,5,.92) 85%,transparent);border-top:1px solid var(--tc,var(--gold));border-bottom:1px solid var(--tc,var(--gold));
   animation:calloutLife 3.4s var(--ease-out) both}
@@ -556,6 +560,11 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
 /* v3.48: next-wave icon counts in the phase timer */
 .pt-u{display:inline-flex;align-items:center;gap:2px;margin-left:6px}.pt-u .ico{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2;opacity:.85}
 .pt-hp{color:#ff9aa8}
+#omen-tag{position:absolute;top:54px;left:50%;transform:translateX(-50%);z-index:20;display:none;align-items:center;gap:8px;padding:4px 14px;pointer-events:none;white-space:nowrap;
+  background:linear-gradient(90deg,rgba(24,12,36,0),rgba(30,16,46,.82) 20%,rgba(30,16,46,.82) 80%,rgba(24,12,36,0));font-size:12px;color:#e6d6ff}
+#omen-tag .ok{font-family:var(--f-display);letter-spacing:.2em;font-size:10px;color:#b89cff;text-transform:uppercase}
+#omen-tag b{font-family:var(--f-display);letter-spacing:.06em;color:#f0e4ff}#omen-tag i{color:#cbb8ee}#omen-tag .hp{color:#ff9aa8;font-family:var(--f-display);font-weight:700}
+@media(max-height:500px){#omen-tag{top:46px;font-size:10.5px;padding:3px 10px}}
 /* v3.46: scouting report */
 #scout{position:absolute;top:54px;right:18px;z-index:20;display:none;align-items:center;gap:6px;padding:5px 10px 5px 9px;pointer-events:none;
   background:linear-gradient(90deg,rgba(20,8,10,0),rgba(30,10,14,.78) 18%);border-right:2px solid rgba(255,110,130,.55);font-size:12px;color:#f0d4d4}
@@ -684,7 +693,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
   </div>
   <div class="menu-foot">
     <div class="foot-hints"><span><span class="key">&uarr;</span><span class="key">&darr;</span> Navigate</span><span><span class="key">Enter</span> Select</span><span><span class="key round">A</span> Confirm</span></div>
-    <div class="foot-ver">Castle Siege <b>v3.48</b> &bull; Build 2026-10-24</div>
+    <div class="foot-ver">Castle Siege <b>v3.49</b> &bull; Build 2026-10-24</div>
   </div>
 </div>
 
@@ -807,16 +816,18 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
         <tr><td>Freeze</td><td>Slows enemies for 5s</td></tr>
         <tr><td>Heal</td><td>Restores 500 castle HP</td></tr>
         </tbody></table></div>
-      <div class="help-section panel frame"><h3><svg class="ico"><use href="#i-wall"/></svg>Rules of War</h3>
+      <div class="help-section panel frame rules"><h3><svg class="ico"><use href="#i-wall"/></svg>Rules of War</h3>
         <ul class="help-rules">
-        <li>10 waves, 45s build phase &middot; castles have 3500 HP</li>
-        <li>Build towers and walls in your half to defend</li>
-        <li>Buy armies and bosses to attack your rival</li>
-        <li>+250 gold between waves, +10% interest on savings (max 100)</li>
-        <li>Place a tower on your own tower to upgrade it (max Lv3)</li>
-        <li>Arrows show each army's route during the build phase</li>
-        <li>Enemies can break walls &middot; <span class="key">Esc</span> pauses &middot; <span class="key">M</span> mutes</li>
-        <li>Campaign: pick Easy, Normal or Hard in the lobby (score &times;0.75 / &times;1 / &times;1.5)</li>
+        <li>10 waves, 45s build phase &middot; keeps have 3500 HP &middot; Endless: no wave cap, an omen twists each wave past 10</li>
+        <li>Build in your half; walls reroute the march (red arrows show the route)</li>
+        <li>Build on your own tower to upgrade it (Lv3 max) &middot; on a damaged wall to repair it</li>
+        <li>Anything built this phase sells back in full until the wave starts</li>
+        <li><span class="key">C</span> on a tower: target First, Last, Strongest or Closest</li>
+        <li>Armies and bosses attack your rival; bought units pay half bounty when they fall</li>
+        <li>+250 gold per wave, +10% interest on savings (max 100) &middot; kills pay bounty</li>
+        <li>Campaign: Scouts show what the Warlord is buying (Hard: a head-count only)</li>
+        <li>Campaign saves each build phase &mdash; resume with <b>Continue</b></li>
+        <li><span class="key">+</span><span class="key">&minus;</span> or Shift+wheel zoom &middot; <span class="key">T</span> 2&times; speed &middot; <span class="key">Esc</span> pause &middot; <span class="key">M</span> mute</li>
         </ul></div>
     </div>
     <p class="help-back">Press any key or click to go back</p>
@@ -849,7 +860,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
   </div>
 </div>
 
-<div id="scout"></div>
+<div id="scout"></div><div id="omen-tag"></div>
 <div id="wave-banner"><div class="wb-band"></div><div class="wb-line"></div><div class="wb-kicker" id="wb-kicker"></div><div class="wb-title" id="wb-title"></div><div class="wb-sub" id="wb-sub"></div><div class="wb-line"></div></div>
 <div id="callouts"></div>
 <div id="tut-card" class="panel frame"><div class="tut-top"><span class="kicker" id="tut-step">Training</span><button class="tut-skip clickable" id="tut-skip">Skip tips</button></div>
@@ -3140,7 +3151,7 @@ function showScreen(name){
   document.getElementById('gameover-ov').style.display=name==='gameover'?'flex':'none';
   if(name!=='game')document.getElementById('tooltip').classList.remove('show');
   if(name!=='game'&&name!=='waveEnd'&&typeof uiTutorialHide==='function')uiTutorialHide();
-  if(name!=='game'&&typeof uiScoutHUD==='function')uiScoutHUD(true);
+  if(name!=='game'&&typeof uiScoutHUD==='function'){uiScoutHUD(true);const ot=document.getElementById('omen-tag');if(ot)ot.style.display='none'}
   // Show touch controls in 1P mode during gameplay
   const showTouch=gameMode==='1p'&&isMobile&&(name==='game'||name==='waveEnd');
   document.getElementById('touch-controls').style.display=showTouch?'block':'none';
@@ -3240,14 +3251,14 @@ function updateHUD(){
     const ic=(id,n)=>n?`<span class="pt-u">${uiIcon(OPT_ICON[id])}${n}</span>`:'';
     let nx=ic('goblin',nb)+ic('orc',no)+ic('darkKnight',ndk)+ic('archer',na);
     if(endlessChampion(nwReal))nx+=ic('troll',1);
-    if(endlessHpMult(nwReal)>1)nx+=`<span class="pt-u pt-hp">HP +${Math.round((endlessHpMult(nwReal)-1)*100)}%</span>`;
+    uiOmenTag(nwReal,'Next wave');
     const ptHtml=`${Math.ceil(buildTimer)}s \u00B7 Next ${nx}`;
     if(h._ptHtml!==ptHtml||h.phaseTimer._t!==null){h._ptHtml=ptHtml;h.phaseTimer.innerHTML=ptHtml;h.phaseTimer._t=null}
     uiScoutHUD();
     __sw(h.barFill,Math.max(0,buildTimer/BUILD_TIME*100)+'%');
     h.bar.classList.toggle('urgent',buildTimer<10);
   }else if(gameState==='combat'){
-    uiScoutHUD(true);
+    uiScoutHUD(true);uiOmenTag(waveNum,'This wave');
     __st(h.phaseInfo,`Wave ${waveNum}${isEndless()?' \u00B7 Endless':' / '+MAX_WAVES}${__combatSpeed>1?' \u25B6\u25B6':''}`);
     // PERF v3.13: inline alive counter avoids per-frame filter alloc.
     let aliveCount=0;
@@ -3564,9 +3575,9 @@ function spawnEnemy(type,spawnCol,spawnRow,owner){
   let path=findPath(spawnCol,spawnRow,enemyGoals(owner),blocker);
   if(!path||path.length<2)path=[{c:spawnCol,r:spawnRow}];
   const hpM=endlessHpMult();
-  const bm=bought?BOUGHT_BOUNTY:1;
-  enemies.push({type,owner,bountyMul:bm,hp:Math.round(d.hp*hpM),maxHp:Math.round(d.hp*hpM),spd:d.spd,dmg:d.dmg,reward:Math.round(d.reward*bm),
-    armor:d.armor||0,color:d.color,x:colToX(spawnCol),y:rowToY(spawnRow),
+  const om=curOmen(),bm=(bought?BOUGHT_BOUNTY:1)*(om.gold||1);
+  enemies.push({type,owner,bountyMul:bm,hp:Math.round(d.hp*hpM),maxHp:Math.round(d.hp*hpM),spd:d.spd*(om.spd||1),dmg:d.dmg,reward:Math.round(d.reward*bm),
+    armor:Math.min(0.75,(d.armor||0)+(om.arm||0)),color:d.color,x:colToX(spawnCol),y:rowToY(spawnRow),
     path,pathIdx:1,alive:true,slowTimer:0,slowMult:1,wallCheckTimer:rnd(0.3,1),
     combatTarget:null,atkCooldown:0,combatScanTimer:rnd(0,0.3),_anim:Math.random()*Math.PI*2,
     flying,ranged:d.range||0,rangedCd:rnd(0.2,0.8),auraCd:1.5,_pathVer:__gridVer,_spawnT:0});
@@ -3611,7 +3622,7 @@ function startWave(){
   const wq=isEndless()?Math.min(waveNum,12):waveNum; // v3.41: endless caps counts
   const base=6+wq*3;
   const baseQ={
-    goblin:base,
+    goblin:Math.round(base*(omenFor(waveNum).gob||1)),
     orc:Math.max(0,wq-1)*2,
     darkKnight:Math.max(0,wq-3)*2,
     archer:Math.max(0,wq-3)*2,
@@ -3952,17 +3963,19 @@ function updateCombat(dt){
   }
 
   // Update towers
+  const __omenRng=curOmen().rng||1;
   for(const t of towers){
     t.cooldown-=dt;const targetOwner=t.owner===1?2:1;
     let best=null,bestDist=Infinity;
     // v3.6: cell query instead of full enemy walk. With 20 towers and
     // 100 enemies this was the single worst linear-scan offender in
     // updateCombat.
-    const nearbyT=__spatQuery(t.x,t.y,t.range,__nearbyTower);
+    const tRange=t.range*(__omenRng||1); // v3.49: Thick Fog
+    const nearbyT=__spatQuery(t.x,t.y,tRange,__nearbyTower);
     for(let i=0;i<nearbyT.length;i++){
       const e=nearbyT[i];
       if(!e.alive||e.owner!==targetOwner)continue;const d=dist(t.x,t.y,e.x,e.y)/T;
-      if(d>t.range)continue;
+      if(d>tRange)continue;
       // v3.40: per-tower target priority. 'first' (0) is the original rule.
       const m=t.tmode||0;
       if(!best){best=e;bestDist=d;continue}
@@ -5184,6 +5197,19 @@ function setEndless(v){endless=!!v;try{localStorage.setItem('castleSiege_endless
 function isEndless(){return gameMode==='1p'&&endless}
 function endlessHpMult(w){w=w==null?waveNum:w;return isEndless()&&w>MAX_WAVES?1+0.15*(w-MAX_WAVES):1}
 function endlessChampion(w){return isEndless()&&w>MAX_WAVES&&w%5===0}
+// v3.49: Endless omens — one symmetric twist per wave past 10, known a
+// full build phase ahead so it can be planned for. Neutral omen object
+// (all 1/0) everywhere else.
+const OMENS=[
+  {id:'bloodmoon',name:'Blood Moon',desc:'All units march 25% faster',spd:1.25},
+  {id:'ironhide',name:'Iron Hides',desc:'All units gain +15% armour',arm:0.15},
+  {id:'goldrush',name:'Gold Rush',desc:'Bounties pay 1.5\u00D7',gold:1.5},
+  {id:'fog',name:'Thick Fog',desc:'Tower range \u221215%',rng:0.85},
+  {id:'swarm',name:'The Swarm',desc:'50% more Goblins in the wave',gob:1.5},
+];
+const OMEN_NONE={id:'',name:'',desc:''};
+function omenFor(w){if(!isEndless()||w<=MAX_WAVES)return OMEN_NONE;return OMENS[(w*7+3)%OMENS.length]}
+function curOmen(){return gameState==='combat'?omenFor(waveNum):OMEN_NONE}
 // Starting gold for the AI at the beginning of a campaign match.
 function applyDifficultyStart(){players[2].credits=gameMode==='1p'?Math.round(START_CREDITS*diffProfile().income):START_CREDITS}
 

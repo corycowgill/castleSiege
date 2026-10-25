@@ -179,14 +179,16 @@ function uiWaveBanner(w){
   const i=Math.max(0,Math.min(WAVE_NAMES.length-1,w-1));
   if(isEndless()&&w>MAX_WAVES){
     const champ=endlessChampion(w);
-    uiBanner(`Endless \u00B7 Wave ${w}`,champ?'Champions Take the Field':ENDLESS_NAMES[(w-MAX_WAVES-1)%ENDLESS_NAMES.length],`Foes grow stronger \u00B7 HP +${Math.round((endlessHpMult(w)-1)*100)}%`,champ);
+    const om=omenFor(w);
+    uiBanner(`Endless \u00B7 Wave ${w}`,champ?'Champions Take the Field':ENDLESS_NAMES[(w-MAX_WAVES-1)%ENDLESS_NAMES.length],`${om.id?`Omen: ${om.name} \u2014 ${om.desc} \u00B7 `:''}HP +${Math.round((endlessHpMult(w)-1)*100)}%`,champ);
     return;
   }
   uiBanner(w>=MAX_WAVES&&!isEndless()?'Final Wave':isEndless()?`Wave ${w} \u00B7 Endless`:`Wave ${w} of ${MAX_WAVES}`,WAVE_NAMES[i],WAVE_TIMES[i],w>=MAX_WAVES&&!isEndless());
 }
 function uiBuildBanner(){
   const w=waveNum+1;
-  uiBanner(w===1?'The Siege Begins':`Wave ${waveNum} Repelled`,'Prepare Defenses',`${BUILD_TIME} seconds to fortify before wave ${w}`);
+  const om=typeof omenFor==='function'?omenFor(w):{};
+  uiBanner(w===1?'The Siege Begins':`Wave ${waveNum} Repelled`,'Prepare Defenses',om.id?`Omen for wave ${w}: ${om.name} \u2014 ${om.desc}`:`${BUILD_TIME} seconds to fortify before wave ${w}`);
 }
 
 // ==================== CALLOUTS & TOASTS ====================
@@ -704,3 +706,15 @@ document.addEventListener('DOMContentLoaded',()=>{
   const b=document.getElementById('btn-continue');if(b)b.addEventListener('click',()=>continueCampaign());
   uiSyncContinue();
 });
+
+// ==================== OMEN TAG (v3.49) ====================
+let __omenSig='';
+function uiOmenTag(w,label){
+  const el=document.getElementById('omen-tag');if(!el)return;
+  const om=omenFor(w),hp=endlessHpMult(w);
+  const sig=om.id||hp>1?label+om.id+hp:'';
+  if(sig===__omenSig)return;__omenSig=sig;
+  if(!sig){el.style.display='none';return}
+  el.innerHTML=`<span class="ok">${label}</span>${om.id?`<b>\u263D ${om.name}</b><i>${om.desc}</i>`:''}${hp>1?`<span class="hp">HP +${Math.round((hp-1)*100)}%</span>`:''}`;
+  el.style.display='flex';
+}
