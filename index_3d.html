@@ -538,6 +538,15 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
 #go-mvp .mn{font-family:var(--f-display);font-weight:700;color:#f3e2b8;letter-spacing:.06em}
 #go-mvp .ms{color:#cdbf9f;font-size:.92em}
 .diff-keys{font-size:.85em!important;opacity:.8}
+/* v3.46: scouting report */
+#scout{position:absolute;top:54px;right:18px;z-index:20;display:none;align-items:center;gap:6px;padding:5px 10px 5px 9px;pointer-events:none;
+  background:linear-gradient(90deg,rgba(20,8,10,0),rgba(30,10,14,.78) 18%);border-right:2px solid rgba(255,110,130,.55);font-size:12px;color:#f0d4d4}
+#scout .sk{font-family:var(--f-display);letter-spacing:.2em;font-size:10px;color:#ff9aa8;text-transform:uppercase;margin-right:2px}
+#scout .sc{display:inline-flex;align-items:center;gap:3px;font-family:var(--f-display);font-weight:700;letter-spacing:.04em}
+#scout .sc .ico{width:15px;height:15px;fill:none;stroke:#ffb0b8;stroke-width:1.8}
+#scout .sc.boss{color:#ffd76a}#scout .sc.boss .ico{stroke:#ffd76a}
+#scout .sq{font-style:italic;color:#cfa8ac}
+@media(max-height:500px){#scout{top:46px;right:76px;font-size:11px;padding:3px 8px}}
 /* v3.39: building inspector */
 .insp{position:fixed;left:0;top:0;z-index:22;pointer-events:none;width:206px;padding:10px 12px 9px;display:none;font-size:12px;line-height:1.35;will-change:transform}
 .insp .ih{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:6px}
@@ -655,7 +664,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
   </div>
   <div class="menu-foot">
     <div class="foot-hints"><span><span class="key">&uarr;</span><span class="key">&darr;</span> Navigate</span><span><span class="key">Enter</span> Select</span><span><span class="key round">A</span> Confirm</span></div>
-    <div class="foot-ver">Castle Siege <b>v3.45</b> &bull; Build 2026-10-24</div>
+    <div class="foot-ver">Castle Siege <b>v3.46</b> &bull; Build 2026-10-24</div>
   </div>
 </div>
 
@@ -820,6 +829,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
   </div>
 </div>
 
+<div id="scout"></div>
 <div id="wave-banner"><div class="wb-band"></div><div class="wb-line"></div><div class="wb-kicker" id="wb-kicker"></div><div class="wb-title" id="wb-title"></div><div class="wb-sub" id="wb-sub"></div><div class="wb-line"></div></div>
 <div id="callouts"></div>
 <div id="tut-card" class="panel frame"><div class="tut-top"><span class="kicker" id="tut-step">Training</span><button class="tut-skip clickable" id="tut-skip">Skip tips</button></div>
@@ -3091,6 +3101,7 @@ function showScreen(name){
   document.getElementById('gameover-ov').style.display=name==='gameover'?'flex':'none';
   if(name!=='game')document.getElementById('tooltip').classList.remove('show');
   if(name!=='game'&&name!=='waveEnd'&&typeof uiTutorialHide==='function')uiTutorialHide();
+  if(name!=='game'&&typeof uiScoutHUD==='function')uiScoutHUD(true);
   // Show touch controls in 1P mode during gameplay
   const showTouch=gameMode==='1p'&&isMobile&&(name==='game'||name==='waveEnd');
   document.getElementById('touch-controls').style.display=showTouch?'block':'none';
@@ -3190,9 +3201,11 @@ function updateHUD(){
     if(endlessChampion(nwReal))parts.push('a Troll champion');
     if(endlessHpMult(nwReal)>1)parts.push(`HP +${Math.round((endlessHpMult(nwReal)-1)*100)}%`);
     __st(h.phaseTimer,`${Math.ceil(buildTimer)}s \u00B7 Next: ${parts.join(', ')}`);
+    uiScoutHUD();
     __sw(h.barFill,Math.max(0,buildTimer/BUILD_TIME*100)+'%');
     h.bar.classList.toggle('urgent',buildTimer<10);
   }else if(gameState==='combat'){
+    uiScoutHUD(true);
     __st(h.phaseInfo,`Wave ${waveNum}${isEndless()?' \u00B7 Endless':' / '+MAX_WAVES}${__combatSpeed>1?' \u25B6\u25B6':''}`);
     // PERF v3.13: inline alive counter avoids per-frame filter alloc.
     let aliveCount=0;
@@ -3578,6 +3591,8 @@ function startWave(){
     for(let i=0;i<b2;i++)spawnQueue2.push(bid);
   }
   if(endlessChampion(waveNum)){spawnQueue1.push('troll');spawnQueue2.push('troll')}
+  // v3.46: scouting callout — what the Warlord bought on top of the wave
+  if(gameMode==='1p'){const t=uiScoutText(players[2].enemyQueue,true);if(t)setTimeout(()=>{if(gameState==='combat')uiCallout(t,'#ff7a8a','warn')},1100)}
   players[1].enemyQueue={goblin:0,orc:0,darkKnight:0,archer:0,troll:0,dragon:0,lich:0};
   players[2].enemyQueue={goblin:0,orc:0,darkKnight:0,archer:0,troll:0,dragon:0,lich:0};
   players[1].ready=false;players[2].ready=false;

@@ -659,3 +659,30 @@ document.addEventListener('DOMContentLoaded',()=>{
   const d=document.getElementById('btn-hon-done');if(d)d.addEventListener('click',uiCloseHonours);
   uiSyncHonoursMenu();
 });
+
+// ==================== SCOUTING REPORT (v3.46) ====================
+// Campaign only: during the build phase the HUD shows what the Warlord
+// has bought for the next wave (Hard: only a head-count), and a callout
+// names the purchased units when the wave starts.
+const SCOUT_PLURAL={goblin:'Goblins',orc:'Orcs',darkKnight:'Dark Knights',archer:'Archers',troll:'Trolls',dragon:'Dragons',lich:'Liches'};
+const SCOUT_ONE={troll:'a Troll',dragon:'a Dragon',lich:'a Lich'};
+function uiScoutText(q,html){
+  const parts=[];for(const id of Object.keys(SCOUT_PLURAL)){const n=q[id]||0;if(n)parts.push(n===1&&SCOUT_ONE[id]?SCOUT_ONE[id]:`${n} ${SCOUT_PLURAL[id]}`)}
+  if(!parts.length)return '';
+  if(difficulty==='hard'){const n=Object.values(q).reduce((a,b)=>a+(b||0),0);return `The Warlord's host swells by <b>${n}</b> more`}
+  const list=parts.length>1?parts.slice(0,-1).join(', ')+' and '+parts[parts.length-1]:parts[0];
+  return html?`The Warlord sends <b>${list}</b>`:list;
+}
+let __scoutSig='';
+function uiScoutHUD(hide){
+  const el=document.getElementById('scout');if(!el)return;
+  if(hide||gameMode!=='1p'||gameState!=='build'){if(__scoutSig){__scoutSig='';el.style.display='none'}return}
+  const q=players[2].enemyQueue,sig=difficulty+JSON.stringify(q);
+  if(sig===__scoutSig)return;__scoutSig=sig;
+  const ids=Object.keys(SCOUT_PLURAL).filter(id=>q[id]>0);
+  if(!ids.length){el.style.display='none';return}
+  let html='<span class="sk">Scouts</span>';
+  if(difficulty==='hard'){const n=ids.reduce((a,id)=>a+q[id],0);html+=`<span class="sq">${n} more mustering</span>`}
+  else html+=ids.map(id=>`<span class="sc ${SCOUT_ONE[id]?'boss':''}">${uiIcon(OPT_ICON[id])}${q[id]}</span>`).join('');
+  el.innerHTML=html;el.style.display='flex';
+}
