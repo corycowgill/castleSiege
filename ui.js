@@ -97,7 +97,7 @@ function uiFade(cb){
 // pause panel and the game-over actions. Mouse hover moves focus too.
 const __nav={items:[],idx:0,descEl:null};
 function uiNavSet(selector,descEl){
-  __nav.items=[...document.querySelectorAll(selector)];
+  __nav.items=[...document.querySelectorAll(selector)].filter(e=>e.style.display!=='none');
   __nav.descEl=descEl||null;
   __nav.idx=Math.max(0,__nav.items.findIndex(i=>i.classList.contains('focus')));
   __nav.items.forEach((it,i)=>{
@@ -298,6 +298,7 @@ function uiReturnToMenu(){
 }
 
 // ==================== WAVE SUMMARY ====================
+const __leakTxt=L=>L&&L.n?`${L.n} <span class="leak">\u2212${Math.round(L.d)}</span>`:'<span class="hold">None</span>';
 function uiWaveEnd(){
   const p1=players[1],p2=players[2];
   const wk1=p1.kills-(__waveStartKills1||0),wk2=p2.kills-(__waveStartKills2||0);
@@ -307,7 +308,9 @@ function uiWaveEnd(){
   document.getElementById('we-title').textContent=`Wave ${waveNum} Complete`;
   document.getElementById('we-grid').innerHTML=
     `<div class="l p1c hd" style="font-size:clamp(10px,1vw,12px);letter-spacing:.24em">BLUE CROWN</div><div class="m"></div><div class="r p2c hd" style="font-size:clamp(10px,1vw,12px);letter-spacing:.24em">${n2.toUpperCase()}</div>`+
-    row(wk1,'Kills',wk2)+row(wd1,'Damage',wd2)+row(Math.max(0,Math.ceil(p1.castleHP)),'Castle HP',Math.max(0,Math.ceil(p2.castleHP)));
+    row(wk1,'Kills',wk2)+row(wd1,'Damage',wd2)+row(Math.max(0,Math.ceil(p1.castleHP)),'Castle HP',Math.max(0,Math.ceil(p2.castleHP)))+
+    // v3.48: who broke through to each keep this wave, and what it cost
+    row(__leakTxt(__waveLeak[1]),'Broke through',__leakTxt(__waveLeak[2]));
 }
 
 // ==================== GAME OVER ====================
@@ -686,3 +689,18 @@ function uiScoutHUD(hide){
   else html+=ids.map(id=>`<span class="sc ${SCOUT_ONE[id]?'boss':''}">${uiIcon(OPT_ICON[id])}${q[id]}</span>`).join('');
   el.innerHTML=html;el.style.display='flex';
 }
+
+// ==================== CONTINUE (v3.48) ====================
+function uiSyncContinue(){
+  const b=document.getElementById('btn-continue');if(!b)return;
+  const d=typeof loadCampaignSave==='function'?loadCampaignSave():null;
+  b.style.display=d?'':'none';
+  if(d){const D=DIFFICULTY[d.d]||DIFFICULTY.normal;
+    document.getElementById('btn-continue-sub').textContent=`Wave ${d.w+1} \u00B7 ${D.label}${d.e?' \u00B7 Endless':''}`;
+    b.dataset.desc=`Resume your Campaign against the ${D.name}: wave ${d.w+1} build phase, keep at ${Math.max(0,Math.ceil(d.p[1].hp))} HP, $${d.p[1].cr.toLocaleString()} in the treasury.`}
+  if(gameState==='modeselect'&&document.getElementById('main-menu'))uiNavSet('#main-menu .menu-item',document.getElementById('menu-desc'));
+}
+document.addEventListener('DOMContentLoaded',()=>{
+  const b=document.getElementById('btn-continue');if(b)b.addEventListener('click',()=>continueCampaign());
+  uiSyncContinue();
+});

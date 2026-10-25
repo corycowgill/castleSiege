@@ -429,6 +429,8 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
 .we-grid{display:grid;grid-template-columns:1fr auto 1fr;gap:6px 18px;align-items:center;margin:0 auto 14px;max-width:440px}
 .we-grid .l{text-align:right;font-family:var(--f-display);font-weight:700;font-size:clamp(14px,1.5vw,19px)}
 .we-grid .r{text-align:left;font-family:var(--f-display);font-weight:700;font-size:clamp(14px,1.5vw,19px)}
+.we-grid .leak{color:#ff7a6a;font-size:.8em;margin-left:4px}.we-grid .hold{color:#9fe07a;font-size:.75em;letter-spacing:.12em;text-transform:uppercase}
+#btn-continue .mi-idx{color:var(--gold)}#btn-continue .mi-label{color:#f6dc8e}
 .we-grid .m{font-family:var(--f-display);font-size:clamp(9px,.85vw,11px);letter-spacing:.26em;text-transform:uppercase;color:var(--parch-d)}
 .we-grid .hd{font-size:clamp(10px,1vw,12px);letter-spacing:.24em}
 #we-reward{font-style:italic;color:var(--parch);font-size:clamp(12px,1.2vw,15px);margin-bottom:14px}
@@ -551,6 +553,9 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
 #go-mvp .mn{font-family:var(--f-display);font-weight:700;color:#f3e2b8;letter-spacing:.06em}
 #go-mvp .ms{color:#cdbf9f;font-size:.92em}
 .diff-keys{font-size:.85em!important;opacity:.8}
+/* v3.48: next-wave icon counts in the phase timer */
+.pt-u{display:inline-flex;align-items:center;gap:2px;margin-left:6px}.pt-u .ico{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2;opacity:.85}
+.pt-hp{color:#ff9aa8}
 /* v3.46: scouting report */
 #scout{position:absolute;top:54px;right:18px;z-index:20;display:none;align-items:center;gap:6px;padding:5px 10px 5px 9px;pointer-events:none;
   background:linear-gradient(90deg,rgba(20,8,10,0),rgba(30,10,14,.78) 18%);border-right:2px solid rgba(255,110,130,.55);font-size:12px;color:#f0d4d4}
@@ -660,6 +665,8 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
   <div class="menu-wrap">
     <h1 class="logo">Castle Siege<small>War of the Two Crowns</small></h1>
     <nav class="menu-list" id="main-menu">
+      <button class="menu-item" id="btn-continue" style="display:none" data-desc="Pick up your Campaign where you left it, at the start of the next build phase.">
+        <span class="mi-idx">&#9656;</span><span class="mi-label">Continue</span><span class="mi-sub" id="btn-continue-sub"></span></button>
       <button class="menu-item" id="btn-1p" data-desc="Hold your keep against a scheming AI warlord across ten waves, from noon to the final dawn." onclick="if(window._select1P)window._select1P()">
         <span class="mi-idx">I</span><span class="mi-label">Campaign</span><span class="mi-sub" id="btn-1p-sub">vs AI Warlord</span></button>
       <button class="menu-item" id="btn-2p" data-desc="Two commanders, one battlefield. Keyboard or controller against mouse, side by side." onclick="if(window._select2P)window._select2P()">
@@ -677,7 +684,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
   </div>
   <div class="menu-foot">
     <div class="foot-hints"><span><span class="key">&uarr;</span><span class="key">&darr;</span> Navigate</span><span><span class="key">Enter</span> Select</span><span><span class="key round">A</span> Confirm</span></div>
-    <div class="foot-ver">Castle Siege <b>v3.47</b> &bull; Build 2026-10-24</div>
+    <div class="foot-ver">Castle Siege <b>v3.48</b> &bull; Build 2026-10-24</div>
   </div>
 </div>
 
@@ -1268,6 +1275,7 @@ let gameState='modeselect';
 // v3.25: wave-start stat snapshots for per-wave recap
 let __waveStartKills1=0,__waveStartKills2=0,__waveStartDmg1=0,__waveStartDmg2=0;
 let waveNum=0,buildTimer=0,waveEndTimer=0,__waveTotal=0;
+let __waveLeak={1:{n:0,d:0},2:{n:0,d:0}}; // v3.48: enemies that reached each keep this wave
 let spawnQueue1=[],spawnQueue2=[],spawnTimer=0;
 const enemies=[],towers=[],projectiles=[];
 
@@ -3228,10 +3236,13 @@ function updateHUD(){
     const no=Math.max(0,nw-1)*2;
     const ndk=Math.max(0,nw-3)*2;
     const na=Math.max(0,nw-3)*2;
-    const parts=[nb+' Goblins'];if(no)parts.push(no+' Orcs');if(ndk)parts.push(ndk+' Knights');if(na)parts.push(na+' Archers');
-    if(endlessChampion(nwReal))parts.push('a Troll champion');
-    if(endlessHpMult(nwReal)>1)parts.push(`HP +${Math.round((endlessHpMult(nwReal)-1)*100)}%`);
-    __st(h.phaseTimer,`${Math.ceil(buildTimer)}s \u00B7 Next: ${parts.join(', ')}`);
+    // v3.48: compact icon counts — the worded list overflowed from wave 4
+    const ic=(id,n)=>n?`<span class="pt-u">${uiIcon(OPT_ICON[id])}${n}</span>`:'';
+    let nx=ic('goblin',nb)+ic('orc',no)+ic('darkKnight',ndk)+ic('archer',na);
+    if(endlessChampion(nwReal))nx+=ic('troll',1);
+    if(endlessHpMult(nwReal)>1)nx+=`<span class="pt-u pt-hp">HP +${Math.round((endlessHpMult(nwReal)-1)*100)}%</span>`;
+    const ptHtml=`${Math.ceil(buildTimer)}s \u00B7 Next ${nx}`;
+    if(h._ptHtml!==ptHtml||h.phaseTimer._t!==null){h._ptHtml=ptHtml;h.phaseTimer.innerHTML=ptHtml;h.phaseTimer._t=null}
     uiScoutHUD();
     __sw(h.barFill,Math.max(0,buildTimer/BUILD_TIME*100)+'%');
     h.bar.classList.toggle('urgent',buildTimer<10);
@@ -3568,7 +3579,7 @@ function spawnEnemy(type,spawnCol,spawnRow,owner){
 }
 
 function startWave(){
-  waveNum++;clearFreshBuilds();gameState='combat';sndWaveStart();
+  waveNum++;clearFreshBuilds();__waveLeak={1:{n:0,d:0},2:{n:0,d:0}};gameState='combat';sndWaveStart();
   // v3.25: snapshot kills/damage at wave start for per-wave recap
   __waveStartKills1=players[1].kills;__waveStartKills2=players[2].kills;
   __waveStartDmg1=players[1].totalDmgDealt;__waveStartDmg2=players[2].totalDmgDealt;
@@ -3649,7 +3660,7 @@ function startBuild(){
       if(interest>0){const cw=tileToWorld(pn===1?1:38,9);spawnDmgNumber(cw.x,1.8,cw.z,'+$'+interest+' INTEREST','#ffd700')}
     }
   }
-  showScreen('game');uiHonoursEvent('build');
+  showScreen('game');uiHonoursEvent('build');saveCampaign();
   uiBuildBanner();
 }
 
@@ -3682,6 +3693,9 @@ function processInput(dt){
       if(gpPressed(gp,3))p1.selectedSpecial=(p1.selectedSpecial+1)%4;
     }
     if((gameState==='build'||gameState==='combat')&&gpPressed(gp,10))cycleTargetMode(p1,1);
+    // v3.48: triggers zoom (LT out, RT in)
+    {const lt=gp.buttons[6]?gp.buttons[6].value:0,rt=gp.buttons[7]?gp.buttons[7].value:0;
+     if(rt>0.2||lt>0.2)setCameraZoom(camZoom*(1+(rt-lt)*1.6*dt))}
     if(gameState==='combat'){if(gpPressed(gp,2))useSpecial(p1,1);if(gpPressed(gp,3))p1.selectedSpecial=(p1.selectedSpecial+1)%4}
     const newPrev={};for(let i=0;i<gp.buttons.length;i++)newPrev[i]=gp.buttons[i].pressed;gpPrev=newPrev;
   }
@@ -3924,6 +3938,7 @@ function updateCombat(dt){
     // Path following
     if(e.pathIdx>=e.path.length){
       const target=e.owner===1?players[2]:players[1];target.castleHP-=e.dmg;
+      {const L=__waveLeak[e.owner===1?2:1];L.n++;L.d+=e.dmg} // v3.48: wave report
       target._hitT=0.3;
       const ep=pixelToWorld(e.x,e.y);
       spawnDmgNumber(ep.x,0.5,ep.z,'-'+e.dmg,'#ff8800');emitParticles(ep.x,0.3,ep.z,0xff4400,10,80);
@@ -4044,7 +4059,46 @@ function updateCombat(dt){
   }
 }
 
+// ==================== v3.48: CAMPAIGN SAVE / CONTINUE ====================
+// Saved at the start of every Campaign build phase (no units in play, so
+// the state is just the board, the two treasuries and the wave count).
+const SAVE_KEY='castleSiege_save';
+function saveCampaign(){
+  if(gameMode!=='1p'||waveNum<1)return;
+  const cells=[];for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){const x=grid[r][c];if(x&&x.type!=='castle'&&x.type!=='tower')cells.push([c,r,x.type,x.owner,Math.round(x.hp),x.maxHp])}
+  const pl=pn=>{const p=players[pn];return{cr:Math.round(p.credits),hp:p.castleHP,mx:p.maxHP,k:p.kills,dd:Math.round(p.totalDmgDealt)}};
+  const data={v:1,t:Date.now(),w:waveNum,d:difficulty,e:endless,p:[null,pl(1),pl(2)],cells,
+    towers:towers.map(t=>({ty:t.type,c:t.col,r:t.row,o:t.owner,l:t.level||1,m:t.tmode||0,k:t.kills||0,dd:Math.round(t.dmgDone||0)}))};
+  try{localStorage.setItem(SAVE_KEY,JSON.stringify(data))}catch(e){}
+  if(typeof uiSyncContinue==='function')uiSyncContinue();
+}
+function loadCampaignSave(){try{const d=JSON.parse(localStorage.getItem(SAVE_KEY)||'null');return d&&d.v===1&&d.w>=1?d:null}catch(e){return null}}
+function clearCampaignSave(){try{localStorage.removeItem(SAVE_KEY)}catch(e){}if(typeof uiSyncContinue==='function')uiSyncContinue()}
+function applyCampaignSave(d){
+  setDifficulty(d.d);setEndless(!!d.e);waveNum=d.w;
+  for(const pn of[1,2]){const p=players[pn],q=d.p[pn];p.credits=q.cr;p.castleHP=q.hp;p.maxHP=q.mx;p.kills=q.k;p.totalDmgDealt=q.dd;p.specials=3;p.ready=false}
+  for(const [c,r,type,owner,hp,maxHp] of d.cells)grid[r][c]={type,owner,hp,maxHp};
+  for(const s of d.towers){
+    const td=TOWER_DATA.find(x=>x.id===s.ty);if(!td)continue;const lv=s.l;
+    grid[s.r][s.c]={type:'tower',owner:s.o,towerType:s.ty};
+    towers.push({type:s.ty,col:s.c,row:s.r,owner:s.o,range:td.range*(1+0.1*(lv-1)),dmg:Math.round(td.dmg*(1+0.3*(lv-1))),rate:td.rate*(1-0.15*(lv-1)),projSpd:td.spd,
+      splash:td.splash,color:td.color,x:colToX(s.c),y:rowToY(s.r),cooldown:0,target:null,angle:0,level:lv,fresh:0,tmode:s.m,kills:s.k,dmgDone:s.dd});
+  }
+  markGridDirty();applyTimeOfDay(timeOfDayForWave(waveNum));
+  __tut.i=-1;uiTutorialHide();
+}
+function continueCampaign(){
+  const d=loadCampaignSave();if(!d)return;
+  window._select1P();
+  uiFade(()=>{
+    restartGame();applyCampaignSave(d);saveCampaign();
+    players[1].ready=false;players[2].ready=false;
+    uiToast(1,`Campaign resumed \u00B7 wave ${d.w+1} \u00B7 ${diffProfile().label}${isEndless()?' \u00B7 Endless':''}`,'gold','emblem');
+  });
+}
+
 function showGameOver(){
+  if(gameMode==='1p')clearCampaignSave();
   let winner;
   if(players[1].castleHP<=0&&players[2].castleHP<=0)winner='draw';
   else if(players[1].castleHP<=0)winner=2;
@@ -4070,6 +4124,7 @@ function showGameOver(){
 }
 
 function restartGame(){
+  if(gameMode==='1p')clearCampaignSave(); // a restart starts the campaign over
   enemies.length=0;towers.length=0;projectiles.length=0;spawnQueue1.length=0;spawnQueue2.length=0;
   // Clean 3D meshes
   enemyMeshes.forEach(m=>releaseEnemyMesh(m));enemyMeshes.clear();
@@ -5459,6 +5514,7 @@ function updateTitle(){
     setTimeout(()=>uiFade(()=>{
       __lobbyLaunching=false;
       startMusic();gameState='build';buildTimer=BUILD_TIME;applyTimeOfDay(0);applyDifficultyStart();uiTutorialReset();uiHonoursReset();
+      if(gameMode==='1p')clearCampaignSave();
       players[1].ready=false;players[2].ready=false;showScreen('game');uiBuildBanner();
     }),450);
   }
