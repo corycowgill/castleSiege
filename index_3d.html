@@ -693,7 +693,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
   </div>
   <div class="menu-foot">
     <div class="foot-hints"><span><span class="key">&uarr;</span><span class="key">&darr;</span> Navigate</span><span><span class="key">Enter</span> Select</span><span><span class="key round">A</span> Confirm</span></div>
-    <div class="foot-ver">Castle Siege <b>v3.50</b> &bull; Build 2026-10-24</div>
+    <div class="foot-ver">Castle Siege <b>v3.51</b> &bull; Build 2026-10-24</div>
   </div>
 </div>
 
@@ -758,7 +758,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
     <div id="title-p2-ready" class="pcard p2 panel frame">
       <div class="pcard-top">
         <div class="crest"><svg viewBox="0 0 56 66"><use href="#crest-p2"/></svg></div>
-        <div><div class="pcard-name" id="lobby-p2-name">Red Crown</div><div class="pcard-dev" id="lobby-p2-dev">Player 2 &bull; Mouse</div></div>
+        <div><div class="pcard-name" id="lobby-p2-name">Red Crown</div><div class="pcard-dev" id="lobby-p2-dev">Player 2 &bull; Mouse or 2nd controller</div></div>
       </div>
       <div class="pcard-keys" id="lobby-p2-keys">
         <span class="k"><span class="key">Mouse</span></span><span class="a">Move cursor</span>
@@ -1358,7 +1358,7 @@ const players=[null,
 ];
 
 // ==================== INPUT STATE ====================
-let mouseClicked=false,mouseRightClicked=false,middleClicked=false,scrollDelta=0;
+let mouseClicked=false,mouseRightClicked=false,middleClicked=false,scrollDelta=0,__mouseMoved=false;
 let mouseX=0,mouseY=0;
 const keys={},keyPressed={};
 const gameKeys=new Set(['KeyM','KeyW','KeyA','KeyS','KeyD','Space','KeyQ','KeyE','KeyR','KeyF','KeyZ','KeyT','KeyP','KeyH','Tab','Enter','Escape','ArrowUp','ArrowDown','ArrowLeft','ArrowRight']);
@@ -3682,39 +3682,50 @@ function startBuild(){
 
 // ==================== INPUT PROCESSING ====================
 let gpPrev={};
-function getGamepad(){
+function getGamepad(n){
   const gps=navigator.getGamepads?navigator.getGamepads():[];
-  for(const g of gps)if(g&&g.connected)return g;return null;
+  let k=n||0;for(const g of gps)if(g&&g.connected){if(k===0)return g;k--}return null;
 }
-function gpPressed(gp,btn){return gp&&gp.buttons[btn]&&gp.buttons[btn].pressed&&!gpPrev[btn]}
+function gpPressed(gp,btn,prev){prev=prev||gpPrev;return gp&&gp.buttons[btn]&&gp.buttons[btn].pressed&&!prev[btn]}
+let gpPrev2={};
+// v3.51: say which commander a newly connected pad drives
+window.addEventListener('gamepadconnected',()=>{setTimeout(()=>{
+  const n=(navigator.getGamepads?[...navigator.getGamepads()]:[]).filter(g=>g&&g.connected).length;
+  if(typeof uiToast!=='function')return;
+  if(n===1)uiToast(1,'Controller connected \u00B7 Blue Crown','good','check');
+  else if(n===2)uiToast(gameMode==='2p'?2:1,gameMode==='2p'?'Controller 2 connected \u00B7 Red Crown':'Controller 2 connected \u00B7 used in Versus','good','check');
+},50)});
+// One controller driving one commander (P1 pad 1; in Versus, P2 pad 2).
+function padControl(gp,pl,pn,prev,dt){
+  const P=b=>gpPressed(gp,b,prev);
+  const dz=0.3,lx=Math.abs(gp.axes[0])>dz?gp.axes[0]:0,ly=Math.abs(gp.axes[1])>dz?gp.axes[1]:0;
+  pl.stickTimer=(pl.stickTimer||0)-dt;
+  if(pl.stickTimer<=0&&(lx||ly)){pl.cursor.c=clamp(pl.cursor.c+Math.sign(lx),0,COLS-1);pl.cursor.r=clamp(pl.cursor.r+Math.sign(ly),0,ROWS-1);pl.stickTimer=0.12}
+  if(!lx&&!ly)pl.stickTimer=0;
+  if(P(12))pl.cursor.r=Math.max(0,pl.cursor.r-1);
+  if(P(13))pl.cursor.r=Math.min(ROWS-1,pl.cursor.r+1);
+  if(P(14))pl.cursor.c=Math.max(0,pl.cursor.c-1);
+  if(P(15))pl.cursor.c=Math.min(COLS-1,pl.cursor.c+1);
+  if(gameState==='build'){
+    if(P(4))pl.selectedIdx=(pl.selectedIdx-1+BUILD_OPTS.length)%BUILD_OPTS.length;
+    if(P(5))pl.selectedIdx=(pl.selectedIdx+1)%BUILD_OPTS.length;
+    if(P(0))tryPlace(pl,pn);if(P(1))trySell(pl,pn);if(P(9))pl.ready=true;
+    if(P(3))pl.selectedSpecial=(pl.selectedSpecial+1)%4;
+  }
+  if((gameState==='build'||gameState==='combat')&&P(10))cycleTargetMode(pl,pn);
+  // v3.48: triggers zoom (LT out, RT in)
+  {const lt=gp.buttons[6]?gp.buttons[6].value:0,rt=gp.buttons[7]?gp.buttons[7].value:0;
+   if(rt>0.2||lt>0.2)setCameraZoom(camZoom*(1+(rt-lt)*1.6*dt))}
+  if(gameState==='combat'){if(P(2))useSpecial(pl,pn);if(P(3))pl.selectedSpecial=(pl.selectedSpecial+1)%4}
+  const np={};for(let i=0;i<gp.buttons.length;i++)np[i]=gp.buttons[i].pressed;return np;
+}
 
 function processInput(dt){
   const gp=getGamepad();const p1=players[1],p2=players[2];
 
-  // P1 Gamepad
-  if(gp){
-    if(!audioCtx)initAudio();
-    const dz=0.3,lx=Math.abs(gp.axes[0])>dz?gp.axes[0]:0,ly=Math.abs(gp.axes[1])>dz?gp.axes[1]:0;
-    p1.stickTimer-=dt;
-    if(p1.stickTimer<=0&&(lx||ly)){p1.cursor.c=clamp(p1.cursor.c+Math.sign(lx),0,COLS-1);p1.cursor.r=clamp(p1.cursor.r+Math.sign(ly),0,ROWS-1);p1.stickTimer=0.12}
-    if(!lx&&!ly)p1.stickTimer=0;
-    if(gpPressed(gp,12))p1.cursor.r=Math.max(0,p1.cursor.r-1);
-    if(gpPressed(gp,13))p1.cursor.r=Math.min(ROWS-1,p1.cursor.r+1);
-    if(gpPressed(gp,14))p1.cursor.c=Math.max(0,p1.cursor.c-1);
-    if(gpPressed(gp,15))p1.cursor.c=Math.min(COLS-1,p1.cursor.c+1);
-    if(gameState==='build'){
-      if(gpPressed(gp,4))p1.selectedIdx=(p1.selectedIdx-1+BUILD_OPTS.length)%BUILD_OPTS.length;
-      if(gpPressed(gp,5))p1.selectedIdx=(p1.selectedIdx+1)%BUILD_OPTS.length;
-      if(gpPressed(gp,0))tryPlace(p1,1);if(gpPressed(gp,1))trySell(p1,1);if(gpPressed(gp,9))p1.ready=true;
-      if(gpPressed(gp,3))p1.selectedSpecial=(p1.selectedSpecial+1)%4;
-    }
-    if((gameState==='build'||gameState==='combat')&&gpPressed(gp,10))cycleTargetMode(p1,1);
-    // v3.48: triggers zoom (LT out, RT in)
-    {const lt=gp.buttons[6]?gp.buttons[6].value:0,rt=gp.buttons[7]?gp.buttons[7].value:0;
-     if(rt>0.2||lt>0.2)setCameraZoom(camZoom*(1+(rt-lt)*1.6*dt))}
-    if(gameState==='combat'){if(gpPressed(gp,2))useSpecial(p1,1);if(gpPressed(gp,3))p1.selectedSpecial=(p1.selectedSpecial+1)%4}
-    const newPrev={};for(let i=0;i<gp.buttons.length;i++)newPrev[i]=gp.buttons[i].pressed;gpPrev=newPrev;
-  }
+  // P1 Gamepad (first pad) — v3.51: shared handler; P2 gets the second pad in Versus
+  if(gp){if(!audioCtx)initAudio();gpPrev=padControl(gp,p1,1,gpPrev,dt)}
+  {const gp2=gameMode==='2p'?getGamepad(1):null;if(gp2)gpPrev2=padControl(gp2,p2,2,gpPrev2,dt)}
 
   // P1 Keyboard
   {
@@ -3747,10 +3758,15 @@ function processInput(dt){
   mouseNDC.y=-(mouseY/renderer.domElement.clientHeight)*2+1;
   raycaster.setFromCamera(mouseNDC,camera);
   const hit=new THREE.Vector3();
-  if(raycaster.ray.intersectPlane(groundPlane,hit)){
+  // v3.51: only when the mouse moved or clicked — a resting pointer used to
+  // pin the cursor every tick, overriding WASD / a second controller and
+  // dragging the cursor along while the camera zoomed.
+  const mouseActive=__mouseMoved||mouseClicked||mouseRightClicked||middleClicked;
+  if(raycaster.ray.intersectPlane(groundPlane,hit)&&mouseActive){
     const tile=worldToTile(hit.x,hit.z);
     if(tile.row>=0&&tile.row<ROWS){mousePlayer.cursor.c=clamp(tile.col,0,COLS-1);mousePlayer.cursor.r=clamp(tile.row,0,ROWS-1)}
   }
+  __mouseMoved=false;
 
   if(gameState==='build'){
     if(scrollDelta){mousePlayer.selectedIdx=(mousePlayer.selectedIdx+Math.sign(scrollDelta)+BUILD_OPTS.length)%BUILD_OPTS.length}
@@ -5616,6 +5632,7 @@ function gameLoop(){
     const gp=getGamepad();
     if(gp&&gpPressed(gp,0)){if(!audioCtx)initAudio();players[1].ready=true}
     if(gp){const np={};for(let i=0;i<gp.buttons.length;i++)np[i]=gp.buttons[i].pressed;gpPrev=np}
+    {const g2=gameMode==='2p'?getGamepad(1):null;if(g2){if(gpPressed(g2,0,gpPrev2))players[2].ready=true;const np={};for(let i=0;i<g2.buttons.length;i++)np[i]=g2.buttons[i].pressed;gpPrev2=np}}
     updateTitle();
     mouseClicked=false;mouseRightClicked=false;scrollDelta=0;middleClicked=false;
     Object.keys(keyPressed).forEach(k=>keyPressed[k]=false);
@@ -5630,6 +5647,7 @@ function gameLoop(){
     if(gameState==='gameover')uiNavPoll();
     if(consumeKey('Escape')||consumeKey('KeyP')){uiPause();__simAcc=0}
     {const gp=getGamepad();if(gp&&gp.buttons[8]&&gp.buttons[8].pressed&&!gpPrev[8])uiPause()}
+    {const g2=gameMode==='2p'?getGamepad(1):null;if(g2&&g2.buttons[8]&&g2.buttons[8].pressed&&!gpPrev2[8])uiPause()}
     while(gameState!=='paused'&&__simAcc>=SIM_DT&&simSteps<MAX_SIM_STEPS){
       processInput(SIM_DT);
       if(gameMode==='1p')processTouchInput(SIM_DT);
@@ -5852,7 +5870,7 @@ function init(){
   });
   cvs.addEventListener('mousemove',(e)=>{
     const rect=cvs.getBoundingClientRect();
-    mouseX=e.clientX-rect.left;mouseY=e.clientY-rect.top;
+    mouseX=e.clientX-rect.left;mouseY=e.clientY-rect.top;__mouseMoved=true;
   });
   cvs.addEventListener('wheel',(e)=>{
     // v3.47: Shift/Ctrl + wheel (and trackpad pinch, which arrives as ctrl+wheel) zooms
