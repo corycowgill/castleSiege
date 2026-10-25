@@ -693,7 +693,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
   </div>
   <div class="menu-foot">
     <div class="foot-hints"><span><span class="key">&uarr;</span><span class="key">&darr;</span> Navigate</span><span><span class="key">Enter</span> Select</span><span><span class="key round">A</span> Confirm</span></div>
-    <div class="foot-ver">Castle Siege <b>v3.51</b> &bull; Build 2026-10-24</div>
+    <div class="foot-ver">Castle Siege <b>v3.52</b> &bull; Build 2026-10-24</div>
   </div>
 </div>
 
@@ -3789,7 +3789,12 @@ function processInput(dt){
 // ==================== GAME UPDATE ====================
 function updateBuild(dt){
   buildTimer-=dt;
+  // v3.52: P1 readying early locks in the early bonus at that moment
+  if(players[1].ready&&players[1]._readyAt==null)players[1]._readyAt=buildTimer;
+  if(!players[1].ready)players[1]._readyAt=null;
   if(buildTimer<=0||(players[1].ready&&players[2].ready)){
+    if(gameMode==='1p'&&players[1]._readyAt!=null)buildTimer=Math.max(buildTimer,players[1]._readyAt);
+    players[1]._readyAt=null;players[2]._vt=null;
     // v3.24: early-ready credit bonus — $3 per second of unused
     // build time. Incentivizes fast decision-making. Only awarded
     // when BOTH players ready up before the timer expires.
@@ -5251,6 +5256,14 @@ function applyDifficultyStart(){players[2].credits=gameMode==='1p'?Math.round(ST
 function aiUpdate(dt){
   const ai=players[2];
   if(gameState==='build'){
+    // v3.52: once the player is ready, the AI plays out the rest of its
+    // build phase at 8x on a virtual clock — the same actions it would
+    // have taken, so its spending is unchanged — instead of making the
+    // player wait up to 35s for its readyAt threshold.
+    const hurry=gameMode==='1p'&&players[1].ready&&!ai.ready;
+    if(hurry&&ai._vt==null)ai._vt=buildTimer;
+    if(!hurry&&!players[1].ready)ai._vt=null;
+    const k=hurry?8:1;dt*=k;if(hurry)ai._vt-=dt;
     aiBuildTimer-=dt;
     const D=diffProfile();
     if(aiBuildTimer<=0){
@@ -5263,7 +5276,7 @@ function aiUpdate(dt){
       if(isEndless()&&waveNum>=MAX_WAVES)for(let k=Math.min(6,Math.floor(ai.credits/1500));k>0&&ai.credits>=D.keep;k--)aiDoBuildAction(ai);
     }
     // AI readies up when time is short or it has spent down its gold
-    if(buildTimer<D.readyAt||ai.credits<D.keep)ai.ready=true;
+    if((hurry?ai._vt:buildTimer)<D.readyAt||ai.credits<D.keep)ai.ready=true;
   }
   if(gameState==='combat'){
     aiSpecialTimer-=dt;
