@@ -609,7 +609,7 @@ function uiHonour(id){
   if(__hon[id])return false;const h=HONOURS.find(x=>x.id===id);if(!h)return false;
   __hon[id]=Date.now();try{localStorage.setItem('castleSiege_honours',JSON.stringify(__hon))}catch(e){}
   __honBattle.push(id);
-  uiCallout(`Honour earned · <b>${h.name}</b>`,'#ffd76a',h.icon);uiSfx('select');
+  uiCallout(`Honour earned · <b>${h.name}</b>`,'#ffd76a',h.icon);if(typeof sndHonour==='function')sndHonour();
   uiSyncHonoursMenu();return true;
 }
 function uiHonoursReset(){__honBattle=[];__honT=0}

@@ -693,7 +693,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
   </div>
   <div class="menu-foot">
     <div class="foot-hints"><span><span class="key">&uarr;</span><span class="key">&darr;</span> Navigate</span><span><span class="key">Enter</span> Select</span><span><span class="key round">A</span> Confirm</span></div>
-    <div class="foot-ver">Castle Siege <b>v3.49</b> &bull; Build 2026-10-24</div>
+    <div class="foot-ver">Castle Siege <b>v3.50</b> &bull; Build 2026-10-24</div>
   </div>
 </div>
 
@@ -1217,6 +1217,10 @@ function sndWallHit(){playNoise(0.3,0.16,'lowpass',700,{key:'wall',gap:0.08,to:1
 function sndMelee(){playNoise(0.05,0.05,'bandpass',3000+Math.random()*1500,{q:6,key:'melee',gap:0.06});playSound(1200+Math.random()*600,0.05,'square',0.012,{key:'melee2',gap:0.06})}
 // Called when the game ends: right jingle for the local player.
 function sndGameEnd(won){(won?sndVictory:sndDefeat)()}
+// v3.50: signature stingers for newer moments
+function sndHorn(){playSound(147,0.95,'sawtooth',0.055,{attack:0.09,key:'horn',gap:1.5});playSound(110,1.3,'sawtooth',0.06,{at:0.55,attack:0.1});playSound(220,1.2,'triangle',0.03,{at:0.55,attack:0.1});playNoise(1.4,0.04,'lowpass',300,{at:0.5})}
+function sndHonour(){[523,659,784,1047].forEach((f,i)=>{playSound(f,0.35,'triangle',0.06,{at:i*0.07});playSound(f*2,0.25,'sine',0.02,{at:i*0.07+0.02})})}
+function sndOmen(){playSound(73,1.8,'sawtooth',0.04,{attack:0.4,to:55});playSound(110,1.6,'sine',0.05,{attack:0.5});playNoise(1.6,0.05,'bandpass',200,{to:1600,q:3,attack:0.4})}
 
 // ==================== GRID & PATHFINDING ====================
 let grid=[];
@@ -3550,7 +3554,7 @@ function useSpecial(player,pNum){
     fxIceSpikes(wp.x,wp.z,spec.radius*0.85);
     spawnSmoke(wp.x,0.2,wp.z,0xcceeff,8,1.0,{rise:0.15,spread:3,life:1.2,alpha:0.4});
   }else if(spec.id==='heal'){
-    player.castleHP=Math.min(player.maxHP,player.castleHP+spec.amount);
+    player.castleHP=Math.min(player.maxHP,player.castleHP+spec.amount);keepWarn(pNum);
     const hx=pNum===1?colToX(1):colToX(38);const hp=pixelToWorld(hx,rowToY(9));
     spawnHealAura(hp.x,hp.z);
     spawnDmgNumber(hp.x,1.2,hp.z,'+'+spec.amount,'#00ff00');
@@ -3647,6 +3651,7 @@ function startWave(){
     for(let i=0;i<b2;i++)spawnQueue2.push(bid);
   }
   if(endlessChampion(waveNum)){spawnQueue1.push('troll');spawnQueue2.push('troll')}
+  if(omenFor(waveNum).id)setTimeout(()=>{if(gameState==='combat')sndOmen()},400);
   // v3.46: scouting callout — what the Warlord bought on top of the wave
   if(gameMode==='1p'){const t=uiScoutText(players[2].enemyQueue,true);if(t)setTimeout(()=>{if(gameState==='combat')uiCallout(t,'#ff7a8a','warn')},1100)}
   players[1].enemyQueue={goblin:0,orc:0,darkKnight:0,archer:0,troll:0,dragon:0,lich:0};
@@ -3950,6 +3955,7 @@ function updateCombat(dt){
     if(e.pathIdx>=e.path.length){
       const target=e.owner===1?players[2]:players[1];target.castleHP-=e.dmg;
       {const L=__waveLeak[e.owner===1?2:1];L.n++;L.d+=e.dmg} // v3.48: wave report
+      keepWarn(e.owner===1?2:1);
       target._hitT=0.3;
       const ep=pixelToWorld(e.x,e.y);
       spawnDmgNumber(ep.x,0.5,ep.z,'-'+e.dmg,'#ff8800');emitParticles(ep.x,0.3,ep.z,0xff4400,10,80);
@@ -4106,8 +4112,21 @@ function continueCampaign(){
   uiFade(()=>{
     restartGame();applyCampaignSave(d);saveCampaign();
     players[1].ready=false;players[2].ready=false;
+    sndHonour();
     uiToast(1,`Campaign resumed \u00B7 wave ${d.w+1} \u00B7 ${diffProfile().label}${isEndless()?' \u00B7 Endless':''}`,'gold','emblem');
   });
+}
+
+// v3.50: the keep sounds a war horn at 50% and 25% health (re-arms once
+// healed 10% above the line); the HUD bar pulses red below 25%.
+function keepWarn(pn){
+  const p=players[pn];if(p.castleHP<=0||(gameMode==='1p'&&pn===2))return;
+  const f=p.castleHP/p.maxHP;p._warn=p._warn||{};
+  for(const [th,msg] of [[0.25,'The keep is failing!'],[0.5,'The keep is breached \u2014 half its walls are down']]){
+    if(f<th&&!p._warn[th]){p._warn[th]=true;sndHorn();
+      uiCallout(`${gameMode==='2p'?(pn===1?'Blue Crown: ':'Red Crown: '):''}<b>${msg}</b>`,'#ff5a4a','warn');break}
+  }
+  for(const th of [0.25,0.5])if(f>th+0.1)p._warn[th]=false;
 }
 
 function showGameOver(){
@@ -4153,7 +4172,7 @@ function restartGame(){
   // v3.27: reset the day/weather cycle back to wave-1 noon.
   applyTimeOfDay(0);__weatherRain=false;if(__rain)__rain.visible=false;
   if(scene.fog)scene.fog.density=0.005;
-  players[1]._hitT=0;players[2]._hitT=0;
+  players[1]._hitT=0;players[2]._hitT=0;players[1]._warn={};players[2]._warn={};
   players[1].castleHP=CASTLE_HP;players[1].maxHP=CASTLE_HP;players[1].credits=START_CREDITS;
   players[1].specials=3;players[1].ready=false;players[1].selectedIdx=0;players[1].kills=0;players[1].totalDmgDealt=0;
   players[1].enemyQueue={goblin:0,orc:0,darkKnight:0,archer:0,troll:0,dragon:0,lich:0};players[1].cursor={c:10,r:9};
