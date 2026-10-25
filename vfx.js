@@ -448,8 +448,14 @@ function updateSmoke(dt){
 
 // Expanding ground ring (lich aura, freeze wave, tower build/upgrade).
 const __ringGeo=new THREE.RingGeometry(0.85,1,40);__ringGeo.rotateX(-Math.PI/2);
-function spawnAuraPulse(wx,wz,radius,color,life,y){
-  const mat=new THREE.MeshBasicMaterial({color,transparent:true,opacity:0.7,depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending});
+// v3.47: `minor` rings (projectile impacts) are fainter and capped, so a
+// late wave reads as units under fire rather than a wall of circles.
+let __ringLive=0,__minorLive=0;const MINOR_RING_MAX=10;
+function spawnAuraPulse(wx,wz,radius,color,life,y,minor){
+  if(minor&&__minorLive>=MINOR_RING_MAX)return;
+  const a0=minor?0.3:0.7;
+  const mat=new THREE.MeshBasicMaterial({color,transparent:true,opacity:a0,depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending});
+  __ringLive++;if(minor)__minorLive++;
   const ring=new THREE.Mesh(__ringGeo,mat);
   ring.position.set(wx,y??0.06,wz);ring.scale.setScalar(0.1);scene.add(ring);
   let t=0;const L=life||0.7;
@@ -458,10 +464,10 @@ function spawnAuraPulse(wx,wz,radius,color,life,y){
       t+=dt;const k=t/L;if(k>=1)return false;
       const e=1-Math.pow(1-k,3);
       ring.scale.setScalar(Math.max(0.05,radius*e));
-      mat.opacity=0.7*(1-k);
+      mat.opacity=a0*(1-k);
       return true;
     },
-    dispose(){scene.remove(ring);mat.dispose()}
+    dispose(){scene.remove(ring);mat.dispose();__ringLive--;if(minor)__minorLive--}
   });
 }
 
@@ -503,17 +509,17 @@ function fxTrail(type,x,y,z,tick){
 function fxImpact(type,x,z,radius){
   const r=Math.max(0.4,radius||0.5);
   if(type==='proj_magic'){
-    spawnAuraPulse(x,z,r,0xc070ff,0.45);
+    spawnAuraPulse(x,z,r,0xc070ff,0.45,undefined,true);
     spawnSmoke(x,0.35,z,0xb060ff,6,0.35,{additive:true,rise:0.4,spread:1.4,life:0.5,grow:1,alpha:0.8});
     emitParticles(x,0.4,z,0xe0b0ff,14,90);
   }else if(type==='proj_boulder'){
-    spawnAuraPulse(x,z,r*0.9,0xd8c8a0,0.4);
+    spawnAuraPulse(x,z,r*0.9,0xd8c8a0,0.4,undefined,true);
     spawnSmoke(x,0.15,z,0xb8a888,8,0.45,{rise:0.25,spread:2.2,life:1.1,grow:1.6,alpha:0.5});
     emitParticles(x,0.25,z,0x8a7a62,16,110);
     spawnScorch(x,z,0.45);
     if(typeof screenShake!=='undefined')screenShake=Math.max(screenShake,0.05);
   }else if(type==='proj_cannonball'){
-    spawnAuraPulse(x,z,r*1.1,0xff9040,0.4);
+    spawnAuraPulse(x,z,r*1.1,0xff9040,0.4,undefined,true);
     spawnSmoke(x,0.3,z,0xff7a20,7,0.4,{additive:true,rise:0.5,spread:1.6,life:0.45,grow:1.4,alpha:0.9});
     spawnSmoke(x,0.4,z,0x3e3834,6,0.5,{rise:0.8,spread:1.0,life:1.4,grow:2.2,alpha:0.5});
     spawnScorch(x,z,0.55);

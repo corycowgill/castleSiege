@@ -173,6 +173,13 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
 .menu-item:hover .mi-label,.menu-item.focus .mi-label{color:var(--gold-w);text-shadow:0 0 18px rgba(246,220,142,.45)}
 .menu-item:hover .mi-sub,.menu-item.focus .mi-sub{color:var(--parch-d)}
 .menu-item:hover .mi-idx,.menu-item.focus .mi-idx{color:var(--gold)}
+/* v3.47: six menu entries — tighten vertical rhythm on 700-860px tall
+   screens so the description never slides under the footer */
+@media(max-height:860px) and (min-height:501px){
+  .menu-wrap{top:calc(50% - 28px)}.menu-wrap .logo{font-size:clamp(40px,10.5vh,84px)}
+  .menu-list{margin-top:clamp(12px,2.2vh,26px)}.menu-item{padding-top:4px!important;padding-bottom:4px!important}
+  .mi-label{font-size:clamp(18px,3.6vh,30px)}.menu-desc{margin-top:12px!important;padding-top:10px!important}
+}
 .menu-desc{margin-top:22px;padding:14px 0 0 26px;min-height:3.4em;border-top:1px solid var(--line);font-family:var(--f-body);font-style:italic;
   font-size:clamp(13px,1.15vw,16px);color:var(--parch-d);line-height:1.5;max-width:460px}
 .menu-foot,.screen-foot{position:absolute;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:space-between;gap:16px;
@@ -356,6 +363,12 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
 .ready-overlay{position:absolute;top:0;bottom:0;width:50%;background:linear-gradient(180deg,rgba(5,4,3,.75),rgba(5,4,3,.92));display:none;align-items:center;justify-content:center;pointer-events:none;
   animation:fadeIn .25s both}
 .ready-left{left:0}.ready-right{right:0}
+/* v3.47: single-player desktop gets one centred command bar */
+#hud-bottom.desk-1p .hud-bottom-build .build-half:nth-child(2),#hud-bottom.desk-1p #p2-specials,#hud-bottom.desk-1p .hud-bottom-hints .hint-half:nth-child(2){display:none}
+#hud-bottom.desk-1p .build-left,#hud-bottom.desk-1p .spec-left{border-right:0}
+#hud-bottom.desk-1p .build-opt{flex:0 1 84px}
+#hud-bottom.desk-1p .spec-right{flex:0 0 auto;padding-right:14px}
+#hud-bottom.desk-1p .ready-left{width:100%}
 .ready-text{font-family:var(--f-display);font-weight:900;font-size:clamp(18px,2.3vw,30px);letter-spacing:.4em;text-transform:uppercase;
   padding:6px 26px;border-top:1px solid currentColor;border-bottom:1px solid currentColor;text-shadow:0 0 20px currentColor;animation:stamp .4s var(--ease-back) both}
 .ready-text small{display:block;font-family:var(--f-body);font-style:italic;letter-spacing:.08em;text-transform:none;font-size:.42em;font-weight:400;color:var(--parch-d);text-shadow:none;text-align:center}
@@ -664,7 +677,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
   </div>
   <div class="menu-foot">
     <div class="foot-hints"><span><span class="key">&uarr;</span><span class="key">&darr;</span> Navigate</span><span><span class="key">Enter</span> Select</span><span><span class="key round">A</span> Confirm</span></div>
-    <div class="foot-ver">Castle Siege <b>v3.46</b> &bull; Build 2026-10-24</div>
+    <div class="foot-ver">Castle Siege <b>v3.47</b> &bull; Build 2026-10-24</div>
   </div>
 </div>
 
@@ -1352,12 +1365,28 @@ let __weatherRain=false; // set per wave; rain mesh visibility + animation toggl
 // v3.13: cached HUD element references (populated on first updateHUD call).
 let __hud=null;
 const CAM_BASE={x:0,y:20,z:16};
+// v3.47: zoom follows a focus point (P1's cursor) so zooming in shows the
+// fight you're aiming at; at 1x the focus is the field centre as before.
+const camFocus={x:0,z:0};
 function setCameraZoom(z){
-  camZoom=clamp(z,0.5,2.0);
+  camZoom=clamp(z,0.8,2.2);
   if(camera){
-    camera.position.set(CAM_BASE.x,CAM_BASE.y/camZoom,CAM_BASE.z/camZoom);
-    camera.lookAt(0,-1,0);
+    camera.position.set(camFocus.x+CAM_BASE.x,CAM_BASE.y/camZoom,camFocus.z+CAM_BASE.z/camZoom);
+    camera.lookAt(camFocus.x,-1,camFocus.z);
   }
+}
+function updateCameraFocus(dt){
+  if(!camera||!(gameState==='build'||gameState==='combat'||gameState==='waveEnd'))return;
+  const k=Math.max(0,Math.min(1,(camZoom-1)/1.2));
+  let tx=0,tz=0;
+  if(k>0){
+    const pl=players[1],wp=tileToWorld(pl.cursor.c,pl.cursor.r);
+    const mx=(COLS/2)*(1-1/camZoom),mz=(ROWS/2)*(1-1/camZoom)+1;
+    tx=clamp(wp.x*0.6*k,-mx,mx);tz=clamp(wp.z*0.6*k,-mz,mz);
+  }
+  const a=1-Math.exp(-(dt||0.016)*4);
+  camFocus.x+=(tx-camFocus.x)*a;camFocus.z+=(tz-camFocus.z)*a;
+  if(screenShake<=0)setCameraZoom(camZoom);
 }
 let pinchStartDist=0,pinchStartZoom=1;
 const raycaster=new THREE.Raycaster();
@@ -1537,11 +1566,13 @@ function initScene(container){
 //   fog: scene fog color
 //   sky: sky-dome tint color (multiplied over the gradient texture)
 const TOD_KEY=[
-  {t:0.00, az:-45, el:55, sC:0xFFF4E0, sI:1.30, hSky:0x87CEEB, hGnd:0x556B2F, hI:0.55, aI:0.30, fog:0xB8D8E8, sky:0xFFFFFF}, // noon
-  {t:0.25, az:-85, el:6,  sC:0xFF7A28, sI:0.55, hSky:0xC25030, hGnd:0x3A2A1A, hI:0.42, aI:0.28, fog:0xC04828, sky:0xD05A30}, // dusk
-  {t:0.50, az:135, el:-30,sC:0x0A1025, sI:0.0,  hSky:0x1A2150, hGnd:0x080810, hI:0.18, aI:0.42, fog:0x060C20, sky:0x1C2E60}, // midnight
-  {t:0.75, az:95,  el:6,  sC:0xFF9038, sI:0.60, hSky:0xBD5030, hGnd:0x3A281C, hI:0.44, aI:0.30, fog:0xC04828, sky:0xD06030}, // dawn
-  {t:1.00, az:-45, el:55, sC:0xFFF4E0, sI:1.30, hSky:0x87CEEB, hGnd:0x556B2F, hI:0.55, aI:0.30, fog:0xB8D8E8, sky:0xFFFFFF}, // noon wrap
+  // v3.47: midnight gets a cool moon key light (was: no key light at all,
+  // units read as silhouettes). `n` drives stars/clouds explicitly.
+  {t:0.00, az:-45, el:55, sC:0xFFF4E0, sI:1.30, hSky:0x87CEEB, hGnd:0x556B2F, hI:0.55, aI:0.30, fog:0xB8D8E8, sky:0xFFFFFF, n:0},   // noon
+  {t:0.25, az:-85, el:6,  sC:0xFF7A28, sI:0.55, hSky:0xC25030, hGnd:0x3A2A1A, hI:0.42, aI:0.28, fog:0xC04828, sky:0xD05A30, n:0.38}, // dusk
+  {t:0.50, az:135, el:42, sC:0x8EA2E0, sI:0.48, hSky:0x2A3470, hGnd:0x10121C, hI:0.26, aI:0.40, fog:0x0A1228, sky:0x1C2E60, n:1},   // midnight (moon)
+  {t:0.75, az:95,  el:6,  sC:0xFF9038, sI:0.60, hSky:0xBD5030, hGnd:0x3A281C, hI:0.44, aI:0.30, fog:0xC04828, sky:0xD06030, n:0.38}, // dawn
+  {t:1.00, az:-45, el:55, sC:0xFFF4E0, sI:1.30, hSky:0x87CEEB, hGnd:0x556B2F, hI:0.55, aI:0.30, fog:0xB8D8E8, sky:0xFFFFFF, n:0},   // noon wrap
 ];
 function __lerp(a,b,t){return a+(b-a)*t}
 function __lerpHex(a,b,t){
@@ -1592,7 +1623,7 @@ function applyTimeOfDay(tod){
   // players. Now they only fade in once the scene is unambiguously
   // night (darkness >= 0.38, which corresponds to wave 4+ dusk).
   const SKY_NIGHT_THRESH=0.38;
-  const darkness=Math.max(0,Math.min(1,(0.9-__sunLight.intensity)/0.9));
+  const darkness=__lerp(a.n,b.n,seg);
   // Remap the visible range so opacity ramps from 0 at threshold to 1 at full dark.
   const nightK=Math.max(0,(darkness-SKY_NIGHT_THRESH)/(1-SKY_NIGHT_THRESH));
   if(__stars){
@@ -3275,6 +3306,7 @@ function updateHUD(){
   h.p2readyOv.style.display=p2.ready&&gameState==='build'?'flex':'none';
 
   // In 1P mode
+  if(gameMode!=='1p'&&h.desk1p){h.desk1p=false;document.getElementById('hud-bottom').classList.remove('desk-1p')}
   if(gameMode==='1p'){
     if(isMobile){
       // Mobile: dim P2 panel (AI controls it), hide ready.
@@ -3284,7 +3316,9 @@ function updateHUD(){
       h.p2specials.style.opacity='0.3';
       h.btnP2ready.style.display='none';
     }else{
-      // Desktop: P2 panel mirrors P1 selection (mouse clicks route to P1)
+      // Desktop: v3.47 one command bar — the mirrored P2 panel is hidden
+      // (it duplicated P1's in enemy colours); only its Ready button stays.
+      if(!h.desk1p){h.desk1p=true;document.getElementById('hud-bottom').classList.add('desk-1p')}
       h.p2buildOpts.style.opacity='1';
       h.p2specials.style.opacity='1';
       h.btnP2ready.style.display='';
@@ -3666,6 +3700,8 @@ function processInput(dt){
       if(consumeKey('KeyR'))p1.ready=true;if(consumeKey('KeyZ'))p1.selectedSpecial=(p1.selectedSpecial+1)%4;
     }
     if((gameState==='build'||gameState==='combat')&&consumeKey('KeyC'))cycleTargetMode(p1,1);
+    if(consumeKey('Equal')||consumeKey('NumpadAdd'))setCameraZoom(camZoom*1.15);
+    if(consumeKey('Minus')||consumeKey('NumpadSubtract'))setCameraZoom(camZoom/1.15);
     if(gameState==='combat'){
       if(consumeKey('KeyF'))useSpecial(p1,1);
       if(consumeKey('KeyZ'))p1.selectedSpecial=(p1.selectedSpecial+1)%4;
@@ -3778,7 +3814,7 @@ function updateCombat(dt){
           healed++;
         }
         const lp=pixelToWorld(e.x,e.y);
-        spawnAuraPulse(lp.x,lp.z,bd.radius,healed?0x66ff99:0x9966ff);
+        spawnAuraPulse(lp.x,lp.z,bd.radius,healed?0x66ff99:0x9966ff,0.7,undefined,true);
       }
     }
 
@@ -3966,21 +4002,19 @@ function updateCombat(dt){
         const wp=pixelToWorld(p.tx,p.ty);
         // Type-specific splash impact
         if(p.type==='proj_magic'){
-          emitParticles(wp.x,0.4,wp.z,0xcc66ff,20,110);
-          emitParticles(wp.x,0.4,wp.z,0xffddff,12,80);
-          emitParticles(wp.x,0.4,wp.z,0x9933ff,10,60);
+          // v3.47: trimmed — fxImpact carries the bulk of the effect now
+          emitParticles(wp.x,0.4,wp.z,0xcc66ff,8,110);
+          emitParticles(wp.x,0.4,wp.z,0x9933ff,4,60);
           spawnImpactFlash(wp.x,0.4,wp.z,0xcc66ff,0.4);
           fxImpact(p.type,wp.x,wp.z,p.splash);
         }else if(p.type==='proj_boulder'){
           fxImpact(p.type,wp.x,wp.z,p.splash);
-          emitParticles(wp.x,0.3,wp.z,0xa89866,18,90);
-          emitParticles(wp.x,0.3,wp.z,0x665a4a,14,60);
-          emitParticles(wp.x,0.3,wp.z,0x999988,10,70);
+          emitParticles(wp.x,0.3,wp.z,0xa89866,8,90);
+          emitParticles(wp.x,0.3,wp.z,0x665a4a,6,60);
         }else{// cannonball/default splash
-          emitParticles(wp.x,0.3,wp.z,0xffaa00,20,120);
-          emitParticles(wp.x,0.3,wp.z,0xff4400,16,100);
-          emitParticles(wp.x,0.3,wp.z,0xff8800,14,80);
-          emitParticles(wp.x,0.3,wp.z,0x333333,8,50);
+          emitParticles(wp.x,0.3,wp.z,0xffaa00,10,120);
+          emitParticles(wp.x,0.3,wp.z,0xff4400,8,100);
+          emitParticles(wp.x,0.3,wp.z,0x333333,4,50);
           spawnImpactFlash(wp.x,0.4,wp.z,0xff6600,0.55);
           fxImpact(p.type,wp.x,wp.z,p.splash);
         }
@@ -4047,7 +4081,7 @@ function restartGame(){
   towerMeshes.forEach(m=>scene.remove(m));towerMeshes.clear();
   buildingMeshes.forEach(m=>scene.remove(m));buildingMeshes.clear();
   projMeshes.forEach(m=>releaseProjMesh(m));projMeshes.clear();
-  initGrid();markGridDirty();waveNum=0;spawnTimer=0;__simAcc=0;__combatSpeed=1;
+  initGrid();markGridDirty();waveNum=0;spawnTimer=0;__simAcc=0;__combatSpeed=1;camFocus.x=0;camFocus.z=0;
   // v3.27: reset the day/weather cycle back to wave-1 noon.
   applyTimeOfDay(0);__weatherRain=false;if(__rain)__rain.visible=false;
   if(scene.fog)scene.fog.density=0.005;
@@ -5521,13 +5555,14 @@ function gameLoop(){
   }
 
   updateHUD();
+  updateCameraFocus(rawDt);
   uiTutorialTick(rawDt);uiInspectTick();uiHonoursTick(rawDt);
 
   // Screen shake effect (visual only — uses raw render dt)
   if(screenShake>0&&camera){
     const shakeIntensity=screenShake*0.15*(SETTINGS.shake?1:0);
-    camera.position.x=CAM_BASE.x+(Math.random()-0.5)*shakeIntensity;
-    camera.position.z=CAM_BASE.z/camZoom+(Math.random()-0.5)*shakeIntensity;
+    camera.position.x=camFocus.x+CAM_BASE.x+(Math.random()-0.5)*shakeIntensity;
+    camera.position.z=camFocus.z+CAM_BASE.z/camZoom+(Math.random()-0.5)*shakeIntensity;
     screenShake-=rawDt||0.016;
     if(screenShake<=0){screenShake=0;setCameraZoom(camZoom)}
   }
@@ -5681,7 +5716,7 @@ function init(){
     document.getElementById('title-p2-ready').classList.add('is-ready');
     // Update HUD hints
     if(!isMobile){
-      document.getElementById('hint-left').textContent='WASD Move \u00B7 Q/Tab Cycle \u00B7 Space Build \u00B7 E Sell \u00B7 R Ready \u00B7 Esc Pause';
+      document.getElementById('hint-left').textContent='WASD / Mouse Aim \u00B7 Q/Tab/Wheel Cycle \u00B7 Space/Click Build \u00B7 E/R-Click Sell \u00B7 C Target \u00B7 Z/F Special \u00B7 +/\u2212 Zoom \u00B7 R Ready \u00B7 Esc';
       document.getElementById('hint-right').textContent='Mouse Aim \u00B7 Wheel Cycle \u00B7 L-Click Build \u00B7 R-Click Sell \u00B7 F Special';
     }
     for(const id of['hint-left','hint-right'])document.getElementById(id)._def=undefined;
@@ -5718,7 +5753,10 @@ function init(){
     const rect=cvs.getBoundingClientRect();
     mouseX=e.clientX-rect.left;mouseY=e.clientY-rect.top;
   });
-  cvs.addEventListener('wheel',(e)=>{scrollDelta+=Math.sign(e.deltaY);e.preventDefault()},{passive:false});
+  cvs.addEventListener('wheel',(e)=>{
+    // v3.47: Shift/Ctrl + wheel (and trackpad pinch, which arrives as ctrl+wheel) zooms
+    if(e.shiftKey||e.ctrlKey){setCameraZoom(camZoom*(e.deltaY>0?0.9:1.11));e.preventDefault();return}
+    scrollDelta+=Math.sign(e.deltaY);e.preventDefault()},{passive:false});
   cvs.addEventListener('contextmenu',(e)=>e.preventDefault());
 
   // Also handle clicks/touches on HUD for title screen
