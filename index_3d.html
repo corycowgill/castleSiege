@@ -592,6 +592,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
 .insp .is{border-top:1px solid rgba(255,220,150,.14);margin-top:5px;padding-top:5px}
 .insp .if{display:flex;justify-content:space-between;gap:6px;margin-top:6px;font-size:11px;letter-spacing:.06em;text-transform:uppercase}
 .insp .if span{white-space:nowrap;font-family:var(--f-display);font-size:10px;padding:2px 6px;border:1px solid rgba(255,215,110,.35);border-radius:3px;color:#ffd76a}
+.insp .if span[data-a]{pointer-events:auto;cursor:pointer}.insp .if span[data-a]:active{transform:scale(.95)}
 .insp .if span.full{color:#9fe07a;border-color:rgba(140,220,110,.4)}
 .insp .if span.poor{color:#ff8a7a;border-color:rgba(255,120,100,.35)}.insp .if span.max{color:#9fb0c8;border-color:rgba(160,180,210,.25)}.insp .if span.note{border:0;padding-left:0;color:#9f927a}
 .insp .hpb{height:5px;background:rgba(0,0,0,.45);border-radius:3px;overflow:hidden;margin:4px 0 2px}.insp .hpb i{display:block;height:100%;background:linear-gradient(90deg,#d8a63c,#f3d27a)}
@@ -700,7 +701,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
   </div>
   <div class="menu-foot">
     <div class="foot-hints"><span><span class="key">&uarr;</span><span class="key">&darr;</span> Navigate</span><span><span class="key">Enter</span> Select</span><span><span class="key round">A</span> Confirm</span></div>
-    <div class="foot-ver">Castle Siege <b>v3.53</b> &bull; Build 2026-10-24</div>
+    <div class="foot-ver">Castle Siege <b>v3.54</b> &bull; Build 2026-10-24</div>
   </div>
 </div>
 
@@ -3722,7 +3723,7 @@ function padControl(gp,pl,pn,prev,dt){
   if(gameState==='build'){
     if(P(4))pl.selectedIdx=(pl.selectedIdx-1+BUILD_OPTS.length)%BUILD_OPTS.length;
     if(P(5))pl.selectedIdx=(pl.selectedIdx+1)%BUILD_OPTS.length;
-    if(P(0))tryPlace(pl,pn);if(P(1))trySell(pl,pn);if(P(9))pl.ready=true;
+    if(P(0))tryActAt(pl,pn);if(P(1))trySell(pl,pn);if(P(9))pl.ready=true;
     if(P(3))pl.selectedSpecial=(pl.selectedSpecial+1)%4;
   }
   if((gameState==='build'||gameState==='combat')&&P(10))cycleTargetMode(pl,pn);
@@ -3750,7 +3751,7 @@ function processInput(dt){
     if(gameState==='build'){
       if(consumeKey('KeyQ'))p1.selectedIdx=(p1.selectedIdx-1+BUILD_OPTS.length)%BUILD_OPTS.length;
       if(consumeKey('Tab'))p1.selectedIdx=(p1.selectedIdx+1)%BUILD_OPTS.length;
-      if(consumeKey('Space'))tryPlace(p1,1);if(consumeKey('KeyE'))trySell(p1,1);
+      if(consumeKey('Space'))tryActAt(p1,1);if(consumeKey('KeyE'))trySell(p1,1);
       if(consumeKey('KeyR'))p1.ready=true;if(consumeKey('KeyZ'))p1.selectedSpecial=(p1.selectedSpecial+1)%4;
     }
     if((gameState==='build'||gameState==='combat')&&consumeKey('KeyC'))cycleTargetMode(p1,1);
@@ -3769,24 +3770,17 @@ function processInput(dt){
   const mousePNum=gameMode==='1p'&&!isMobile?1:2;
   mouseNDC.x=(mouseX/renderer.domElement.clientWidth)*2-1;
   mouseNDC.y=-(mouseY/renderer.domElement.clientHeight)*2+1;
-  raycaster.setFromCamera(mouseNDC,camera);
-  const hit=new THREE.Vector3();
   // v3.51: only when the mouse moved or clicked — a resting pointer used to
   // pin the cursor every tick, overriding WASD / a second controller and
   // dragging the cursor along while the camera zoomed.
   const mouseActive=__mouseMoved||mouseClicked||mouseRightClicked||middleClicked;
-  if(raycaster.ray.intersectPlane(groundPlane,hit)&&mouseActive){
-    const tile=worldToTile(hit.x,hit.z);
-    if(tile.row>=0&&tile.row<ROWS){mousePlayer.cursor.c=clamp(tile.col,0,COLS-1);mousePlayer.cursor.r=clamp(tile.row,0,ROWS-1)}
-  }
+  let mTile=null;
+  if(mouseActive){mTile=pickTile(mouseNDC.x,mouseNDC.y);if(mTile){mousePlayer.cursor.c=mTile.c;mousePlayer.cursor.r=mTile.r}}
   __mouseMoved=false;
 
   if(gameState==='build'){
     if(scrollDelta){mousePlayer.selectedIdx=(mousePlayer.selectedIdx+Math.sign(scrollDelta)+BUILD_OPTS.length)%BUILD_OPTS.length}
-    if(mouseClicked){
-      const tile=worldToTile(hit.x,hit.z);
-      if(tile.row>=0&&tile.row<ROWS)tryPlace(mousePlayer,mousePNum);
-    }
+    if(mouseClicked&&mTile)tryActAt(mousePlayer,mousePNum);
     if(mouseRightClicked)trySell(mousePlayer,mousePNum);
     if(middleClicked&&!cycleTargetMode(mousePlayer,mousePNum))mousePlayer.ready=true;
   }
@@ -4231,7 +4225,7 @@ function syncBuildings(){
     if(!buildingMeshes.has(key)){
       const mesh=cell.type==='wall'?createWall(cell.owner):createBarricade(cell.owner);
       const wp=tileToWorld(c,r);mesh.position.set(wp.x,0,wp.z);
-      scene.add(mesh);buildingMeshes.set(key,mesh);
+      scene.add(mesh);buildingMeshes.set(key,mesh);mesh.userData.__tile={c,r};
       // v3.5: walls and barricades never move — freeze their matrices.
       // Also canonicalize + merge to collapse internal sub-meshes.
       __canonicalizeEnemyMaterials(mesh);
@@ -4332,7 +4326,7 @@ function syncTowers(){
       // locally, so matrixAutoUpdate=false on them skips ~60 compose
       // steps per tower per frame.
       const wp=tileToWorld(t.col,t.row);mesh.position.set(wp.x,0,wp.z);
-      scene.add(mesh);towerMeshes.set(t,mesh);
+      scene.add(mesh);towerMeshes.set(t,mesh);mesh.userData.__tile={c:t.col,r:t.row};
       // v3.27: build animation — the tower rises out of a dust cloud.
       t._buildT=0;t._pipLv=1;
       spawnSmoke(wp.x,0.2,wp.z,0xb8a888,7,0.55,{rise:0.4,spread:1.2,life:0.9});
@@ -4343,7 +4337,7 @@ function syncTowers(){
     // v3.33: art towers have a distinct model per tier — swap it in.
     if(mesh&&mesh.userData.artLevel&&mesh.userData.artLevel!==(t.level||1)){
       const nm=__buildTowerMesh(t);nm.position.copy(mesh.position);
-      scene.remove(mesh);scene.add(nm);towerMeshes.set(t,nm);mesh=nm;
+      scene.remove(mesh);scene.add(nm);towerMeshes.set(t,nm);nm.userData.__tile={c:t.col,r:t.row};mesh=nm;
     }
     if(mesh){
       const lvS=mesh.userData.artLevel?1:1+0.08*((t.level||1)-1);
@@ -5472,6 +5466,31 @@ function initTouchControls(){
 
 let canvasTouchRegistered=false;
 let __lastTapTile=null;
+// v3.54: what's under the pointer — a tower/wall model first (tapping a
+// tower's body used to hit the ground tile *behind* it, so on touch you
+// could never tap the same tower twice to upgrade it), else the ground.
+const __pickObjs=[];
+function pickTile(ndcX,ndcY){
+  mouseNDC.x=ndcX;mouseNDC.y=ndcY;raycaster.setFromCamera(mouseNDC,camera);
+  __pickObjs.length=0;for(const m of towerMeshes.values())__pickObjs.push(m);for(const m of buildingMeshes.values())__pickObjs.push(m);
+  if(__pickObjs.length){
+    const hits=raycaster.intersectObjects(__pickObjs,true);
+    for(const h of hits){let o=h.object;while(o&&!o.userData.__tile)o=o.parent;if(o)return o.userData.__tile}
+  }
+  const hp=new THREE.Vector3();
+  if(raycaster.ray.intersectPlane(groundPlane,hp)){const t=worldToTile(hp.x,hp.z);if(t.row>=0&&t.row<ROWS)return{c:clamp(t.col,0,COLS-1),r:clamp(t.row,0,ROWS-1)}}
+  return null;
+}
+// v3.54: on your own tower the action is always "upgrade", on your own
+// damaged wall always "repair" — whatever happens to be selected.
+function tryActAt(pl,pn){
+  const{c,r}=pl.cursor,cell=grid[r]&&grid[r][c];
+  if(cell&&cell.owner===pn&&(cell.type==='tower'||cell.type==='wall'||cell.type==='barricade')){
+    const want=cell.type==='tower'?'tower':'build',cur=BUILD_OPTS[pl.selectedIdx];
+    if(cur.cat!==want){const keep=pl.selectedIdx;pl.selectedIdx=BUILD_OPTS.findIndex(o=>o.cat===want);tryPlace(pl,pn);pl.selectedIdx=keep;return}
+  }
+  tryPlace(pl,pn);
+}
 function registerCanvasTouchListeners(){
   if(canvasTouchRegistered)return;
   canvasTouchRegistered=true;
@@ -5492,14 +5511,10 @@ function registerCanvasTouchListeners(){
     const touch=e.touches[0];
     const rect=renderer.domElement.getBoundingClientRect();
     mouseX=touch.clientX-rect.left;mouseY=touch.clientY-rect.top;
-    mouseNDC.x=(mouseX/renderer.domElement.clientWidth)*2-1;
-    mouseNDC.y=-(mouseY/renderer.domElement.clientHeight)*2+1;
-    raycaster.setFromCamera(mouseNDC,camera);
-    const hitPt=new THREE.Vector3();
-    if(raycaster.ray.intersectPlane(groundPlane,hitPt)){
-      const tile=worldToTile(hitPt.x,hitPt.z);
-      if(tile.row>=0&&tile.row<ROWS){
-        const nc=clamp(tile.col,0,COLS-1),nr=clamp(tile.row,0,ROWS-1);
+    const tile=pickTile((mouseX/renderer.domElement.clientWidth)*2-1,-(mouseY/renderer.domElement.clientHeight)*2+1);
+    {
+      if(tile){
+        const nc=tile.c,nr=tile.r;
         // v3.30: tap a tile to aim, tap the same tile again to build.
         // (Only counts when the previous tap aimed here, so the cursor
         // merely resting on a tile never builds by surprise.)
@@ -5548,7 +5563,7 @@ function processTouchInput(dt){
 
   // Actions
   if(touchPlaceFlag){
-    if(gameState==='build')tryPlace(p1,1);
+    if(gameState==='build')tryActAt(p1,1);
     touchPlaceFlag=false;
   }
   if(touchSellFlag){
@@ -5847,7 +5862,7 @@ function init(){
         keyRow(K('R')+K('Esc'),'Ready &middot; Pause'));
     }else{
       setHTML('lobby-p1-dev','Player 1 &bull; Touch');
-      setHTML('lobby-p1-keys',keyRow(K('Tap')+K('D-Pad'),'Aim \u00B7 tap again to build')+keyRow(K('Place'),'Build / upgrade')+keyRow(K('Sell'),'Sell')+
+      setHTML('lobby-p1-keys',keyRow(K('Tap')+K('D-Pad'),'Aim \u00B7 tap again to build or upgrade')+keyRow(K('Place'),'Build / upgrade')+keyRow(K('Sell'),'Sell')+
         keyRow(K('&larr;')+K('&rarr;'),'Cycle build')+keyRow(K('Icon'),'Cast special')+keyRow(K('Target'),'Tower target (on its card)')+keyRow(K('RDY'),'Ready up'));
     }
     setHTML('lobby-p2-name','The Warlord');

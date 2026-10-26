@@ -459,7 +459,7 @@ const TUT=[
    text:()=>`The <b>red arrows</b> show the enemy's march through your half. Place a ${K('Wall')} on them — armies must go the long way round, under your towers.`,
    done:()=>grid.some(row=>row.some(c=>c&&c.owner===1&&(c.type==='wall'||c.type==='barricade')))},
   {phase:'build',title:'Upgrade',hl:'turret',
-   text:()=>`With a tower selected, build <b>on top of your own tower</b> to upgrade it (up to level 3). The cursor turns gold when an upgrade is possible.`,
+   text:()=>__touchUI()?`Tap your tower, then tap it again \u2014 or tap <b>Upgrade</b> on its card \u2014 to upgrade it (up to level 3).`:`Build <b>on top of your own tower</b> to upgrade it (up to level 3), or click <b>Upgrade</b> on its card. The cursor turns gold when an upgrade is possible.`,
    done:()=>towers.some(t=>t.owner===1&&t.level>=2)},
   {phase:'build',title:'March on their keep',hl:'goblin',
    text:()=>`Defence alone won't win. Buy a squad of ${K('Goblins')} — ten of them join the next wave and attack the enemy castle.`,
@@ -534,14 +534,14 @@ function __inspHTML(cell,pl,pn){
       `<div class="ir is">Kills<span><b>${t.kills||0}</b></span></div>`+
       `<div class="ir">Damage dealt<span><b>${Math.round(t.dmgDone||0).toLocaleString()}</b></span></div>`+
       `<div class="tgt" data-p="${pn}">Target<span><b>${TARGET_MODES[t.tmode||0]}</b>${__touchUI()?'':`<span class="key">${pn===1?'C':'MMB'}</span>`}</span></div>`+
-      `<div class="if">${mx?'<span class="max">Max level</span>':`<span class="${pl.credits<up?'poor':''}">Upgrade $${up}</span>`}<span class="${fresh?'full':''}">Sell +$${sell}${full?' \u00B7 full':fresh?' \u00B7 upg back':''}</span></div>`;
+      `<div class="if">${mx?'<span class="max">Max level</span>':`<span data-a="up" class="${pl.credits<up?'poor':''}">Upgrade $${up}</span>`}<span data-a="sell" class="${fresh?'full':''}">Sell +$${sell}${full?' \u00B7 full':fresh?' \u00B7 upg back':''}</span></div>`;
   }
   if(cell.type==='wall'||cell.type==='barricade'){
     const sell=wallRefund(cell),full=cell.fresh&&gameState==='build',rc=cell.hp<cell.maxHp?wallRepairCost(cell):0;
     const hp=Math.max(0,Math.ceil(cell.hp)),pc=Math.round(hp/cell.maxHp*100);
     return `<div class="ih"><span class="in">${cell.type==='wall'?'Stone Wall':'Barricade'}</span></div>`+
       `<div class="ir">Integrity<span><b>${hp} / ${cell.maxHp}</b></span></div><div class="hpb"><i style="width:${pc}%"></i></div>`+
-      `<div class="if">${rc?`<span class="${gameState==='build'&&pl.credits>=rc?'':'poor'}">Repair $${rc}</span>`:'<span class="note">Blocks the march</span>'}<span class="${full?'full':''}">Sell +$${sell}${full?' \u00B7 full':''}</span></div>`;
+      `<div class="if">${rc?`<span data-a="up" class="${gameState==='build'&&pl.credits>=rc?'':'poor'}">Repair $${rc}</span>`:'<span class="note">Blocks the march</span>'}<span data-a="sell" class="${full?'full':''}">Sell +$${sell}${full?' \u00B7 full':''}</span></div>`;
   }
   return null;
 }
@@ -575,7 +575,13 @@ function uiInspectTick(){
 }
 document.addEventListener('DOMContentLoaded',()=>{
   for(const pn of [1,2]){const el=document.getElementById('insp-'+pn);if(!el)continue;
-    const go=e=>{if(!e.target.closest('.tgt'))return;e.preventDefault();e.stopPropagation();cycleTargetMode(players[pn],pn)};
+    const go=e=>{
+      const a=e.target.closest('[data-a]');
+      if(a){e.preventDefault();e.stopPropagation(); // v3.54: tappable Upgrade / Repair / Sell
+        if(a.dataset.a==='up'){if(gameState==='build')tryActAt(players[pn],pn);else uiToast(pn,'Upgrade during the build phase','bad','up')}
+        else if(gameState==='build'||gameState==='combat')trySell(players[pn],pn);
+        return}
+      if(!e.target.closest('.tgt'))return;e.preventDefault();e.stopPropagation();cycleTargetMode(players[pn],pn)};
     el.addEventListener('pointerdown',go);}
 });
 
