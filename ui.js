@@ -465,7 +465,7 @@ const TUT=[
    text:()=>`Defence alone won't win. Buy a squad of ${K('Goblins')} — ten of them join the next wave and attack the enemy castle.`,
    done:()=>Object.values(players[1].enemyQueue).some(v=>v>0)},
   {phase:'build',title:'Ready for war',live:true,
-   text:()=>players[1].ready?`You're ready. The wave starts when the Warlord finishes building — or when the timer runs out.`:__touchUI()?`Tap ${K('RDY')} to start the wave. Readying early earns bonus gold.`:`Press ${K('R')} or the ${K('Ready')} button to start the wave. Readying early earns bonus gold.`,
+   text:()=>players[1].ready?`You're ready \u2014 the Warlord finishes its last orders and the wave begins. Changed your mind? Press ${__touchUI()?K('\u2713'):K('Ready')} again to cancel.`:__touchUI()?`Tap ${K('RDY')} to start the wave. Readying early earns bonus gold.`:`Press ${K('R')} or the ${K('Ready')} button to start the wave. Readying early earns bonus gold.`,
    done:()=>gameState==='combat'},
   {phase:'combat',title:'Call down a special',hlSpec:0,auto:22,
    text:()=>__touchUI()?`Tap a special icon to cast it at your cursor — try ${K('Meteor')} on a crowd. Three charges per round.`:`Pick a special with ${K('Z')} and cast it at your cursor with ${K('F')} — try ${K('Meteor')} on a crowd. Three charges per round.`,

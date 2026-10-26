@@ -270,6 +270,13 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
 .ht-right .ht-row{flex-direction:row-reverse}
 .player-label{font-family:var(--f-display);font-weight:900;font-size:clamp(10px,1vw,13px);letter-spacing:.24em;text-transform:uppercase}
 .spec-pips{display:inline-flex;gap:4px}
+/* v3.53: ready is a small badge, not an overlay over the build bar */
+.ready-pill{display:none;align-items:center;gap:3px;padding:1px 7px;border-radius:9px;font-family:var(--f-display);font-weight:700;font-size:10px;letter-spacing:.14em;text-transform:uppercase;
+  color:#0e1a08;background:linear-gradient(180deg,#b8f08a,#6cc04a);box-shadow:0 0 10px rgba(140,230,100,.45);white-space:nowrap}
+.ready-pill.on{display:inline-flex;animation:pillIn .3s var(--ease-back) both}
+@keyframes pillIn{from{transform:scale(.6);opacity:0}to{transform:none;opacity:1}}
+.p2-ready-btn.is-ready{color:#0e1a08!important;background:linear-gradient(180deg,#c4f49a,#6cc04a)!important;border-color:#a8ec80!important;box-shadow:0 0 14px rgba(140,230,100,.45)!important}
+.touch-act-btn.ready-btn.is-ready{background:radial-gradient(circle at 40% 35%,#c4f49a,#5aa83a)!important;color:#0e1a08!important}
 .spec-pips i{width:8px;height:8px;transform:rotate(45deg);background:linear-gradient(135deg,#fff1c4,#d9b25f 55%,#8a6a2c);box-shadow:0 0 6px rgba(246,220,142,.7);transition:all .3s}
 .spec-pips i.spent{background:#2a2219;box-shadow:inset 0 0 0 1px rgba(217,178,95,.35)}
 .hp-bar-c{position:relative;width:clamp(120px,15vw,230px);height:14px;background:#0a0706;border:1px solid rgba(0,0,0,.9);
@@ -693,7 +700,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
   </div>
   <div class="menu-foot">
     <div class="foot-hints"><span><span class="key">&uarr;</span><span class="key">&darr;</span> Navigate</span><span><span class="key">Enter</span> Select</span><span><span class="key round">A</span> Confirm</span></div>
-    <div class="foot-ver">Castle Siege <b>v3.52</b> &bull; Build 2026-10-24</div>
+    <div class="foot-ver">Castle Siege <b>v3.53</b> &bull; Build 2026-10-24</div>
   </div>
 </div>
 
@@ -839,7 +846,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
   <div class="ht-side ht-left">
     <div class="ht-crest"><svg viewBox="0 0 56 66"><use href="#crest-p1"/></svg></div>
     <div class="ht-info">
-      <div class="ht-row"><span class="player-label p1c" id="p1-label">Player 1</span><span id="p1-specials-ct" class="spec-pips"></span></div>
+      <div class="ht-row"><span class="player-label p1c" id="p1-label">Player 1</span><span id="p1-specials-ct" class="spec-pips"></span><span class="ready-pill" id="p1-ready-pill">&#10003; Ready</span></div>
       <div class="hp-bar-c" id="p1-hp-c"><div class="hp-ghost" id="p1-hp-ghost"></div><div id="p1-hp-bar" class="hp-bar-f hp1"></div><div class="hp-ticks"></div><span id="p1-hp-text" class="hp-bar-t">3500</span></div>
     </div>
     <div class="ht-gold"><svg class="coin" viewBox="0 0 24 24"><use href="#i-coin"/></svg><span id="p1-credits" class="credits">$800</span></div>
@@ -853,7 +860,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
   <div class="ht-side ht-right">
     <div class="ht-crest"><svg viewBox="0 0 56 66"><use href="#crest-p2"/></svg></div>
     <div class="ht-info">
-      <div class="ht-row"><span class="player-label p2c" id="p2-label">Player 2</span><span id="p2-specials-ct" class="spec-pips"></span></div>
+      <div class="ht-row"><span class="player-label p2c" id="p2-label">Player 2</span><span id="p2-specials-ct" class="spec-pips"></span><span class="ready-pill" id="p2-ready-pill">&#10003; Ready</span></div>
       <div class="hp-bar-c" id="p2-hp-c"><div class="hp-ghost" id="p2-hp-ghost"></div><div id="p2-hp-bar" class="hp-bar-f hp2"></div><div class="hp-ticks"></div><span id="p2-hp-text" class="hp-bar-t">3500</span></div>
     </div>
     <div class="ht-gold"><svg class="coin" viewBox="0 0 24 24"><use href="#i-coin"/></svg><span id="p2-credits" class="credits">$800</span></div>
@@ -3090,7 +3097,7 @@ function initHUD(){
   });
   document.getElementById('btn-p2-ready').addEventListener('click',()=>{
     const t=gameMode==='1p'&&!isMobile?1:2;
-    if(gameState==='build')players[t].ready=true;
+    if(gameState==='build')players[t].ready=!players[t].ready; // v3.53: click again to cancel
   });
   // v3.28: help opens from the main menu, the lobby or the pause menu
   // and returns to wherever it was opened from.
@@ -3328,8 +3335,15 @@ function updateHUD(){
   }
 
   // Ready overlays
-  h.p1readyOv.style.display=p1.ready&&gameState==='build'?'flex':'none';
-  h.p2readyOv.style.display=p2.ready&&gameState==='build'?'flex':'none';
+  // v3.53: badges + button state instead of the overlays (they covered
+  // the build bar while a player waited)
+  {const r1=p1.ready&&gameState==='build',r2=p2.ready&&gameState==='build';
+   if(!h.rp)h.rp=[null,document.getElementById('p1-ready-pill'),document.getElementById('p2-ready-pill'),document.getElementById('ta-ready')];
+   if(h._r1!==r1){h._r1=r1;h.rp[1].classList.toggle('on',r1);if(h.rp[3]){h.rp[3].classList.toggle('is-ready',r1);h.rp[3].textContent=r1?'\u2713':'RDY'}}
+   if(h._r2!==r2){h._r2=r2;h.rp[2].classList.toggle('on',r2)}
+   const rb=gameMode==='1p'&&!isMobile?r1:r2;
+   if(h._rb!==rb){h._rb=rb;h.btnP2ready.classList.toggle('is-ready',rb)}
+   __st(h.btnP2ready,rb?'\u2713 Ready':'Ready')}
 
   // In 1P mode
   if(gameMode!=='1p'&&h.desk1p){h.desk1p=false;document.getElementById('hud-bottom').classList.remove('desk-1p')}
@@ -3348,7 +3362,6 @@ function updateHUD(){
       h.p2buildOpts.style.opacity='1';
       h.p2specials.style.opacity='1';
       h.btnP2ready.style.display='';
-      __st(h.btnP2ready,'Ready');
       // Highlight P1's selection on P2 panel too
       for(let i=0;i<h.p2buildOptEls.length;i++){
         const el=h.p2buildOptEls[i];
@@ -5543,7 +5556,7 @@ function processTouchInput(dt){
     touchSellFlag=false;
   }
   if(touchReadyFlag){
-    if(gameState==='build')p1.ready=true;
+    if(gameState==='build')p1.ready=!p1.ready;
     touchReadyFlag=false;
   }
   if(touchCyclePrev){
