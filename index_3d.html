@@ -593,6 +593,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
 .insp .if{display:flex;justify-content:space-between;gap:6px;margin-top:6px;font-size:11px;letter-spacing:.06em;text-transform:uppercase}
 .insp .if span{white-space:nowrap;font-family:var(--f-display);font-size:10px;padding:2px 6px;border:1px solid rgba(255,215,110,.35);border-radius:3px;color:#ffd76a}
 .insp .if span[data-a]{pointer-events:auto;cursor:pointer}.insp .if span[data-a]:active{transform:scale(.95)}
+.insp .ir.rally{color:#ffd76a}.insp .ir.rally b{color:#ffe9a8}.insp .hd2{font-size:11px;font-style:italic;color:#a89a7c;margin-top:4px}
 .insp .if span.full{color:#9fe07a;border-color:rgba(140,220,110,.4)}
 .insp .if span.poor{color:#ff8a7a;border-color:rgba(255,120,100,.35)}.insp .if span.max{color:#9fb0c8;border-color:rgba(160,180,210,.25)}.insp .if span.note{border:0;padding-left:0;color:#9f927a}
 .insp .hpb{height:5px;background:rgba(0,0,0,.45);border-radius:3px;overflow:hidden;margin:4px 0 2px}.insp .hpb i{display:block;height:100%;background:linear-gradient(90deg,#d8a63c,#f3d27a)}
@@ -701,7 +702,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
   </div>
   <div class="menu-foot">
     <div class="foot-hints"><span><span class="key">&uarr;</span><span class="key">&darr;</span> Navigate</span><span><span class="key">Enter</span> Select</span><span><span class="key round">A</span> Confirm</span></div>
-    <div class="foot-ver">Castle Siege <b>v3.54</b> &bull; Build 2026-10-24</div>
+    <div class="foot-ver">Castle Siege <b>v3.55</b> &bull; Build 2026-10-24</div>
   </div>
 </div>
 
@@ -804,6 +805,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
         <tr><td>Magic</td><td class="cost-col">$175</td><td>Dmg 32 &middot; Range 3.5 &middot; Splash 1.8</td></tr>
         <tr><td>Catapult</td><td class="cost-col">$150</td><td>Dmg 55 &middot; Range 5.5 &middot; Splash 2</td></tr>
         <tr><td>Bombard</td><td class="cost-col">$200</td><td>Dmg 60 &middot; Range 4.5 &middot; Rate 2s</td></tr>
+          <tr><td>Banner</td><td class="cost-col">$150</td><td>Support &middot; +25% damage to towers within 2.2</td></tr>
         <tr><td>Wall</td><td class="cost-col">$30</td><td>150 HP stone blocker</td></tr>
         <tr><td>Barricade</td><td class="cost-col">$15</td><td>75 HP cheap blocker</td></tr>
         </tbody></table></div>
@@ -991,6 +993,9 @@ const TOWER_DATA=[
   {id:'magic',name:'Magic',cost:175,range:3.5,dmg:32,rate:1.0,spd:6,color:'#9B59B6',splash:1.8},
   {id:'catapult',name:'Catapult',cost:150,range:5.5,dmg:55,rate:2.5,spd:4,color:'#8B6914',splash:2},
   {id:'bombard',name:'Bombard',cost:200,range:4.5,dmg:60,rate:2,spd:5,color:'#2C3E50',splash:0},
+  // v3.55: support tower — no attack; rallies friendly towers within its
+  // range: +25% damage (+10% per level). The strongest banner applies.
+  {id:'banner',name:'Banner',cost:150,range:2.2,dmg:0,rate:0,spd:0,color:'#C9A24A',splash:0,support:0.25},
 ];
 const ENEMY_DATA=[
   {id:'goblin',name:'Goblin',cost:6,hp:30,spd:2.5,dmg:15,reward:10,color:'#4a8c38',armor:0},
@@ -3415,7 +3420,7 @@ function tryPlace(player,pNum){
     const lv=existingTower.level;
     existingTower.dmg=Math.round(td.dmg*(1+0.3*(lv-1)));
     existingTower.range=td.range*(1+0.1*(lv-1));
-    existingTower.rate=td.rate*(1-0.15*(lv-1));
+    existingTower.rate=td.rate*(1-0.15*(lv-1));refreshBannerBuffs();
     // Visual: syncTowers scales the mesh per level, pulses it and
     // rebuilds the gold level bands.
     existingTower._upT=0;
@@ -3448,7 +3453,8 @@ function tryPlace(player,pNum){
     grid[r][c]={type:'tower',owner:pNum,towerType:opt.id};
     const td=TOWER_DATA.find(t=>t.id===opt.id);
     towers.push({type:opt.id,col:c,row:r,owner:pNum,range:td.range,dmg:td.dmg,rate:td.rate,projSpd:td.spd,
-      splash:td.splash,color:td.color,x:colToX(c),y:rowToY(r),cooldown:0,target:null,angle:0,level:1,fresh:td.cost});
+      splash:td.splash,color:td.color,x:colToX(c),y:rowToY(r),cooldown:0,target:null,angle:0,level:1,fresh:td.cost,support:td.support||0});
+    refreshBannerBuffs();
   }else if(opt.id==='wall'){grid[r][c]={type:'wall',owner:pNum,hp:150,maxHp:150,fresh:true}}
   else{grid[r][c]={type:'barricade',owner:pNum,hp:75,maxHp:75,fresh:true}}
   markGridDirty();
@@ -3476,7 +3482,7 @@ function trySell(player,pNum){
     const twr=towers.find(t=>t.col===c&&t.row===r);
     // v3.22: refund includes upgrade investment (60% of base per extra level)
     refund=twr?towerRefund(twr):Math.floor(td.cost/2);
-    const idx=towers.findIndex(t=>t.col===c&&t.row===r);if(idx>=0)towers.splice(idx,1);
+    const idx=towers.findIndex(t=>t.col===c&&t.row===r);if(idx>=0)towers.splice(idx,1);refreshBannerBuffs();
   }else if(cell.type==='wall'||cell.type==='barricade')refund=wallRefund(cell);
   grid[r][c]=null;player.credits+=refund;markGridDirty();sndBuild();
   // v3.27: sell feedback — dust puff and the refund floating up.
@@ -3492,11 +3498,19 @@ let __tmodeVer=0;
 function cycleTargetMode(player,pNum){
   const{c,r}=player.cursor;const cell=grid[r]&&grid[r][c];
   if(!cell||cell.type!=='tower'||cell.owner!==pNum)return false;
-  const t=towers.find(x=>x.col===c&&x.row===r);if(!t)return false;
+  const t=towers.find(x=>x.col===c&&x.row===r);if(!t||t.support)return false;
   t.tmode=((t.tmode||0)+1)%TARGET_MODES.length;__tmodeVer++;
   uiSfx('select');uiToast(pNum,`${TOWER_DATA.find(d=>d.id===t.type).name} targets: ${TARGET_MODES[t.tmode]}`,'good','target');
   const wp=tileToWorld(c,r);spawnAuraPulse(wp.x,wp.z,0.9,pNum===1?0x6aa8ff:0xff7a6a,0.35);
   return true;
+}
+let __bannerTick=0;
+function bannerBuffFor(b){return b.support+0.1*((b.level||1)-1)}
+function refreshBannerBuffs(){
+  for(const t of towers)t._buff=0;
+  for(const b of towers){if(!b.support)continue;const v=bannerBuffFor(b);
+    for(const t of towers){if(t.support||t.owner!==b.owner)continue;
+      if(Math.hypot(t.col-b.col,t.row-b.row)<=b.range&&v>t._buff)t._buff=v}}
 }
 function dealDamage(enemy,dmg,src){
   const actual=dmg*(1-enemy.armor);
@@ -3998,7 +4012,14 @@ function updateCombat(dt){
 
   // Update towers
   const __omenRng=curOmen().rng||1;
+  // v3.55: War Banner auras, refreshed a few times a second
+  if((__bannerTick=(__bannerTick+1)%12)===0)refreshBannerBuffs();
   for(const t of towers){
+    if(t.support){ // banners don't shoot; a faint pulse shows the aura
+      t._pulseT=(t._pulseT||0)-dt;
+      if(t._pulseT<=0){t._pulseT=2.6;const wp=tileToWorld(t.col,t.row);spawnAuraPulse(wp.x,wp.z,t.range,0xffd76a,1.1,undefined,true)}
+      continue;
+    }
     t.cooldown-=dt;const targetOwner=t.owner===1?2:1;
     let best=null,bestDist=Infinity;
     // v3.6: cell query instead of full enemy walk. With 20 towers and
@@ -4023,7 +4044,7 @@ function updateCombat(dt){
       t.cooldown=t.rate;t._recoilT=0.15; // v3.23: trigger recoil kick
       const pType=t.type==='turret'?'proj_arrow':t.type==='magic'?'proj_magic':t.type==='catapult'?'proj_boulder':'proj_cannonball';
       projectiles.push({x:t.x,y:t.y,target:best,tx:best.x,ty:best.y,
-        dmg:t.dmg,spd:t.projSpd*T,splash:t.splash,type:pType,owner:t.owner,alive:true,src:t});
+        dmg:Math.round(t.dmg*(1+(t._buff||0))),spd:t.projSpd*T,splash:t.splash,type:pType,owner:t.owner,alive:true,src:t});
       sndShoot();
       // Type-specific muzzle flash
       const tp=tileToWorld(t.col,t.row);
@@ -4129,7 +4150,7 @@ function applyCampaignSave(d){
     const td=TOWER_DATA.find(x=>x.id===s.ty);if(!td)continue;const lv=s.l;
     grid[s.r][s.c]={type:'tower',owner:s.o,towerType:s.ty};
     towers.push({type:s.ty,col:s.c,row:s.r,owner:s.o,range:td.range*(1+0.1*(lv-1)),dmg:Math.round(td.dmg*(1+0.3*(lv-1))),rate:td.rate*(1-0.15*(lv-1)),projSpd:td.spd,
-      splash:td.splash,color:td.color,x:colToX(s.c),y:rowToY(s.r),cooldown:0,target:null,angle:0,level:lv,fresh:0,tmode:s.m,kills:s.k,dmgDone:s.dd});
+      splash:td.splash,color:td.color,x:colToX(s.c),y:rowToY(s.r),cooldown:0,target:null,angle:0,level:lv,fresh:0,tmode:s.m,kills:s.k,dmgDone:s.dd,support:td.support||0});
   }
   markGridDirty();applyTimeOfDay(timeOfDayForWave(waveNum));
   __tut.i=-1;uiTutorialHide();
@@ -5100,7 +5121,7 @@ function __cursorAction(pNum){
       if(gameState==='build'&&opt.cat==='tower'){
         ck.state=lv>=3?'bad':pl.credits>=upCost?'upg':'bad';
       }
-      ck.text=`${td.name} Lv${lv}${lv<3?` \u2014 Place: Upgrade $${upCost}`:' (MAX)'} \u00B7 Sell: +$${refund}${t.fresh&&gameState==='build'?(t.fresh>=refund?' (full refund)':' (upgrade refunded)'):''} \u00B7 Target: ${TARGET_MODES[t.tmode||0]}`;
+      ck.text=`${td.name} Lv${lv}${lv<3?` \u2014 Place: Upgrade $${upCost}`:' (MAX)'} \u00B7 Sell: +$${refund}${t.fresh&&gameState==='build'?(t.fresh>=refund?' (full refund)':' (upgrade refunded)'):''}${t.support?` \u00B7 Aura +${Math.round(bannerBuffFor(t)*100)}%`:` \u00B7 Target: ${TARGET_MODES[t.tmode||0]}`}`;
     }
     return ck;
   }
@@ -5314,10 +5335,11 @@ function aiDoBuildAction(ai){
       if(ai.selectedIdx>=0)tryPlace(ai,pNum);
     }else{
       // Place a new tower
-      const affordable=TOWER_DATA.filter(t=>ai.credits>=t.cost);
+      const armed=towers.filter(t=>t.owner===pNum&&!t.support).length;
+      const affordable=TOWER_DATA.filter(t=>ai.credits>=t.cost&&(!t.support||armed>=3));
       if(affordable.length){
         const td=affordable[Math.floor(Math.random()*affordable.length)];
-        const spot=aiFindBuildSpot(pNum,td.range);
+        const spot=td.support?aiFindBannerSpot(pNum,td.range):aiFindBuildSpot(pNum,td.range);
         if(spot){
           ai.cursor.c=spot.c;ai.cursor.r=spot.r;
           ai.selectedIdx=BUILD_OPTS.findIndex(o=>o.id===td.id);
@@ -5378,6 +5400,18 @@ function aiFindBuildSpot(pNum,range){
     if(grid[r][c])continue;
     // Never sit directly on the route — that's what walls are for.
     const score=__aiCoverage(c,r,route,range||4)+Math.random()*1.5;
+    if(score>bestScore&&canPlace(c,r,pNum)){best={c,r};bestScore=score}
+  }
+  return best;
+}
+function aiFindBannerSpot(pNum,range){
+  const pl=players[pNum],mine=towers.filter(t=>t.owner===pNum&&!t.support);
+  let best=null,bestScore=1.5;
+  for(let attempt=0;attempt<40;attempt++){
+    const c=pl.buildMin+Math.floor(Math.random()*(pl.buildMax-pl.buildMin+1)),r=Math.floor(Math.random()*ROWS);
+    if(grid[r][c])continue;
+    let n=0;for(const t of mine)if(Math.hypot(t.col-c,t.row-r)<=range)n+=1+0.3*((t.level||1)-1);
+    const score=n+Math.random()*0.5;
     if(score>bestScore&&canPlace(c,r,pNum)){best={c,r};bestScore=score}
   }
   return best;

@@ -19,7 +19,7 @@ const __isMouse=e=>e.pointerType==='mouse'||(e.pointerType===undefined&&UI_HOVER
 
 // ==================== ICONS ====================
 function uiIcon(id,cls){return `<svg class="ico${cls?' '+cls:''}" viewBox="0 0 24 24"><use href="#i-${id}"/></svg>`}
-const OPT_ICON={turret:'turret',magic:'magic',catapult:'catapult',bombard:'bombard',wall:'wall',barricade:'barricade',
+const OPT_ICON={banner:'banner',turret:'turret',magic:'magic',catapult:'catapult',bombard:'bombard',wall:'wall',barricade:'barricade',
   goblin:'goblin',orc:'orc',darkKnight:'knight',archer:'archer',troll:'troll',dragon:'dragon',lich:'lich'};
 const SPEC_ICON=['meteor','lightning','freeze','heal'];
 const OPT_DESC={
@@ -516,11 +516,25 @@ document.addEventListener('DOMContentLoaded',()=>{const b=document.getElementByI
 // its content changes; the card is re-positioned every frame.
 const __insp={1:{sig:'',el:null},2:{sig:'',el:null}};
 const __inspV=typeof THREE!=='undefined'?new THREE.Vector3():null;
+// v3.55: War Banner card — aura strength, reach and how many towers it rallies
+function __inspBanner(t,td,pl,pn){
+  const lv=t.level||1,mx=lv>=3,up=Math.floor(td.cost*0.6),sell=towerRefund(t),fresh=gameState==='build'&&t.fresh,full=fresh&&sell>=td.cost+up*(lv-1);
+  const v=Math.round(bannerBuffFor(t)*100),nv=v+10,nr=td.range*(1+0.1*lv);
+  const n=towers.filter(o=>!o.support&&o.owner===t.owner&&Math.hypot(o.col-t.col,o.row-t.row)<=t.range).length;
+  const pips='\u25C6'.repeat(lv)+`<i>${'\u25C6'.repeat(3-lv)}</i>`;
+  return `<div class="ih"><span class="in">War Banner</span><span class="ip">${pips}</span></div>`+
+    `<div class="ir">Damage aura<span><b>+${v}%</b>${mx?'':`<em>\u2192 +${nv}%</em>`}</span></div>`+
+    `<div class="ir">Reach<span><b>${t.range.toFixed(1)}</b>${mx?'':`<em>\u2192 ${nr.toFixed(1)}</em>`}</span></div>`+
+    `<div class="ir is">Towers rallied<span><b>${n}</b></span></div>`+
+    `<div class="hd2">Doesn\u2019t attack. The strongest banner in reach applies.</div>`+
+    `<div class="if">${mx?'<span class="max">Max level</span>':`<span data-a="up" class="${pl.credits<up?'poor':''}">Upgrade $${up}</span>`}<span data-a="sell" class="${fresh?'full':''}">Sell +$${sell}${full?' \u00B7 full':fresh?' \u00B7 upg back':''}</span></div>`;
+}
 function __inspHTML(cell,pl,pn){
   const {c,r}=pl.cursor;
   if(cell.type==='tower'){
     const t=towers.find(x=>x.col===c&&x.row===r);if(!t)return null;
     const td=TOWER_DATA.find(x=>x.id===t.type),lv=t.level||1,mx=lv>=3;
+    if(t.support)return __inspBanner(t,td,pl,pn);
     const nd=Math.round(td.dmg*(1+0.3*lv)),nr=td.range*(1+0.1*lv),nt=td.rate*(1-0.15*lv);
     const up=Math.floor(td.cost*0.6),sell=towerRefund(t),fresh=gameState==='build'&&t.fresh,full=fresh&&sell>=td.cost+up*(lv-1);
     const gain=(a,b,f)=>mx?'':`<em>→ ${f(b)}</em>`;
@@ -531,6 +545,7 @@ function __inspHTML(cell,pl,pn){
       `<div class="ir">Range<span><b>${f1(t.range)}</b>${gain(t.range,nr,f1)}</span></div>`+
       `<div class="ir">Fire rate<span><b>${fr(t.rate)}</b>${gain(t.rate,nt,fr)}</span></div>`+
       (td.splash?`<div class="ir">Splash<span><b>${td.splash}</b></span></div>`:'')+
+      (t._buff?`<div class="ir rally">Rallied by a banner<span><b>+${Math.round(t._buff*100)}%</b> \u2192 ${Math.round(t.dmg*(1+t._buff))} dmg</span></div>`:'')+
       `<div class="ir is">Kills<span><b>${t.kills||0}</b></span></div>`+
       `<div class="ir">Damage dealt<span><b>${Math.round(t.dmgDone||0).toLocaleString()}</b></span></div>`+
       `<div class="tgt" data-p="${pn}">Target<span><b>${TARGET_MODES[t.tmode||0]}</b>${__touchUI()?'':`<span class="key">${pn===1?'C':'MMB'}</span>`}</span></div>`+

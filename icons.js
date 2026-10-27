@@ -9,6 +9,7 @@
     <linearGradient id="g-p2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff8a9c"/><stop offset="1" stop-color="#661226"/></linearGradient>
   </defs>
   <symbol id="i-turret" viewBox="0 0 24 24"><path d="M6 21V10h12v11M4.5 10V5.5h2.5v2h2.5v-2h5v2h2.5v-2h2.5V10M10 21v-3.5a2 2 0 0 1 4 0V21M3 21h18M9 13h.01M15 13h.01"/></symbol>
+  <symbol id="i-banner" viewBox="0 0 24 24"><path d="M6 22V2.5M6 4h12l-2.5 4 2.5 4H6M4 22h5"/><path d="M10 7.2l.9 1.8 2 .3-1.5 1.4.4 2-1.8-1-1.8 1 .4-2-1.5-1.4 2-.3z" stroke-width="1.2"/></symbol>
   <symbol id="i-magic" viewBox="0 0 24 24"><path d="M12 2.5l2.6 4.6L12 11.7 9.4 7.1z M12 11.7V21M8.5 21h7M10 15h4M4.5 5.5l1.2 1.2M19.5 5.5l-1.2 1.2M3.5 10.5h2M18.5 10.5h2"/></symbol>
   <symbol id="i-catapult" viewBox="0 0 24 24"><path d="M3 20.5h18M5.5 20.5l3-6h7l3 6M8.5 14.5L18 5.5M8.5 14.5l-2.5-2M12 14.5V11"/><circle cx="19" cy="4.8" r="2"/></symbol>
   <symbol id="i-bombard" viewBox="0 0 24 24"><path d="M9.5 13.5l9-6.5 2 3-9 6.5M4 20.5h12"/><circle cx="9" cy="16" r="3.5"/><circle cx="9" cy="16" r="1"/><path d="M20.5 5.5l1-1.5M21.8 8l1.5-.4"/></symbol>

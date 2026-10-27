@@ -260,6 +260,52 @@ function buildArrowBastion(owner,level){
   return g;
 }
 
+// ==================== TOWER: WAR BANNER (v3.55, support) ====================
+// No weapon: a rallying standard on a stone plinth. A tall pole carries a
+// crossbar and a big team banner; Lv2 adds braziers, Lv3 a slowly turning
+// gold laurel ring and side pennants. Height grows per tier so the aura
+// source reads from across the field.
+function buildWarBanner(owner,level){
+  const L=Math.max(1,Math.min(3,level||1)),M=artMats(owner),R=artRng(71+L),g=new THREE.Group();
+  const top=pedestal(g,M,R,1+(L>=2?1:0),0.78,[],0);let y=top.y;
+  // round dais
+  P(g,cyl(0.3,0.34,0.08,20),M.stoneD,[0,y+0.04,0]);
+  P(g,torus(0.31,0.018,6,28),M.gold,[0,y+0.085,0],[Math.PI/2,0,0]);y+=0.08;
+  // pole + finial
+  const H=1.15+0.22*L;
+  P(g,cyl(0.035,0.045,H,10),M.woodD,[0,y+H/2,0]);
+  for(let i=0;i<2+L;i++)P(g,cyl(0.05,0.05,0.025,10),M.gold,[0,y+0.12+i*(H-0.3)/(1+L),0]);
+  P(g,ell(0.06,0.06,0.06,12,8),M.gold,[0,y+H+0.04,0]);
+  P(g,cone(0.035,0.16+0.03*L,8),M.gold,[0,y+H+0.16,0]);
+  // crossbar + main banner (faces both lanes: front and back)
+  const cy=y+H-0.12,bw=0.42+0.04*L,bh=0.6+0.12*L;
+  P(g,cyl(0.02,0.02,bw*1.25,8),M.wood,[0,cy,0],[0,0,Math.PI/2]);
+  for(const x of[-1,1])P(g,ell(0.03,0.03,0.03,8,6),M.gold,[x*bw*0.64,cy,0]);
+  const sway=G(g,[0,cy-0.01,0],'float');sway.userData.spd=1.1;sway.userData.amp=0.015;
+  banner(sway,M,[0,0,0.03],bw,bh,0,1);
+  banner(sway,M,[0,0,-0.03],bw,bh,Math.PI,2);
+  if(L>=2){ // braziers on the plinth corners
+    for(const[sx,sz]of[[1,1],[-1,-1]]){
+      const bx=sx*(top.w/2-0.06),bz=sz*(top.w/2-0.06);
+      P(g,cyl(0.05,0.035,0.16,8),M.iron,[bx,top.y+0.08,bz]);
+      P(g,cyl(0.08,0.05,0.06,10),M.ironD,[bx,top.y+0.19,bz]);
+      const fl=G(g,[bx,top.y+0.24,bz],'float');fl.userData.spd=6;fl.userData.amp=0.012;
+      P(fl,cone(0.05,0.14,7),M.flame,[0,0.05,0]);P(fl,cone(0.025,0.08,6),M.flameCore,[0,0.03,0]);
+    }
+  }
+  if(L>=3){ // laurel ring + pennants
+    const ring=G(g,[0,y+H*0.55,0],'spin');ring.userData.spd=0.6;
+    P(ring,torus(0.24,0.016,6,32),M.gold,[0,0,0],[Math.PI/2,0,0]);
+    for(let i=0;i<8;i++){const a=i/8*Math.PI*2;P(ring,ell(0.035,0.012,0.02,6,4),M.goldD,[Math.cos(a)*0.24,0,Math.sin(a)*0.24],[0,-a,0.5])}
+    for(const x of[-1,1]){
+      const pg=G(g,[x*bw*0.64,cy-0.02,0],'float');pg.userData.spd=1.6;pg.userData.amp=0.02;
+      P(pg,bannerGeo(0.1,0.34,0.12,0.02,x),M.clothD,[0,0,0]);
+    }
+  }
+  g.userData.artLevel=L;
+  return g;
+}
+
 // ==================== ENEMY: GOBLIN ====================
 // Small, wiry, oversized ears and grin, team-coloured bandana and rags,
 // rusty short sword. Model scale (game multiplies by 2.2).
@@ -1096,7 +1142,7 @@ function buildProjectile(type){
 
 // ==================== REGISTRY + ENTRY POINTS ====================
 const ART={
-  tower:{turret:{levels:3,build:buildArrowBastion},magic:{levels:3,build:buildArcaneSpire},catapult:{levels:3,build:buildStonebreaker},bombard:{levels:3,build:buildIronThunder}},
+  tower:{banner:{levels:3,build:buildWarBanner},turret:{levels:3,build:buildArrowBastion},magic:{levels:3,build:buildArcaneSpire},catapult:{levels:3,build:buildStonebreaker},bombard:{levels:3,build:buildIronThunder}},
   build:{wall:buildStoneWall,barricade:buildPalisade},
   enemy:{goblin:{build:buildGoblin},orc:{build:buildOrc},darkKnight:{build:buildDarkKnight},archer:{build:buildArcher},troll:{build:buildTroll,boss:true},dragon:{build:buildDragon,boss:true},lich:{build:buildLich,boss:true}},
   castle:{build:buildCastle},

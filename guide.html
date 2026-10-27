@@ -172,6 +172,8 @@ const SECTIONS=[
      desc:'The longest reach on the field. Slow, heavy boulders that flatten whole squads.'},
     {model:'tower-bombard',icon:'bombard',name:'Bombard',sub:'Heavy Cannon',cost:200,dmg:60,range:4.5,fire:1/2,splash:0,
      desc:'Punishing single-target cannon fire. The answer to armored knights and bosses.'},
+    {model:'tower-banner',icon:'banner',name:'War Banner',sub:'Support Standard',cost:150,dmg:0,range:2.2,fire:0,splash:0,
+     desc:'Fires nothing. Rallies every friendly tower within reach: +25% damage, +10% per level. Plant it behind your front line.'},
   ]},
   {id:'walls',label:'Fortifications',chip:'Fortification',icon:'wall',title:'Fortifications',blurb:'Walls never block your own army — only the enemy\'s. Lengthen their march and keep them under your towers.',
    bars:{hp:['Health',150]},
@@ -241,7 +243,7 @@ SECTIONS.forEach((sec,si)=>{
     let statsHTML='';
     if(sec.bars){
       statsHTML='<div class="stats">'+Object.entries(sec.bars).map(([k,[lab,max]])=>{
-        const v=it[k];const txt=k==='fire'?v.toFixed(2)+'/s':k==='armor'?v+'%':k==='splash'?(v||'—'):v;
+        const v=it[k];const txt=(v===0&&k!=='armor')?'—':k==='fire'?v.toFixed(2)+'/s':k==='armor'?v+'%':v;
         return `<span>${lab}</span><div class="bar"><i style="--v:${Math.min(100,(v||0)/max*100)}%"></i></div><b>${txt}</b>`;
       }).join('')+'</div>';
     }else if(it.stats){
@@ -303,6 +305,7 @@ function buildModel(type){
     case 'tower-magic':return createTower('magic',owner);
     case 'tower-catapult':return createTower('catapult',owner);
     case 'tower-bombard':return createTower('bombard',owner);
+    case 'tower-banner':return createTower('banner',owner);
     case 'wall':return createWall(owner);
     case 'barricade':return createBarricade(owner);
   }
