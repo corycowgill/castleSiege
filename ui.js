@@ -277,7 +277,7 @@ function uiSyncSoundBtn(){
   const b=document.getElementById('btn-sound');
   if(b)b.innerHTML=`Sound: ${AUDIO.muted?'Off':'On'} <span class="key">M</span>`;
   const gb=document.getElementById('btn-gfx');
-  if(gb&&typeof __post!=='undefined'&&__post)gb.textContent=`Graphics: ${__post.enabled?'High':'Low'}`;
+  if(gb)gb.textContent=`Graphics: ${({auto:'Auto',high:'High',low:'Low'})[SETTINGS.gfx]||'Auto'}`;
 }
 function uiResume(){
   if(gameState!=='paused')return;
@@ -375,15 +375,21 @@ function uiGameOver(winner,score,best,isNewBest,ex){ex=ex||{};
 
 
 // ==================== v3.37: SETTINGS ====================
-const SETTINGS={music:0.5,sfx:0.8,gfx:'high',shake:true,dmg:true,tips:true,perf:false};
-try{Object.assign(SETTINGS,JSON.parse(localStorage.getItem('castleSiege_settings')||'{}'))}catch(e){}
+const SETTINGS={music:0.5,sfx:0.8,gfx:'auto',shake:true,dmg:true,tips:true,perf:false,v:2};
+try{const sv=JSON.parse(localStorage.getItem('castleSiege_settings')||'{}')||{};
+  // v3.59: 'high' used to be the saved default; move those players to Auto once
+  if(!sv.v&&sv.gfx==='high')sv.gfx='auto';sv.v=2;Object.assign(SETTINGS,sv)}catch(e){}
 function uiSaveSettings(){try{localStorage.setItem('castleSiege_settings',JSON.stringify(SETTINGS))}catch(e){}}
 function uiApplySettings(init){
   {const ph=document.getElementById('perf-hud');if(ph&&!SETTINGS.perf)ph.style.display='none'}
   if(typeof AUDIO!=='undefined'){AUDIO.music=SETTINGS.music;AUDIO.sfx=SETTINGS.sfx;if(typeof __applyAudioLevels==='function')__applyAudioLevels(!!init)}
   if(typeof __post!=='undefined'&&__post){
     let saved=false;try{saved=!!localStorage.getItem('castleSiege_settings')||!!localStorage.getItem('castleSiege_gfx')}catch(e){}
-    if(saved||!init){__post.auto=false;__post._slow=0;__post.enabled=SETTINGS.gfx==='high'}
+    if(saved||!init){__post._slow=0;__post.auto=SETTINGS.gfx==='auto';__post.enabled=SETTINGS.gfx!=='low'}
+  }
+  // v3.59: resolution per mode — Auto adapts, High fixed full, Low capped at 1x
+  if(typeof applyPR==='function'&&typeof basePR==='function'&&uiApplySettings._gfx!==SETTINGS.gfx){
+    uiApplySettings._gfx=SETTINGS.gfx;__prScale=SETTINGS.gfx==='low'?Math.min(1,1/basePR()):1;applyPR();
   }
 }
 // Hide plain damage numbers when disabled (gold rewards and castle hits
@@ -393,7 +399,7 @@ const SETTING_ROWS=[
   {k:'music',label:'Music',kind:'pct'},
   {k:'sfx',label:'Effects',kind:'pct'},
   {k:'muted',label:'Sound',kind:'mute'},
-  {k:'gfx',label:'Graphics',kind:'opt',opts:['high','low'],names:{high:'High',low:'Low (faster)'}},
+  {k:'gfx',label:'Graphics',kind:'opt',opts:['auto','high','low'],names:{auto:'Auto (adapts)',high:'High',low:'Low (faster)'}},
   {k:'shake',label:'Screen shake',kind:'bool'},
   {k:'dmg',label:'Damage numbers',kind:'bool'},
   {k:'tips',label:'Tutorial tips',kind:'bool'},
@@ -773,7 +779,7 @@ function uiPerfTick(workMs){
   const alive=enemies.filter(e=>e.alive).length;
   __pf.el.innerHTML=`<span class="${c}">${fps.toFixed(0)} fps</span>  ${(__pf.acc/__pf.n).toFixed(1)} ms/frame  worst ${__pf.worst.toFixed(0)} ms\n`+
     `cpu ${ms.toFixed(1)} ms  calls ${ri.calls}  tris ${(ri.triangles/1000).toFixed(0)}k  geo ${mem.geometries}  tex ${mem.textures}\n`+
-    `units ${alive}  towers ${towers.length}  fx ${typeof __vfxCount==='function'?__vfxCount():'-'}  post ${__post&&__post.enabled?'on':'off'}  dpr ${renderer.getPixelRatio().toFixed(2)}`;
+    `units ${alive}  towers ${towers.length}  fx ${typeof __vfxCount==='function'?__vfxCount():'-'}  post ${__post&&__post.enabled?'on':'off'}  dpr ${renderer.getPixelRatio().toFixed(2)} (${SETTINGS.gfx}${SETTINGS.gfx==='auto'?' '+Math.round(__prScale*100)+'%':''})`;
   __pf.el.style.display='block';
   __pf.n=0;__pf.acc=0;__pf.work=0;__pf.worst=0;
 }

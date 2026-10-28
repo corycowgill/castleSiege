@@ -55,6 +55,10 @@ const {chromium}=require('playwright');
     // --- speed: 1x -> 2x -> 3x -> 1x, only during a wave
     gameState='combat';__combatSpeed=1;cycleSpeed();const s2=__combatSpeed;cycleSpeed();const s3=__combatSpeed;cycleSpeed();
     ok('speed_cycle',s2===2&&s3===3&&__combatSpeed===1);gameState='build';cycleSpeed();ok('speed_build_noop',__combatSpeed===1);
+    // --- adaptive resolution: Auto drops under slow frames and recovers; High is fixed
+    SETTINGS.gfx='auto';uiApplySettings();const feed=(ms,secs)=>{for(let x=0;x<secs*1000;x+=ms)adaptResolution(ms)};
+    feed(33,10);const low=__prScale;feed(16,90);ok('adaptive_res',low<0.8&&__prScale===1);
+    SETTINGS.gfx='high';uiApplySettings();feed(50,10);ok('high_fixed_res',__prScale===1);SETTINGS.gfx='auto';uiApplySettings();
     // --- keep warnings fire once per threshold
     pl.castleHP=pl.maxHP*0.45;keepWarn(1);pl.castleHP=pl.maxHP*0.44;keepWarn(1);
     ok('keep_warn_once',pl._warn[0.5]===true&&document.getElementById('callouts').childElementCount===1);

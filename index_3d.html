@@ -710,7 +710,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
   </div>
   <div class="menu-foot">
     <div class="foot-hints"><span><span class="key">&uarr;</span><span class="key">&darr;</span> Navigate</span><span><span class="key">Enter</span> Select</span><span><span class="key round">A</span> Confirm</span></div>
-    <div class="foot-ver">Castle Siege <b>v3.58</b> &bull; Build 2026-10-24</div>
+    <div class="foot-ver">Castle Siege <b>v3.59</b> &bull; Build 2026-10-24</div>
   </div>
 </div>
 
@@ -1399,6 +1399,22 @@ function pixelToWorld(px,py){return{x:px/T+GRID_OX, y:0, z:(py-GAME_Y)/T+GRID_OZ
 // ==================== THREE.JS SCENE SETUP ====================
 let scene,camera,renderer,clock,__post=null;
 let camZoom=1.0;
+// v3.59: adaptive resolution (Graphics: Auto). Scales the render pixel
+// ratio between 0.55x and 1x of the base so phones hold frame rate.
+let __prScale=1;
+const __ar={acc:0,n:0,slow:0,fast:0};
+function adaptResolution(frameMs){
+  if(SETTINGS.gfx!=='auto'||document.hidden)return;
+  if(frameMs>250)return; // tab switches / hitches are not a trend
+  __ar.acc+=frameMs;__ar.n++;
+  if(__ar.acc<1000)return;
+  const fps=__ar.n*1000/__ar.acc;__ar.acc=0;__ar.n=0;
+  if(fps<45){__ar.slow++;__ar.fast=0}else if(fps>57){__ar.fast++;__ar.slow=0}else{__ar.slow=0;__ar.fast=0}
+  let next=__prScale;
+  if(__ar.slow>=2&&__prScale>0.55){next=Math.max(0.55,__prScale*0.85);__ar.slow=0}
+  else if(__ar.fast>=5&&__prScale<1){next=Math.min(1,__prScale/0.9);__ar.fast=0}
+  if(next!==__prScale){__prScale=next;applyPR()}
+}
 let screenShake=0;
 // v3.7: references to the lighting rig so applyTimeOfDay() can drive
 // them. Assigned inside initScene().
@@ -1443,7 +1459,8 @@ function initScene(container){
   // PERF v2.6: compute an effective pixel ratio that also caps total
   // resolution at ~2.07M pixels (≈1920x1080). On 4K screens this matters
   // a lot more than the DPR cap alone.
-  const _computePR=()=>{
+  const _computePR=()=>basePR()*(__prScale||1);
+  window.basePR=()=>{
     const cw=container.clientWidth,ch=container.clientHeight;
     let pr=Math.min(window.devicePixelRatio||1,1.5);
     const maxPixels=1920*1080;
@@ -1451,6 +1468,7 @@ function initScene(container){
     if(want>maxPixels)pr*=Math.sqrt(maxPixels/want);
     return pr;
   };
+  window.applyPR=()=>renderer.setPixelRatio(_computePR());
   renderer.setSize(container.clientWidth,container.clientHeight);
   renderer.setPixelRatio(_computePR());
   renderer.shadowMap.enabled=true;
@@ -5726,9 +5744,10 @@ function cycleSpeed(){
   uiToast(1,__combatSpeed===1?'Normal speed':`Fast forward \u00B7 ${__combatSpeed}\u00D7`,'good','up');
 }
 
+let __lastFrameT=performance.now();
 function gameLoop(){
   requestAnimationFrame(gameLoop);
-  const __pf0=performance.now();
+  const __pf0=performance.now();adaptResolution(__pf0-__lastFrameT);__lastFrameT=__pf0;
   // Cap rawDt so simAcc can never accumulate more than MAX_SIM_STEPS
   // worth of sim time in a single frame (handles tab-switch gaps).
   // v3.22: 2x speed during combat — multiply raw delta so the sim
