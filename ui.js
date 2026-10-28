@@ -359,6 +359,12 @@ function uiGameOver(winner,score,best,isNewBest,ex){ex=ex||{};
   if(hon)hon.innerHTML=__honBattle.length?`<span class="mk">Honours earned</span> `+__honBattle.map(id=>{const h=HONOURS.find(x=>x.id===id);return `<span class="hb">${uiIcon(h.icon)}${h.name}</span>`}).join(''):'';
   const m1=mvp(1),m2=mvp(2);
   document.getElementById('go-mvp').innerHTML=(m1||m2)?mv(m1,'l')+mv(m2,'r'):'';
+  // v3.58: everything the share card needs, captured at game over
+  __shareData={title,kicker,sub,score,best,isNewBest,defeat:gameMode==='1p'&&!p1won&&!draw,
+    rows:[['Waves',waveNum],['Keep',Math.max(0,Math.ceil(p1.castleHP))],['Kills',p1.kills],['Damage',Math.round(p1.totalDmgDealt)]],
+    mvp:m1?`${TOWER_DATA.find(d=>d.id===m1.type).name} Lv${m1.level||1} \u00B7 ${m1.kills||0} kills`:'',
+    honours:__honBattle.map(id=>HONOURS.find(h=>h.id===id).name)};
+  __shareShot=null;try{__post.render(scene,camera);const c=document.createElement('canvas');c.width=960;c.height=540;c.getContext('2d').drawImage(renderer.domElement,0,0,960,540);__shareShot=c}catch(e){}
   setTimeout(()=>{
     const bars=cmp.querySelectorAll('.cmp');
     rows.forEach(([,a,b],i)=>{const m=Math.max(1,a,b);bars[i].querySelector('.bar.l i').style.width=(a/m*100)+'%';bars[i].querySelector('.bar.r i').style.width=(b/m*100)+'%'});
@@ -771,3 +777,51 @@ function uiPerfTick(workMs){
   __pf.el.style.display='block';
   __pf.n=0;__pf.acc=0;__pf.work=0;__pf.worst=0;
 }
+
+// ==================== SHARE CARD (v3.58) ====================
+// Game over > Share: a 1080x1350 result card (battlefield snapshot taken at
+// game over, result, mode, stats, MVP, honours). Uses the system share
+// sheet where files can be shared (phones), otherwise downloads a JPEG.
+let __shareData=null,__shareShot=null;
+function __shareCanvas(){
+  const d=__shareData,W=1080,H=1350,c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');
+  const gold='#e8c062',parch='#f3e2b8',dim='#b8a882';
+  x.fillStyle='#0b0907';x.fillRect(0,0,W,H);
+  if(__shareShot){x.globalAlpha=0.85;x.drawImage(__shareShot,-120,0,1320,742);x.globalAlpha=1}
+  let g=x.createLinearGradient(0,300,0,760);g.addColorStop(0,'rgba(11,9,7,0)');g.addColorStop(1,'rgba(11,9,7,1)');x.fillStyle=g;x.fillRect(0,0,W,760);
+  g=x.createRadialGradient(W/2,780,80,W/2,780,700);g.addColorStop(0,d.defeat?'rgba(120,30,20,.35)':'rgba(140,100,30,.32)');g.addColorStop(1,'rgba(0,0,0,0)');x.fillStyle=g;x.fillRect(0,0,W,H);
+  x.strokeStyle='rgba(232,192,98,.55)';x.lineWidth=3;x.strokeRect(36,36,W-72,H-72);
+  x.strokeStyle='rgba(232,192,98,.25)';x.lineWidth=1;x.strokeRect(50,50,W-100,H-100);
+  x.textAlign='center';
+  x.fillStyle=gold;x.font='700 34px Cinzel, Georgia, serif';x.fillText('C A S T L E   S I E G E',W/2,110);
+  x.fillStyle=dim;x.font='600 26px Cinzel, Georgia, serif';x.fillText(d.kicker.toUpperCase(),W/2,640,W-160);
+  g=x.createLinearGradient(0,660,0,800);g.addColorStop(0,d.defeat?'#ffd8d0':'#fff3c8');g.addColorStop(1,d.defeat?'#c0402e':'#d9a33a');
+  x.fillStyle=g;x.font='900 150px Cinzel, Georgia, serif';x.fillText(d.title.toUpperCase(),W/2,790,W-120);
+  x.fillStyle=parch;x.font='italic 34px "IM Fell English", Georgia, serif';x.fillText(d.sub,W/2,850,W-160);
+  x.fillStyle=gold;x.font='700 64px Cinzel, Georgia, serif';x.fillText('Score '+d.score.toLocaleString(),W/2,950);
+  if(d.isNewBest){x.fillStyle='#9fe07a';x.font='600 28px Cinzel, Georgia, serif';x.fillText('\u2605 NEW BEST',W/2,995)}
+  const cw=(W-200)/d.rows.length;
+  d.rows.forEach(([k,v],i)=>{const cx=100+cw*(i+0.5);
+    x.fillStyle=parch;x.font='700 52px Cinzel, Georgia, serif';x.fillText(Number(v).toLocaleString(),cx,1085);
+    x.fillStyle=dim;x.font='600 22px Cinzel, Georgia, serif';x.fillText(k.toUpperCase(),cx,1120)});
+  let y=1185;
+  if(d.mvp){x.fillStyle=dim;x.font='600 22px Cinzel, Georgia, serif';x.fillText('MVP TOWER',W/2,y);x.fillStyle=parch;x.font='700 32px Cinzel, Georgia, serif';x.fillText(d.mvp,W/2,y+40);y+=80}
+  if(d.honours.length){x.fillStyle=gold;x.font='600 24px Cinzel, Georgia, serif';x.fillText('\u2726 '+d.honours.join('  \u00B7  ')+' \u2726',W/2,Math.min(y+10,1275),W-140)}
+  return c;
+}
+async function uiShareResult(){
+  if(!__shareData)return;
+  try{if(document.fonts&&document.fonts.ready)await document.fonts.ready}catch(e){}
+  const c=__shareCanvas(),d=__shareData;
+  const text=`Castle Siege \u2014 ${d.title}: ${d.kicker}. Score ${d.score.toLocaleString()}.`;
+  const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',0.92));
+  const file=blob&&typeof File!=='undefined'?new File([blob],'castle-siege.jpg',{type:'image/jpeg'}):null;
+  try{
+    if(file&&navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:'Castle Siege',text});return}
+  }catch(e){if(e&&e.name==='AbortError')return}
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='castle-siege-'+(typeof dailyKey==='function'?dailyKey():'result')+'.jpg';
+  document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1500);
+  try{navigator.clipboard&&navigator.clipboard.writeText(text).catch(()=>{})}catch(e){}
+  uiToast(1,'Result card saved','gold','check');
+}
+document.addEventListener('DOMContentLoaded',()=>{const b=document.getElementById('btn-go-share');if(b)b.addEventListener('click',()=>{uiSfx('select');uiShareResult()})});

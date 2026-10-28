@@ -275,6 +275,8 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
   color:#0e1a08;background:linear-gradient(180deg,#b8f08a,#6cc04a);box-shadow:0 0 10px rgba(140,230,100,.45);white-space:nowrap}
 .ready-pill.on{display:inline-flex;animation:pillIn .3s var(--ease-back) both}
 @keyframes pillIn{from{transform:scale(.6);opacity:0}to{transform:none;opacity:1}}
+.p2-ready-btn.speed{color:#e8f2ff!important;background:linear-gradient(180deg,#5a7cc8,#2c4688)!important;border-color:#8eb0ff!important;letter-spacing:.1em!important}
+.touch-act-btn.ready-btn.speed{background:radial-gradient(circle at 40% 35%,#8eb0ff,#2c4688)!important;color:#fff!important;font-size:15px!important}
 .p2-ready-btn.is-ready{color:#0e1a08!important;background:linear-gradient(180deg,#c4f49a,#6cc04a)!important;border-color:#a8ec80!important;box-shadow:0 0 14px rgba(140,230,100,.45)!important}
 .touch-act-btn.ready-btn.is-ready{background:radial-gradient(circle at 40% 35%,#c4f49a,#5aa83a)!important;color:#0e1a08!important}
 .spec-pips i{width:8px;height:8px;transform:rotate(45deg);background:linear-gradient(135deg,#fff1c4,#d9b25f 55%,#8a6a2c);box-shadow:0 0 6px rgba(246,220,142,.7);transition:all .3s}
@@ -708,7 +710,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
   </div>
   <div class="menu-foot">
     <div class="foot-hints"><span><span class="key">&uarr;</span><span class="key">&darr;</span> Navigate</span><span><span class="key">Enter</span> Select</span><span><span class="key round">A</span> Confirm</span></div>
-    <div class="foot-ver">Castle Siege <b>v3.57</b> &bull; Build 2026-10-24</div>
+    <div class="foot-ver">Castle Siege <b>v3.58</b> &bull; Build 2026-10-24</div>
   </div>
 </div>
 
@@ -843,7 +845,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
         <li>+250 gold per wave, +10% interest on savings (max 100) &middot; kills pay bounty</li>
         <li>Campaign: Scouts show what the Warlord is buying (Hard: a head-count only)</li>
         <li>Campaign saves each build phase &mdash; resume with <b>Continue</b></li>
-        <li><span class="key">+</span><span class="key">&minus;</span> or Shift+wheel zoom &middot; <span class="key">T</span> 2&times; speed &middot; <span class="key">Esc</span> pause &middot; <span class="key">M</span> mute</li>
+        <li><span class="key">+</span><span class="key">&minus;</span> or Shift+wheel zoom &middot; <span class="key">T</span> / Ready button: speed 1&ndash;3&times; &middot; <span class="key">Esc</span> pause &middot; <span class="key">M</span> mute</li>
         </ul></div>
     </div>
     <p class="help-back">Press any key or click to go back</p>
@@ -937,6 +939,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
     <div class="go-actions">
       <button class="btn primary focus" id="btn-go-again">Play Again</button>
       <button class="btn" id="btn-go-menu">Main Menu</button>
+      <button class="btn" id="btn-go-share">Share</button>
     </div>
   </div>
 </div>
@@ -3110,6 +3113,7 @@ function initHUD(){
   document.getElementById('btn-p2-ready').addEventListener('click',()=>{
     const t=gameMode==='1p'&&!isMobile?1:2;
     if(gameState==='build')players[t].ready=!players[t].ready; // v3.53: click again to cancel
+    else if(gameState==='combat')cycleSpeed(); // v3.58: speed button during a wave
   });
   // v3.28: help opens from the main menu, the lobby or the pause menu
   // and returns to wherever it was opened from.
@@ -3282,12 +3286,12 @@ function updateHUD(){
     h.bar.classList.toggle('urgent',buildTimer<10);
   }else if(gameState==='combat'){
     uiScoutHUD(true);uiOmenTag(waveNum,'This wave');
-    __st(h.phaseInfo,`Wave ${waveNum}${isEndless()?' \u00B7 Endless':' / '+MAX_WAVES}${__combatSpeed>1?' \u25B6\u25B6':''}`);
+    __st(h.phaseInfo,`Wave ${waveNum}${isEndless()?' \u00B7 Endless':' / '+MAX_WAVES}${__combatSpeed>1?' \u25B6'.repeat(__combatSpeed):''}`);
     // PERF v3.13: inline alive counter avoids per-frame filter alloc.
     let aliveCount=0;
     for(let i=0;i<enemies.length;i++)if(enemies[i].alive)aliveCount++;
     const left=aliveCount+spawnQueue1.length+spawnQueue2.length;
-    __st(h.phaseTimer,`${left} enemies remain \u00B7 T: ${__combatSpeed>1?'1x':'2x'} speed`);
+    __st(h.phaseTimer,`${left} enemies remain \u00B7 speed ${__combatSpeed}\u00D7`);
     __sw(h.barFill,(__waveTotal?Math.min(100,left/__waveTotal*100):0)+'%');
     h.bar.classList.remove('urgent');
   }else if(gameState==='gameover'){
@@ -3351,11 +3355,13 @@ function updateHUD(){
   // the build bar while a player waited)
   {const r1=p1.ready&&gameState==='build',r2=p2.ready&&gameState==='build';
    if(!h.rp)h.rp=[null,document.getElementById('p1-ready-pill'),document.getElementById('p2-ready-pill'),document.getElementById('ta-ready')];
-   if(h._r1!==r1){h._r1=r1;h.rp[1].classList.toggle('on',r1);if(h.rp[3]){h.rp[3].classList.toggle('is-ready',r1);h.rp[3].textContent=r1?'\u2713':'RDY'}}
+   if(h._r1!==r1){h._r1=r1;h.rp[1].classList.toggle('on',r1);if(h.rp[3]){h.rp[3].classList.toggle('is-ready',r1);h.rp[3].textContent=r1?'\u2713':'RDY';h.rp[3]._t=null}}
    if(h._r2!==r2){h._r2=r2;h.rp[2].classList.toggle('on',r2)}
-   const rb=gameMode==='1p'&&!isMobile?r1:r2;
+   const rb=gameMode==='1p'&&!isMobile?r1:r2,cb=gameState==='combat';
    if(h._rb!==rb){h._rb=rb;h.btnP2ready.classList.toggle('is-ready',rb)}
-   __st(h.btnP2ready,rb?'\u2713 Ready':'Ready')}
+   h.btnP2ready.classList.toggle('speed',cb);
+   __st(h.btnP2ready,cb?`\u25B6 ${__combatSpeed}\u00D7`:rb?'\u2713 Ready':'Ready');
+   if(h.rp[3]&&!r1){const tx=cb?`${__combatSpeed}\u00D7`:'RDY';if(h.rp[3]._t!==tx){h.rp[3]._t=tx;h.rp[3].textContent=tx;h.rp[3].classList.toggle('speed',cb)}}}
 
   // In 1P mode
   if(gameMode!=='1p'&&h.desk1p){h.desk1p=false;document.getElementById('hud-bottom').classList.remove('desk-1p')}
@@ -3781,7 +3787,7 @@ function processInput(dt){
       if(consumeKey('KeyF'))useSpecial(p1,1);
       if(consumeKey('KeyZ'))p1.selectedSpecial=(p1.selectedSpecial+1)%4;
       // v3.22: T toggles 2x combat speed
-      if(consumeKey('KeyT'))__combatSpeed=__combatSpeed===1?2:1;
+      if(consumeKey('KeyT'))cycleSpeed();
     }
   }
 
@@ -5648,7 +5654,7 @@ function processTouchInput(dt){
     touchSellFlag=false;
   }
   if(touchReadyFlag){
-    if(gameState==='build')p1.ready=!p1.ready;
+    if(gameState==='build')p1.ready=!p1.ready;else if(gameState==='combat')cycleSpeed();
     touchReadyFlag=false;
   }
   if(touchCyclePrev){
@@ -5713,6 +5719,12 @@ const MAX_SIM_STEPS=4; // cap catch-up to prevent spiral of death
 let __simAcc=0;
 // v3.22: 2x combat speed toggle. Press T during combat to fast-forward.
 let __combatSpeed=1;
+// v3.58: 1x -> 2x -> 3x during a wave (T, the Ready button, or RDY on touch)
+function cycleSpeed(){
+  if(gameState!=='combat')return;
+  __combatSpeed=__combatSpeed%3+1;uiSfx('select');
+  uiToast(1,__combatSpeed===1?'Normal speed':`Fast forward \u00B7 ${__combatSpeed}\u00D7`,'good','up');
+}
 
 function gameLoop(){
   requestAnimationFrame(gameLoop);
@@ -5767,7 +5779,7 @@ function gameLoop(){
     if(consumeKey('Escape')||consumeKey('KeyP')){uiPause();__simAcc=0}
     {const gp=getGamepad();if(gp&&gp.buttons[8]&&gp.buttons[8].pressed&&!gpPrev[8])uiPause()}
     {const g2=gameMode==='2p'?getGamepad(1):null;if(g2&&g2.buttons[8]&&g2.buttons[8].pressed&&!gpPrev2[8])uiPause()}
-    while(gameState!=='paused'&&__simAcc>=SIM_DT&&simSteps<MAX_SIM_STEPS){
+    while(gameState!=='paused'&&__simAcc>=SIM_DT&&simSteps<MAX_SIM_STEPS*__combatSpeed){
       processInput(SIM_DT);
       if(gameMode==='1p')processTouchInput(SIM_DT);
       if(gameMode==='1p')aiUpdate(SIM_DT);
@@ -5780,6 +5792,10 @@ function gameLoop(){
       __simAcc-=SIM_DT;
       simSteps++;
     }
+    // v3.58: never bank more than one frame's worth of sim — at 3x on a
+    // slow device the backlog used to grow and run the game fast for a
+    // while after dropping back to 1x.
+    if(__simAcc>SIM_DT*MAX_SIM_STEPS*__combatSpeed)__simAcc=SIM_DT*MAX_SIM_STEPS*__combatSpeed;
   }
 
   // Sync 3D state every render frame so visuals stay smooth at
