@@ -325,7 +325,7 @@ function uiGameOver(winner,score,best,isNewBest,ex){ex=ex||{};
   if(gameMode==='1p'){
     title=draw?'Stalemate':p1won?'Victory':'Defeat';
     sub=draw?'Neither crown would yield.':p1won?(p2.castleHP<=0?'The warlord\'s keep lies in ruin.':'Your keep stands taller at the final dawn.'):(p1.castleHP<=0?'Your walls have fallen. The realm mourns.':'The warlord outlasted you.');
-    kicker=isEndless()?`Endless \u00B7 reached wave ${waveNum} \u00B7 ${diffProfile().label}${ex.newWave?' \u00B7 \u2605 new record':ex.bestWave?` \u00B7 record ${ex.bestWave}`:''}`
+    kicker=ex.daily?`Daily Siege \u00B7 ${dailyKey()} \u00B7 reached wave ${waveNum}${ex.newWave?' \u00B7 \u2605 best today':ex.bestWave?` \u00B7 today's best ${ex.bestWave}`:''}`:isEndless()?`Endless \u00B7 reached wave ${waveNum} \u00B7 ${diffProfile().label}${ex.newWave?' \u00B7 \u2605 new record':ex.bestWave?` \u00B7 record ${ex.bestWave}`:''}`
       :`After ${waveNum} wave${waveNum===1?'':'s'} \u00B7 ${diffProfile().label} \u00B7 vs the ${temperProfile().name}`;
   }else{
     title=draw?'Stalemate':p1won?'Blue Triumphs':'Red Triumphs';
@@ -369,10 +369,11 @@ function uiGameOver(winner,score,best,isNewBest,ex){ex=ex||{};
 
 
 // ==================== v3.37: SETTINGS ====================
-const SETTINGS={music:0.5,sfx:0.8,gfx:'high',shake:true,dmg:true,tips:true};
+const SETTINGS={music:0.5,sfx:0.8,gfx:'high',shake:true,dmg:true,tips:true,perf:false};
 try{Object.assign(SETTINGS,JSON.parse(localStorage.getItem('castleSiege_settings')||'{}'))}catch(e){}
 function uiSaveSettings(){try{localStorage.setItem('castleSiege_settings',JSON.stringify(SETTINGS))}catch(e){}}
 function uiApplySettings(init){
+  {const ph=document.getElementById('perf-hud');if(ph&&!SETTINGS.perf)ph.style.display='none'}
   if(typeof AUDIO!=='undefined'){AUDIO.music=SETTINGS.music;AUDIO.sfx=SETTINGS.sfx;if(typeof __applyAudioLevels==='function')__applyAudioLevels(!!init)}
   if(typeof __post!=='undefined'&&__post){
     let saved=false;try{saved=!!localStorage.getItem('castleSiege_settings')||!!localStorage.getItem('castleSiege_gfx')}catch(e){}
@@ -390,6 +391,7 @@ const SETTING_ROWS=[
   {k:'shake',label:'Screen shake',kind:'bool'},
   {k:'dmg',label:'Damage numbers',kind:'bool'},
   {k:'tips',label:'Tutorial tips',kind:'bool'},
+  {k:'perf',label:'Performance stats',kind:'bool'},
 ];
 let __settingsOpen=false,__settingsFrom='menu';
 function uiSettingsOpen(){return __settingsOpen}
@@ -738,4 +740,34 @@ function uiOmenTag(w,label){
   if(!sig){el.style.display='none';return}
   el.innerHTML=`<span class="ok">${label}</span>${om.id?`<b>\u263D ${om.name}</b><i>${om.desc}</i>`:''}${hp>1?`<span class="hp">HP +${Math.round((hp-1)*100)}%</span>`:''}`;
   el.style.display='flex';
+}
+
+// ==================== DAILY SIEGE (v3.57) ====================
+function uiSyncDaily(){
+  const s=document.getElementById('btn-daily-sub');if(!s||typeof dailyBest!=='function')return;
+  const b=dailyBest();s.textContent=b?`Today \u00B7 best wave ${b}`:`Today \u00B7 vs the ${TEMPERS[dailyTemper()].name}`;
+}
+document.addEventListener('DOMContentLoaded',()=>{
+  const b=document.getElementById('btn-daily');if(b)b.addEventListener('click',()=>startDaily());
+  uiSyncDaily();
+});
+
+// ==================== PERFORMANCE OVERLAY (v3.57) ====================
+// Settings > Performance stats. FPS and frame time are averaged over
+// half a second; worst frame is the slowest in that window. Draw calls and
+// triangles cover the whole frame (post-processing passes included).
+const __pf={n:0,t:0,acc:0,work:0,worst:0,last:performance.now(),el:null};
+function uiPerfTick(workMs){
+  const now=performance.now(),dt=now-__pf.last;__pf.last=now;
+  __pf.n++;__pf.acc+=dt;__pf.work+=workMs;if(dt>__pf.worst)__pf.worst=dt;
+  if(__pf.acc<500)return;
+  if(!__pf.el)__pf.el=document.getElementById('perf-hud');
+  const fps=__pf.n*1000/__pf.acc,ms=__pf.work/__pf.n,ri=renderer.info.render,mem=renderer.info.memory;
+  const c=fps<30?'bad':fps<55?'mid':'';
+  const alive=enemies.filter(e=>e.alive).length;
+  __pf.el.innerHTML=`<span class="${c}">${fps.toFixed(0)} fps</span>  ${(__pf.acc/__pf.n).toFixed(1)} ms/frame  worst ${__pf.worst.toFixed(0)} ms\n`+
+    `cpu ${ms.toFixed(1)} ms  calls ${ri.calls}  tris ${(ri.triangles/1000).toFixed(0)}k  geo ${mem.geometries}  tex ${mem.textures}\n`+
+    `units ${alive}  towers ${towers.length}  fx ${typeof __vfxCount==='function'?__vfxCount():'-'}  post ${__post&&__post.enabled?'on':'off'}  dpr ${renderer.getPixelRatio().toFixed(2)}`;
+  __pf.el.style.display='block';
+  __pf.n=0;__pf.acc=0;__pf.work=0;__pf.worst=0;
 }

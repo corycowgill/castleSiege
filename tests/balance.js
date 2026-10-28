@@ -1,4 +1,4 @@
-// Balance sim: a scripted defence vs the AI on Normal for each Warlord
+// Balance sim: a scripted defence vs the AI on $DIFF (default Normal) for each Warlord
 // temperament, 3 seeds each. Slow (~10 min). Usage: node tests/balance.js PORT [tempers]
 const {chromium}=require('playwright');
 const PORT=process.argv[2]||8765;
@@ -7,9 +7,9 @@ const PORT=process.argv[2]||8765;
   const res={};
   for(const d of(process.argv[3]||'strategist,fortifier,raider,beastmaster').split(','))for(const seed0 of[1,7,4242]){
     const p=await b.newPage({viewport:{width:480,height:270}});
-    await p.goto(`http://localhost:${PORT}/index_3d.html`);await p.waitForTimeout(2500);
+    await p.goto(`http://localhost:${PORT}/index_3d.html`);await p.evaluate(d=>{window.__DIFF=d},process.env.DIFF||'normal');await p.waitForTimeout(2500);
     const r=await p.evaluate(([d,seed0])=>{
-      document.getElementById('welcome-screen').style.display='none';window._select1P();setDifficulty('normal');aiTemper=d;
+      document.getElementById('welcome-screen').style.display='none';window._select1P();setDifficulty(window.__DIFF||'normal');aiTemper=d;
       gameState='build';buildTimer=BUILD_TIME;applyDifficultyStart();
       const P=players[1];const spots=[[17,6],[17,11],[15,6],[15,11],[13,6],[13,11],[11,6],[11,11],[9,6],[9,11]];let si=0;
       let seed=seed0;Math.random=()=>{seed=(seed*16807)%2147483647;return seed/2147483647};

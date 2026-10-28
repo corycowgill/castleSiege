@@ -47,6 +47,11 @@ const {chromium}=require('playwright');
     ok('save_has_temper_towers',sv&&sv.tp==='raider'&&sv.towers.some(t=>t.ty==='banner'&&t.l===3));
     aiTemper='strategist';applyCampaignSave(sv);ok('restore_temper',aiTemper==='raider');
     clearCampaignSave();ok('save_cleared',loadCampaignSave()===null);
+    // --- Daily Siege: endless with omens from wave 2, day-fixed temper, no campaign save
+    __daily=true;ok('daily_endless_omens',isEndless()&&omenFor(1).id===''&&omenFor(2).id!=='');
+    ok('daily_temper_fixed',dailyTemper()===dailyTemper()&&!!TEMPERS[dailyTemper()]);
+    waveNum=3;saveCampaign();ok('daily_never_saves',loadCampaignSave()===null);
+    leaveDaily();ok('daily_left',!__daily&&!isEndless());
     // --- keep warnings fire once per threshold
     pl.castleHP=pl.maxHP*0.45;keepWarn(1);pl.castleHP=pl.maxHP*0.44;keepWarn(1);
     ok('keep_warn_once',pl._warn[0.5]===true&&document.getElementById('callouts').childElementCount===1);

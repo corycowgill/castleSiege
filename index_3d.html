@@ -572,6 +572,10 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
 #omen-tag .ok{font-family:var(--f-display);letter-spacing:.2em;font-size:10px;color:#b89cff;text-transform:uppercase}
 #omen-tag b{font-family:var(--f-display);letter-spacing:.06em;color:#f0e4ff}#omen-tag i{color:#cbb8ee}#omen-tag .hp{color:#ff9aa8;font-family:var(--f-display);font-weight:700}
 @media(max-height:500px){#omen-tag{top:46px;font-size:10.5px;padding:3px 10px}}
+/* v3.57: optional performance overlay (Settings) */
+#perf-hud{position:fixed;left:8px;top:58px;z-index:600;display:none;pointer-events:none;padding:5px 8px;border-radius:4px;background:rgba(0,0,0,.62);
+  font:11px/1.35 ui-monospace,Menlo,Consolas,monospace;color:#cfe8c0;white-space:pre}
+#perf-hud .bad{color:#ff9a8a}#perf-hud .mid{color:#ffd76a}
 /* v3.46: scouting report */
 #scout{position:absolute;top:54px;right:18px;z-index:20;display:none;align-items:center;gap:6px;padding:5px 10px 5px 9px;pointer-events:none;
   background:linear-gradient(90deg,rgba(20,8,10,0),rgba(30,10,14,.78) 18%);border-right:2px solid rgba(255,110,130,.55);font-size:12px;color:#f0d4d4}
@@ -687,6 +691,8 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
         <span class="mi-idx">&#9656;</span><span class="mi-label">Continue</span><span class="mi-sub" id="btn-continue-sub"></span></button>
       <button class="menu-item" id="btn-1p" data-desc="Hold your keep against a scheming AI warlord across ten waves, from noon to the final dawn." onclick="if(window._select1P)window._select1P()">
         <span class="mi-idx">I</span><span class="mi-label">Campaign</span><span class="mi-sub" id="btn-1p-sub">vs AI Warlord</span></button>
+      <button class="menu-item" id="btn-daily" data-desc="One Endless siege a day, the same for everyone: the date picks the Warlord and an omen rides every wave. How long can your keep hold?">
+        <span class="mi-idx">&#9788;</span><span class="mi-label">Daily Siege</span><span class="mi-sub" id="btn-daily-sub">Today</span></button>
       <button class="menu-item" id="btn-2p" data-desc="Two commanders, one battlefield. Keyboard or controller against mouse, side by side." onclick="if(window._select2P)window._select2P()">
         <span class="mi-idx">II</span><span class="mi-label">Versus</span><span class="mi-sub">Local 2 Player</span></button>
       <button class="menu-item" id="btn-menu-help" data-desc="Towers, armies, bosses, specials and the rules of war.">
@@ -702,7 +708,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
   </div>
   <div class="menu-foot">
     <div class="foot-hints"><span><span class="key">&uarr;</span><span class="key">&darr;</span> Navigate</span><span><span class="key">Enter</span> Select</span><span><span class="key round">A</span> Confirm</span></div>
-    <div class="foot-ver">Castle Siege <b>v3.56</b> &bull; Build 2026-10-24</div>
+    <div class="foot-ver">Castle Siege <b>v3.57</b> &bull; Build 2026-10-24</div>
   </div>
 </div>
 
@@ -828,7 +834,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
         </tbody></table></div>
       <div class="help-section panel frame rules"><h3><svg class="ico"><use href="#i-wall"/></svg>Rules of War</h3>
         <ul class="help-rules">
-        <li>10 waves, 45s build phase &middot; keeps have 3500 HP &middot; Endless: no wave cap, an omen twists each wave past 10</li>
+        <li>10 waves, 45s build phase &middot; keeps have 3500 HP &middot; Endless: no wave cap, an omen each wave past 10 &middot; <b>Daily Siege</b>: one fixed Endless run a day</li>
         <li>Build in your half; walls reroute the march (red arrows show the route)</li>
         <li>Build on your own tower to upgrade it (Lv3 max) &middot; on a damaged wall to repair it</li>
         <li>Anything built this phase sells back in full until the wave starts</li>
@@ -870,7 +876,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
   </div>
 </div>
 
-<div id="scout"></div><div id="omen-tag"></div>
+<div id="perf-hud"></div><div id="scout"></div><div id="omen-tag"></div>
 <div id="wave-banner"><div class="wb-band"></div><div class="wb-line"></div><div class="wb-kicker" id="wb-kicker"></div><div class="wb-title" id="wb-title"></div><div class="wb-sub" id="wb-sub"></div><div class="wb-line"></div></div>
 <div id="callouts"></div>
 <div id="tut-card" class="panel frame"><div class="tut-top"><span class="kicker" id="tut-step">Training</span><button class="tut-skip clickable" id="tut-skip">Skip tips</button></div>
@@ -3251,7 +3257,7 @@ function updateHUD(){
       (pn===1?h.p1specCt:h.p2specCt).innerHTML=[0,1,2].map(i=>`<i class="${i<pl.specials?'':'spent'}"></i>`).join('');
     }
   }
-  __st(h.p2label,gameMode==='1p'?temperProfile().name+' \u00B7 '+diffProfile().label:'Red Crown');
+  __st(h.p2label,gameMode==='1p'?temperProfile().name+' \u00B7 '+(__daily?'Daily':diffProfile().label):'Red Crown');
   __st(h.p1label,'Blue Crown');
 
   if(gameState==='build'){
@@ -4132,7 +4138,7 @@ function updateCombat(dt){
 // the state is just the board, the two treasuries and the wave count).
 const SAVE_KEY='castleSiege_save';
 function saveCampaign(){
-  if(gameMode!=='1p'||waveNum<1)return;
+  if(gameMode!=='1p'||waveNum<1||__daily)return;
   const cells=[];for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){const x=grid[r][c];if(x&&x.type!=='castle'&&x.type!=='tower')cells.push([c,r,x.type,x.owner,Math.round(x.hp),x.maxHp])}
   const pl=pn=>{const p=players[pn];return{cr:Math.round(p.credits),hp:p.castleHP,mx:p.maxHP,k:p.kills,dd:Math.round(p.totalDmgDealt)}};
   const data={v:1,t:Date.now(),w:waveNum,d:difficulty,e:endless,tp:aiTemper,p:[null,pl(1),pl(2)],cells,
@@ -4179,7 +4185,7 @@ function keepWarn(pn){
 }
 
 function showGameOver(){
-  if(gameMode==='1p')clearCampaignSave();
+  if(gameMode==='1p'&&!__daily)clearCampaignSave();
   let winner;
   if(players[1].castleHP<=0&&players[2].castleHP<=0)winner='draw';
   else if(players[1].castleHP<=0)winner=2;
@@ -4192,6 +4198,14 @@ function showGameOver(){
   const score=Math.round((waveNum*1000+p1.kills*50+Math.round(p1.totalDmgDealt/10)+Math.max(0,Math.ceil(p1.castleHP)))*mult);
   // Persist best score in localStorage
   let best=null,isNew=false;
+  if(__daily){
+    let d={};try{d=JSON.parse(localStorage.getItem('castleSiege_daily')||'{}')||{}}catch(e){}
+    if(d.day!==dailyKey())d={day:dailyKey(),best:0,score:0};
+    const nw=waveNum>d.best;if(nw)d.best=waveNum;const ns=score>(d.score||0);if(ns)d.score=score;
+    try{localStorage.setItem('castleSiege_daily',JSON.stringify(d))}catch(e){}
+    if(typeof uiSyncDaily==='function')uiSyncDaily();
+    uiGameOver(winner,score,d.score,ns,{bestWave:nw?null:d.best,newWave:nw,daily:true});showScreen('gameover');return;
+  }
   try{
     const key='castleSiege_bestScore'+(gameMode==='1p'&&difficulty!=='normal'?'_'+difficulty:'');
     best=parseInt(localStorage.getItem(key)||'0',10);
@@ -4205,7 +4219,7 @@ function showGameOver(){
 }
 
 function restartGame(){
-  if(gameMode==='1p')clearCampaignSave(); // a restart starts the campaign over
+  if(gameMode==='1p'&&!__daily)clearCampaignSave(); // a restart starts the campaign over
   enemies.length=0;towers.length=0;projectiles.length=0;spawnQueue1.length=0;spawnQueue2.length=0;
   // Clean 3D meshes
   enemyMeshes.forEach(m=>releaseEnemyMesh(m));enemyMeshes.clear();
@@ -5273,7 +5287,25 @@ function temperProfile(){return TEMPERS[aiTemper]||TEMPERS.strategist}
 // each side also fields a free Troll champion. Symmetric by design.
 let endless=(()=>{try{return localStorage.getItem('castleSiege_endless')==='1'}catch(e){return false}})();
 function setEndless(v){endless=!!v;try{localStorage.setItem('castleSiege_endless',endless?'1':'0')}catch(e){}}
-function isEndless(){return gameMode==='1p'&&endless}
+function isEndless(){return gameMode==='1p'&&(endless||__daily)}
+// v3.57: Daily Siege — one fixed Endless run per calendar day on Normal:
+// the day picks the Warlord's temperament and an omen rides every wave
+// from wave 2. Its own best-wave record; never touches the Campaign save.
+let __daily=false;
+function dailyKey(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function dailyHash(){let h=2166136261;for(const ch of dailyKey()){h^=ch.charCodeAt(0);h=Math.imul(h,16777619)}return h>>>0}
+function dailyTemper(){const k=Object.keys(TEMPERS);return k[dailyHash()%k.length]}
+function dailyBest(){try{const d=JSON.parse(localStorage.getItem('castleSiege_daily')||'null');return d&&d.day===dailyKey()?d.best:0}catch(e){return 0}}
+function startDaily(){
+  window._select1P();
+  uiFade(()=>{
+    __daily=true;difficulty='normal';aiTemper=dailyTemper();
+    restartGame();__tut.i=-1;uiTutorialHide();
+    players[1].ready=false;players[2].ready=false;
+    uiToast(1,`Daily Siege \u00B7 ${dailyKey()} \u00B7 vs the ${temperProfile().name}`,'gold','emblem');
+  });
+}
+function leaveDaily(){if(!__daily)return;__daily=false;try{const d=localStorage.getItem('castleSiege_difficulty');difficulty=DIFFICULTY[d]?d:'normal'}catch(e){difficulty='normal'}}
 function endlessHpMult(w){w=w==null?waveNum:w;return isEndless()&&w>MAX_WAVES?1+0.15*(w-MAX_WAVES):1}
 function endlessChampion(w){return isEndless()&&w>MAX_WAVES&&w%5===0}
 // v3.49: Endless omens — one symmetric twist per wave past 10, known a
@@ -5287,7 +5319,7 @@ const OMENS=[
   {id:'swarm',name:'The Swarm',desc:'50% more Goblins in the wave',gob:1.5},
 ];
 const OMEN_NONE={id:'',name:'',desc:''};
-function omenFor(w){if(!isEndless()||w<=MAX_WAVES)return OMEN_NONE;return OMENS[(w*7+3)%OMENS.length]}
+function omenFor(w){if(!isEndless())return OMEN_NONE;if(__daily)return w<2?OMEN_NONE:OMENS[(w*7+dailyHash())%OMENS.length];if(w<=MAX_WAVES)return OMEN_NONE;return OMENS[(w*7+3)%OMENS.length]}
 function curOmen(){return gameState==='combat'?omenFor(waveNum):OMEN_NONE}
 // Starting gold for the AI at the beginning of a campaign match.
 function applyDifficultyStart(){players[2].credits=gameMode==='1p'?Math.round(START_CREDITS*diffProfile().income):START_CREDITS}
@@ -5684,6 +5716,7 @@ let __combatSpeed=1;
 
 function gameLoop(){
   requestAnimationFrame(gameLoop);
+  const __pf0=performance.now();
   // Cap rawDt so simAcc can never accumulate more than MAX_SIM_STEPS
   // worth of sim time in a single frame (handles tab-switch gaps).
   // v3.22: 2x speed during combat — multiply raw delta so the sim
@@ -5772,7 +5805,9 @@ function gameLoop(){
     if(screenShake<=0){screenShake=0;setCameraZoom(camZoom)}
   }
 
+  if(SETTINGS.perf){renderer.info.autoReset=false;renderer.info.reset()}else renderer.info.autoReset=true;
   __post.render(scene,camera);
+  if(SETTINGS.perf)uiPerfTick(performance.now()-__pf0);
 }
 
 // ==================== v3.32: STATIC SCENERY BATCHING ====================
@@ -5895,7 +5930,7 @@ function init(){
   const K=(t,round)=>`<span class="key${round?' round':''}">${t}</span>`;
   function select1P(){
     if(!audioCtx)initAudio();
-    gameMode='1p';rollTemper();
+    leaveDaily();gameMode='1p';rollTemper();
     registerCanvasTouchListeners();
     for(const id in __lobbyDef)setHTML(id,__lobbyDef[id]);
     document.getElementById('title-sub-text').textContent='Campaign \u2014 vs AI Warlord';
@@ -5929,6 +5964,7 @@ function init(){
     mouseClicked=false;mouseRightClicked=false;middleClicked=false;
   }
   function select2P(){
+    leaveDaily();
     if(!audioCtx)initAudio();
     gameMode='2p';
     registerCanvasTouchListeners();
