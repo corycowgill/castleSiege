@@ -710,7 +710,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
   </div>
   <div class="menu-foot">
     <div class="foot-hints"><span><span class="key">&uarr;</span><span class="key">&darr;</span> Navigate</span><span><span class="key">Enter</span> Select</span><span><span class="key round">A</span> Confirm</span></div>
-    <div class="foot-ver">Castle Siege <b>v3.60</b> &bull; Build 2026-10-24</div>
+    <div class="foot-ver">Castle Siege <b>v3.61</b> &bull; Build 2026-10-24</div>
   </div>
 </div>
 
@@ -1687,6 +1687,7 @@ function applyTimeOfDay(tod){
   // night (darkness >= 0.38, which corresponds to wave 4+ dusk).
   const SKY_NIGHT_THRESH=0.38;
   const darkness=__lerp(a.n,b.n,seg);
+  __groundU.uDay.value=Math.max(0,1-darkness*1.4); // cloud shadows only by day
   // Remap the visible range so opacity ramps from 0 at threshold to 1 at full dark.
   const nightK=Math.max(0,(darkness-SKY_NIGHT_THRESH)/(1-SKY_NIGHT_THRESH));
   if(__stars){
@@ -1731,6 +1732,31 @@ function __fbm(x,y,oct){
 function __smooth(e0,e1,x){const t=clamp((x-e0)/(e1-e0),0,1);return t*t*(3-2*t)}
 
 // v3.60: tileable 256px detail texture — R: short grass strokes, G: grit.
+// v3.61: shared ground shading for the field and the outer meadow — the
+// tiling detail layer and slow drifting cloud shadows, both in world space
+// so the two surfaces match exactly where they meet.
+const __groundU={uDetail:{value:null},uCloud:{value:null},uDay:{value:1}};
+function __cloudTex(){
+  const N=128,c=document.createElement('canvas');c.width=c.height=N;const x=c.getContext('2d'),img=x.createImageData(N,N);
+  const T=[[1,0,0.3],[0,1,1.7],[1,1,2.9],[2,1,0.8],[1,2,4.1],[3,2,2.2],[2,3,5.3]];
+  for(let j=0;j<N;j++)for(let i=0;i<N;i++){
+    let v=0,u=i/N,w=j/N;for(const[a,b,p]of T)v+=Math.sin(6.2832*(a*u+b*w)+p)/(1+0.5*(a+b));
+    v=Math.max(0,Math.min(1,(v-0.35)/1.3));v=v*v*(3-2*v);const k=(i+j*N)*4;img.data[k]=img.data[k+1]=img.data[k+2]=v*255;img.data[k+3]=255;
+  }
+  x.putImageData(img,0,0);const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;return t;
+}
+function __groundShader(mat,stage){
+  if(!__groundU.uDetail.value){__groundU.uDetail.value=__groundDetailTex();__groundU.uCloud.value=__cloudTex()}
+  mat.onBeforeCompile=sh=>{
+    Object.assign(sh.uniforms,__groundU);sh.uniforms.uTime=__windU;
+    sh.vertexShader='varying vec2 vGW;\n'+sh.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\n vGW=(modelMatrix*vec4(transformed,1.0)).xz;');
+    sh.fragmentShader='varying vec2 vGW;uniform sampler2D uDetail,uCloud;uniform float uDay,uTime;\n'+sh.fragmentShader.replace(stage,stage+`
+      { float d1=texture2D(uDetail,vGW*0.5).r, d2=texture2D(uDetail,vGW*1.37+0.31).g;
+        diffuseColor.rgb*=1.0+((d1*0.6+d2*0.4)-0.5)*0.42;
+        float cs=texture2D(uCloud,vGW*0.017+vec2(uTime*0.007,uTime*0.003)).r;
+        diffuseColor.rgb*=1.0-cs*0.26*uDay; }`);
+  };
+}
 function __groundDetailTex(){
   const N=256,c=document.createElement('canvas');c.width=c.height=N;const x=c.getContext('2d');
   x.fillStyle='rgb(128,128,0)';x.fillRect(0,0,N,N);
@@ -1820,17 +1846,8 @@ function createTerrain(){
   }
   geo.computeVertexNormals();
   const tmat=new THREE.MeshStandardMaterial({map:tex,roughness:0.9});
-  // v3.60: a tiling detail layer (grass blades / grit) multiplied over the
-  // painted base so the ground holds up when zoomed in.
-  const dtex=__groundDetailTex();
-  tmat.onBeforeCompile=sh=>{
-    sh.uniforms.uDetail={value:dtex};
-    sh.fragmentShader='uniform sampler2D uDetail;\n'+sh.fragmentShader.replace('#include <map_fragment>',`#include <map_fragment>
-      { vec2 duv=vMapUv*vec2(${COLS.toFixed(1)},${ROWS.toFixed(1)});
-        float d1=texture2D(uDetail,duv*0.5).r, d2=texture2D(uDetail,duv*1.37+0.31).g;
-        float d=(d1*0.6+d2*0.4)-0.5;
-        diffuseColor.rgb*=1.0+d*0.42; }`);
-  };
+  // v3.60/61: tiling detail layer + drifting cloud shadows (shared with the meadow)
+  __groundShader(tmat,'#include <map_fragment>');
   const mesh=new THREE.Mesh(geo,tmat);
   mesh.receiveShadow=true;mesh.name='terrain';
   scene.add(mesh);
@@ -1862,10 +1879,13 @@ function createScenery(){
     // Don't bump under the playfield — keep it flat there
     if(Math.abs(x)<FIELD_HX+0.5&&Math.abs(z)<FIELD_HZ+0.5)continue;
     const h=Math.sin(x*0.18)*0.35+Math.cos(z*0.23)*0.35+seededRandom(Math.floor(x*2),Math.floor(z*2))*0.2;
-    pos.setY(i,h-0.12);
+    // v3.61: ease the hills in over ~5 tiles so the field doesn't end in a step
+    const out=Math.max(Math.abs(x)-FIELD_HX,Math.abs(z)-FIELD_HZ),f=__smooth(0.4,5.5,out);
+    pos.setY(i,0.05*(1-f)+(h-0.12)*f);
   }
   outerGeo.computeVertexNormals();
-  const outerMat=new THREE.MeshStandardMaterial({color:0x4a7a3a,roughness:0.95,flatShading:true});
+  const outerMat=new THREE.MeshStandardMaterial({color:0x4c7834,roughness:0.95});
+  __groundShader(outerMat,'#include <color_fragment>');
   const outerMesh=new THREE.Mesh(outerGeo,outerMat);
   outerMesh.position.y=-0.08;
   outerMesh.receiveShadow=true;
