@@ -477,18 +477,24 @@ function spawnScorch(wx,wz,radius){
   if(!__scorchTex){
     const c=document.createElement('canvas');c.width=c.height=64;
     const ctx=c.getContext('2d');
-    const g=ctx.createRadialGradient(32,32,3,32,32,31);
-    g.addColorStop(0,'rgba(20,12,8,0.85)');g.addColorStop(0.6,'rgba(35,22,14,0.45)');g.addColorStop(1,'rgba(40,30,20,0)');
+    // v3.60: an opaque greyscale mask used as alphaMap, with the soot colour
+    // on the material. The old RGBA texture rendered as pale beige discs.
+    ctx.fillStyle='#000';ctx.fillRect(0,0,64,64);
+    const g=ctx.createRadialGradient(32,32,2,32,32,31);
+    g.addColorStop(0,'#d8d8d8');g.addColorStop(0.55,'#7a7a7a');g.addColorStop(0.85,'#262626');g.addColorStop(1,'#000');
     ctx.fillStyle=g;ctx.fillRect(0,0,64,64);
+    // ragged soot flecks around the rim
+    for(let i=0;i<26;i++){const a=Math.random()*Math.PI*2,r=14+Math.random()*13;ctx.fillStyle=`rgba(150,150,150,${0.25+Math.random()*0.3})`;
+      ctx.beginPath();ctx.arc(32+Math.cos(a)*r,32+Math.sin(a)*r,1+Math.random()*2.5,0,Math.PI*2);ctx.fill()}
     __scorchTex=new THREE.CanvasTexture(c);
   }
-  const mat=new THREE.MeshBasicMaterial({map:__scorchTex,transparent:true,depthWrite:false,opacity:1});
+  const mat=new THREE.MeshBasicMaterial({color:0x1e140c,alphaMap:__scorchTex,transparent:true,depthWrite:false,opacity:0.85,fog:false,toneMapped:false});
   const m=new THREE.Mesh(new THREE.PlaneGeometry(radius*2,radius*2),mat);
   m.rotation.x=-Math.PI/2;m.rotation.z=Math.random()*Math.PI;m.position.set(wx,0.03,wz);m.renderOrder=1;
   scene.add(m);
   let t=0;
   addVfx({
-    update(dt){t+=dt;if(t>6)return false;if(t>4)mat.opacity=1-(t-4)/2;return true},
+    update(dt){t+=dt;if(t>6)return false;if(t>4)mat.opacity=0.85*(1-(t-4)/2);return true},
     dispose(){scene.remove(m);m.geometry.dispose();mat.dispose()}
   });
 }

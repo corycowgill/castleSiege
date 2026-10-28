@@ -710,7 +710,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
   </div>
   <div class="menu-foot">
     <div class="foot-hints"><span><span class="key">&uarr;</span><span class="key">&darr;</span> Navigate</span><span><span class="key">Enter</span> Select</span><span><span class="key round">A</span> Confirm</span></div>
-    <div class="foot-ver">Castle Siege <b>v3.59</b> &bull; Build 2026-10-24</div>
+    <div class="foot-ver">Castle Siege <b>v3.60</b> &bull; Build 2026-10-24</div>
   </div>
 </div>
 
@@ -1730,6 +1730,29 @@ function __fbm(x,y,oct){
 }
 function __smooth(e0,e1,x){const t=clamp((x-e0)/(e1-e0),0,1);return t*t*(3-2*t)}
 
+// v3.60: tileable 256px detail texture — R: short grass strokes, G: grit.
+function __groundDetailTex(){
+  const N=256,c=document.createElement('canvas');c.width=c.height=N;const x=c.getContext('2d');
+  x.fillStyle='rgb(128,128,0)';x.fillRect(0,0,N,N);
+  let sd=91;const r=()=>{sd=(sd*16807)%2147483647;return sd/2147483647};
+  const wrap=(f)=>{for(const ox of[-N,0,N])for(const oy of[-N,0,N])f(ox,oy)};
+  x.lineCap='round';
+  for(let i=0;i<1400;i++){ // blades in the red channel
+    const px=r()*N,py=r()*N,len=4+r()*9,a=-Math.PI/2+(r()-0.5)*0.9,v=r()<0.5?90+r()*30:150+r()*70;
+    x.strokeStyle=`rgba(${v|0},128,0,0.55)`;x.lineWidth=1+r()*1.2;
+    wrap((ox,oy)=>{x.beginPath();x.moveTo(px+ox,py+oy);x.lineTo(px+ox+Math.cos(a)*len,py+oy+Math.sin(a)*len);x.stroke()});
+  }
+  x.globalCompositeOperation='lighter';
+  for(let i=0;i<2600;i++){ // grit specks in the green channel (+/-)
+    const px=r()*N,py=r()*N,s=0.6+r()*1.8,v=(r()-0.5)*90;
+    x.fillStyle=v>0?`rgba(0,${v|0},0,0.9)`:'rgba(0,0,0,0)';
+    wrap((ox,oy)=>{x.beginPath();x.arc(px+ox,py+oy,s,0,Math.PI*2);x.fill()});
+  }
+  x.globalCompositeOperation='source-over';
+  for(let i=0;i<1300;i++){const px=r()*N,py=r()*N,s=0.6+r()*1.6;x.fillStyle=`rgba(${128},${40+r()*60|0},0,0.5)`;
+    wrap((ox,oy)=>{x.beginPath();x.arc(px+ox,py+oy,s,0,Math.PI*2);x.fill()})}
+  const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.anisotropy=4;return t;
+}
 function createTerrain(){
   const PX=32,texW=COLS*PX,texH=ROWS*PX;
   const canvas=document.createElement('canvas');canvas.width=texW;canvas.height=texH;
@@ -1769,8 +1792,8 @@ function createTerrain(){
       if(tx>=2&&tx<20){b+=7;r-=2}
       else if(tx>=20&&tx<38){r+=7;b-=2}
       // Soft shadowed seam on the centre line.
-      const seam=1-__smooth(0,0.12,Math.abs(tx-20));
-      r*=1-seam*0.35;g*=1-seam*0.35;b*=1-seam*0.35;
+      const seam=1-__smooth(0,0.1,Math.abs(tx-20));
+      r*=1-seam*0.12;g*=1-seam*0.12;b*=1-seam*0.12; // v3.60: was a harsh dark crack
       const idx=(py*texW+px)*4;
       d[idx]=clamp(r,0,255);d[idx+1]=clamp(g,0,255);d[idx+2]=clamp(b,0,255);d[idx+3]=255;
     }
@@ -1796,7 +1819,19 @@ function createTerrain(){
     }
   }
   geo.computeVertexNormals();
-  const mesh=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({map:tex,roughness:0.9}));
+  const tmat=new THREE.MeshStandardMaterial({map:tex,roughness:0.9});
+  // v3.60: a tiling detail layer (grass blades / grit) multiplied over the
+  // painted base so the ground holds up when zoomed in.
+  const dtex=__groundDetailTex();
+  tmat.onBeforeCompile=sh=>{
+    sh.uniforms.uDetail={value:dtex};
+    sh.fragmentShader='uniform sampler2D uDetail;\n'+sh.fragmentShader.replace('#include <map_fragment>',`#include <map_fragment>
+      { vec2 duv=vMapUv*vec2(${COLS.toFixed(1)},${ROWS.toFixed(1)});
+        float d1=texture2D(uDetail,duv*0.5).r, d2=texture2D(uDetail,duv*1.37+0.31).g;
+        float d=(d1*0.6+d2*0.4)-0.5;
+        diffuseColor.rgb*=1.0+d*0.42; }`);
+  };
+  const mesh=new THREE.Mesh(geo,tmat);
   mesh.receiveShadow=true;mesh.name='terrain';
   scene.add(mesh);
   // v3.5: terrain never moves — freeze its matrix.
@@ -2873,6 +2908,105 @@ function createExtraScenery(){
 // battlefield collapses to ~1 draw call per canonical material,
 // shadows disabled, and frozen. Without this the decals were the
 // biggest draw-call regression since v3.5.
+// ==================== v3.60: GROUND DETAIL (instanced) ====================
+// ~2400 swaying grass tufts and a scatter of flowers in one draw call
+// each, pebbles along the road verges and small stones marking the centre
+// line. Tufts on a tile with a building are hidden (re-checked whenever
+// the grid changes) so nothing pokes through tower plinths.
+const __windU={value:0};
+let __tufts=null;
+const __gdRay=new THREE.Raycaster(),__gdDown=new THREE.Vector3(0,-1,0);
+function createGroundDetail(){
+  const outerGround=scene.getObjectByName('scenery-ground');if(outerGround)outerGround.updateMatrixWorld(true);
+  let sd=777;const r=()=>{sd=(sd*16807)%2147483647;return sd/2147483647};
+  // --- tuft geometry: 5 tapered blades fanned around the centre
+  const pos=[],col=[];
+  const blade=(ang,lean,h,w,shade)=>{
+    const cx=Math.cos(ang)*0.02,cz=Math.sin(ang)*0.02,tx=Math.cos(ang+Math.PI/2)*w,tz=Math.sin(ang+Math.PI/2)*w;
+    const lx=Math.cos(ang)*lean,lz=Math.sin(ang)*lean;
+    pos.push(cx-tx,0,cz-tz, cx+tx,0,cz+tz, cx+lx,h,cz+lz);
+    col.push(shade*0.55,shade*0.75,shade*0.32, shade*0.55,shade*0.75,shade*0.32, shade*1.0,shade*1.15,shade*0.55);
+  };
+  for(let i=0;i<5;i++)blade(i/5*Math.PI*2+r()*0.6,0.05+r()*0.05,0.13+r()*0.09,0.018+r()*0.008,0.75+r()*0.3);
+  const tg=new THREE.BufferGeometry();
+  tg.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
+  tg.setAttribute('color',new THREE.Float32BufferAttribute(col,3));
+  tg.computeVertexNormals();
+  const tm=new THREE.MeshLambertMaterial({vertexColors:true,side:THREE.DoubleSide});
+  tm.onBeforeCompile=sh=>{
+    sh.uniforms.uWind=__windU;
+    sh.vertexShader='uniform float uWind;\n'+sh.vertexShader.replace('#include <begin_vertex>',`#include <begin_vertex>
+      #ifdef USE_INSTANCING
+      { vec3 ip=vec3(instanceMatrix[3][0],0.0,instanceMatrix[3][2]);
+        float k=transformed.y*5.0, ph=ip.x*0.7+ip.z*0.45;
+        transformed.x+=sin(uWind*1.6+ph)*0.035*k; transformed.z+=cos(uWind*1.3+ph*1.3)*0.02*k; }
+      #endif`);
+  };
+  const N=3000,inst=new THREE.InstancedMesh(tg,tm,N);inst.frustumCulled=false;
+  const m4=new THREE.Matrix4(),q=new THREE.Quaternion(),e=new THREE.Euler(),v=new THREE.Vector3(),sc=new THREE.Vector3();
+  const cells=[];let n=0;
+  for(let tries=0;n<N&&tries<N*6;tries++){
+    // both build territories, plus a band past the field edge so the play
+    // area blends into the meadow instead of ending in a hard rectangle
+    const c=-1.5+r()*43,rw=-2.6+r()*(ROWS+5.2);
+    if(rw>6.3&&rw<11.7)continue;             // keep off the road
+    if(Math.abs(c-20)<0.25)continue;         // and off the centre line
+    if((c<2.2||c>37.8)&&rw>2.5&&rw<15.5)continue; // and out from under the keeps
+    const outside=rw<0||rw>ROWS||c<0||c>COLS;if(outside&&r()<0.35)continue;
+    const wp={x:c+GRID_OX,z:rw+GRID_OZ};
+    let gy=0;
+    if(outside){ // sit on the rolling outer meadow, not at the field's height
+      __gdRay.set(new THREE.Vector3(wp.x,5,wp.z),__gdDown);
+      const h=outerGround?__gdRay.intersectObject(outerGround,false):[];
+      if(!h.length)continue;gy=h[0].point.y-0.01;
+    }
+    e.set(0,r()*Math.PI*2,0);q.setFromEuler(e);const s2=0.7+r()*0.7;sc.set(s2,s2*(0.8+r()*0.5),s2);
+    v.set(wp.x,gy,wp.z);m4.compose(v,q,sc);inst.setMatrixAt(n,m4);
+    const tc=new THREE.Color().setHSL(0.24+r()*0.06,0.45+r()*0.2,0.38+r()*0.14);inst.setColorAt(n,tc);
+    cells.push({c:Math.floor(c),r:Math.floor(rw),m:m4.clone()});n++;
+  }
+  inst.count=n;inst.instanceMatrix.needsUpdate=true;if(inst.instanceColor)inst.instanceColor.needsUpdate=true;
+  inst.receiveShadow=false;inst.castShadow=false;inst.name='grassTufts';scene.add(inst);
+  __tufts={inst,cells,ver:-1,zero:new THREE.Matrix4().makeScale(0,0,0)};
+  // --- flowers: tiny 4-petal stars on short stems
+  const fp=[],fc=[];const pet=(a,h)=>{const x=Math.cos(a)*0.035,z=Math.sin(a)*0.035;fp.push(0,h,0, x,h+0.01,z, Math.cos(a+0.6)*0.02,h+0.004,Math.sin(a+0.6)*0.02)};
+  for(let i=0;i<4;i++)pet(i/4*Math.PI*2,0.08);for(let i=0;i<12;i++)fc.push(1,1,1);
+  fp.push(-0.004,0,0, 0.004,0,0, 0,0.08,0);fc.push(0.3,0.5,0.2, 0.3,0.5,0.2, 0.3,0.5,0.2);
+  const fg=new THREE.BufferGeometry();fg.setAttribute('position',new THREE.Float32BufferAttribute(fp,3));fg.setAttribute('color',new THREE.Float32BufferAttribute(fc,3));fg.computeVertexNormals();
+  const fm=new THREE.MeshLambertMaterial({vertexColors:true,side:THREE.DoubleSide,emissive:0x222222});
+  const FN=260,fl=new THREE.InstancedMesh(fg,fm,FN);const pal=[0xffffff,0xffe066,0xc89cff,0xff9ab4,0x9fd0ff];let fn=0;
+  for(let tries=0;fn<FN&&tries<FN*8;tries++){
+    const c=1+r()*38,rw=r()*ROWS;if(rw>5.6&&rw<12.4)continue;if(r()<0.5&&rw>3&&rw<15)continue; // favour the field edges
+    v.set(c+GRID_OX,0,rw+GRID_OZ);e.set(0,r()*6.28,0);q.setFromEuler(e);const s3=0.8+r()*0.6;sc.set(s3,s3,s3);m4.compose(v,q,sc);fl.setMatrixAt(fn,m4);
+    fl.setColorAt(fn,new THREE.Color(pal[(r()*pal.length)|0]));fn++;
+  }
+  fl.count=fn;fl.frustumCulled=false;fl.name='flowers';scene.add(fl);
+  // --- pebbles on the road verges + centre-line boundary stones
+  const pg=new THREE.IcosahedronGeometry(0.05,0);
+  const pm=mkMat(0xb4ab9c,{});const PN=200,pb=new THREE.InstancedMesh(pg,pm,PN);let pn=0;
+  for(let i=0;i<PN-12;i++){
+    const c=1+r()*38,side=r()<0.5?-1:1,off=1.75+r()*0.55; // hug the road edge
+    v.set(c+GRID_OX,0.015,9+side*off+GRID_OZ);e.set(r()*3,r()*3,r()*3);q.setFromEuler(e);
+    const s4=0.5+r()*1.1;sc.set(s4*(1+r()*0.6),s4*0.55,s4);m4.compose(v,q,sc);pb.setMatrixAt(pn,m4);
+    pb.setColorAt(pn,new THREE.Color().setHSL(0.09,0.06+r()*0.06,0.55+r()*0.2));pn++;
+  }
+  for(const rw of[0.6,2.2,3.8,5.4,12.6,14.2,15.8,17.4]){ // boundary stones on the centre line
+    v.set(20+GRID_OX,0.05,rw+GRID_OZ);e.set(0,r()*3,0);q.setFromEuler(e);sc.set(2.2,2.6,2.2);m4.compose(v,q,sc);pb.setMatrixAt(pn,m4);
+    pb.setColorAt(pn,new THREE.Color(0xb8ad96));pn++;
+  }
+  pb.count=pn;pb.castShadow=true;pb.receiveShadow=true;pb.name='pebbles';scene.add(pb);
+  __tufts.extra=[fl];
+}
+// Hide tufts and flowers under buildings; called from the render loop.
+function syncGroundDetail(){
+  if(!__tufts)return;
+  const lowGfx=typeof SETTINGS!=='undefined'&&SETTINGS.gfx==='low';
+  __tufts.inst.visible=!lowGfx;for(const x of __tufts.extra)x.visible=!lowGfx;
+  if(__tufts.ver===__gridVer)return;__tufts.ver=__gridVer;
+  const{inst,cells,zero}=__tufts;
+  for(let i=0;i<cells.length;i++){const k=cells[i],cell=grid[k.r]&&grid[k.r][k.c];inst.setMatrixAt(i,cell&&cell.type!=='castle'?zero:k.m)}
+  inst.instanceMatrix.needsUpdate=true;
+}
 function createBattlefieldDecals(){
   const __before=scene.children.length;
   // Deterministic PRNG so decals are consistent across loads.
@@ -5822,6 +5956,7 @@ function gameLoop(){
   // sets, so rendering between sim ticks shows the last sim state.
   __batchTick();
   __poolWarmTick(rawDt);
+  __windU.value+=rawDt||0.016;syncGroundDetail();
   if(gameState!=='title'&&gameState!=='paused'){
     syncBuildings();syncTowers();syncEnemies();syncProjectiles();updateCursors();
     updateParticles(rawDt);updateDmgNumbers(rawDt);updateVfx(rawDt);updateSmoke(rawDt);updateCastleFx(rawDt);
@@ -5944,6 +6079,7 @@ function init(){
   createAtmosphere();
   createExtraScenery();
   createBattlefieldDecals(); // v3.12
+  createGroundDetail();     // v3.60
   __sceneryRoots=scene.children.slice(); // v3.32: candidates for static batching
   initGrid();
   addCastles();
