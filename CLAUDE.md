@@ -67,3 +67,12 @@ Everything lives in one `<script>` block inside `index.html`. The code has two l
 - Each wave adds baseline enemies automatically; player-purchased enemies are added on top.
 - Walls/barricades can be destroyed by enemy units that attack adjacent walls when their remaining path is long (>10 tiles).
 - Assets: `assets/0x72/0x72_DungeonTilesetII_v1.7.png` tileset used for character sprites and items. `assets/kenney-medieval/` exists but is not currently used in code.
+
+## 3D game and tests
+
+The current game is `index_3d.html` (Three.js r160) with `art.js` (stylized models), `vfx.js` (effects), `post.js` (bloom/grade), `ui.js` (menus, HUD extras, tutorial, honours) and `icons.js`; `guide.html` is the Field Guide. The notes above describe the original 2D `index.html`.
+
+Regression tests live in `tests/` and drive the real page in headless Chromium via Playwright:
+
+- `tests/run.sh` — starts a static server and runs `smoke.js` (every model/effect builds and disposes; the deliberate `[art] ... boom` line is the fallback check), `mechanics.js` (asserted rules: bounties, refunds, repair, targeting, War Banner, omens, save/continue, temperaments, keep warnings) and `autoplay.js` (a scripted Campaign to game over).
+- `tests/run.sh balance` — also runs `balance.js`, a slow scripted-defence simulation of every Warlord temperament on Normal. Re-run it after any change to economy, AI or tower stats.

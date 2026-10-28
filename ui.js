@@ -326,7 +326,7 @@ function uiGameOver(winner,score,best,isNewBest,ex){ex=ex||{};
     title=draw?'Stalemate':p1won?'Victory':'Defeat';
     sub=draw?'Neither crown would yield.':p1won?(p2.castleHP<=0?'The warlord\'s keep lies in ruin.':'Your keep stands taller at the final dawn.'):(p1.castleHP<=0?'Your walls have fallen. The realm mourns.':'The warlord outlasted you.');
     kicker=isEndless()?`Endless \u00B7 reached wave ${waveNum} \u00B7 ${diffProfile().label}${ex.newWave?' \u00B7 \u2605 new record':ex.bestWave?` \u00B7 record ${ex.bestWave}`:''}`
-      :`After ${waveNum} wave${waveNum===1?'':'s'} \u00B7 ${diffProfile().label}`;
+      :`After ${waveNum} wave${waveNum===1?'':'s'} \u00B7 ${diffProfile().label} \u00B7 vs the ${temperProfile().name}`;
   }else{
     title=draw?'Stalemate':p1won?'Blue Triumphs':'Red Triumphs';
     sub=draw?'Neither crown would yield.':(p1won?'The Blue Crown':'The Red Crown')+' holds the field.';
@@ -439,9 +439,9 @@ function uiSyncDifficulty(){
   document.querySelectorAll('.diff-btn').forEach(b=>b.classList.toggle('sel',b.dataset.d===difficulty));
   document.querySelectorAll('.len-btn').forEach(b=>b.classList.toggle('sel',(b.dataset.e==='1')===endless));
   const d=document.getElementById('diff-desc');if(d){let bw=0;try{bw=parseInt(localStorage.getItem('castleSiege_endlessWave_'+difficulty)||'0',10)}catch(e){}
-    d.textContent=diffProfile().desc+(diffProfile().score!==1?` Score ×${diffProfile().score}.`:'')+(endless?` Endless: survive as long as you can${bw?` — record wave ${bw}`:''}.`:'')}
+    d.textContent=`${temperProfile().name}: ${temperProfile().desc} `+diffProfile().desc+(diffProfile().score!==1?` Score ×${diffProfile().score}.`:'')+(endless?` Endless: survive as long as you can${bw?` — record wave ${bw}`:''}.`:'')}
   const n=document.getElementById('lobby-p2-name');if(n&&gameMode==='1p')n.textContent='The '+diffProfile().name;
-  const dv=document.getElementById('lobby-p2-dev');if(dv&&gameMode==='1p')dv.textContent='AI Opponent \u2022 '+diffProfile().label;
+  const dv=document.getElementById('lobby-p2-dev');if(dv&&gameMode==='1p')dv.textContent='AI Opponent \u2022 '+diffProfile().label+' \u2022 '+temperProfile().name;
 }
 
 

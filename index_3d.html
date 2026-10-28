@@ -702,7 +702,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
   </div>
   <div class="menu-foot">
     <div class="foot-hints"><span><span class="key">&uarr;</span><span class="key">&darr;</span> Navigate</span><span><span class="key">Enter</span> Select</span><span><span class="key round">A</span> Confirm</span></div>
-    <div class="foot-ver">Castle Siege <b>v3.55</b> &bull; Build 2026-10-24</div>
+    <div class="foot-ver">Castle Siege <b>v3.56</b> &bull; Build 2026-10-24</div>
   </div>
 </div>
 
@@ -3251,7 +3251,7 @@ function updateHUD(){
       (pn===1?h.p1specCt:h.p2specCt).innerHTML=[0,1,2].map(i=>`<i class="${i<pl.specials?'':'spent'}"></i>`).join('');
     }
   }
-  __st(h.p2label,gameMode==='1p'?'Warlord \u00B7 '+diffProfile().label:'Red Crown');
+  __st(h.p2label,gameMode==='1p'?temperProfile().name+' \u00B7 '+diffProfile().label:'Red Crown');
   __st(h.p1label,'Blue Crown');
 
   if(gameState==='build'){
@@ -4135,7 +4135,7 @@ function saveCampaign(){
   if(gameMode!=='1p'||waveNum<1)return;
   const cells=[];for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){const x=grid[r][c];if(x&&x.type!=='castle'&&x.type!=='tower')cells.push([c,r,x.type,x.owner,Math.round(x.hp),x.maxHp])}
   const pl=pn=>{const p=players[pn];return{cr:Math.round(p.credits),hp:p.castleHP,mx:p.maxHP,k:p.kills,dd:Math.round(p.totalDmgDealt)}};
-  const data={v:1,t:Date.now(),w:waveNum,d:difficulty,e:endless,p:[null,pl(1),pl(2)],cells,
+  const data={v:1,t:Date.now(),w:waveNum,d:difficulty,e:endless,tp:aiTemper,p:[null,pl(1),pl(2)],cells,
     towers:towers.map(t=>({ty:t.type,c:t.col,r:t.row,o:t.owner,l:t.level||1,m:t.tmode||0,k:t.kills||0,dd:Math.round(t.dmgDone||0)}))};
   try{localStorage.setItem(SAVE_KEY,JSON.stringify(data))}catch(e){}
   if(typeof uiSyncContinue==='function')uiSyncContinue();
@@ -4143,7 +4143,7 @@ function saveCampaign(){
 function loadCampaignSave(){try{const d=JSON.parse(localStorage.getItem(SAVE_KEY)||'null');return d&&d.v===1&&d.w>=1?d:null}catch(e){return null}}
 function clearCampaignSave(){try{localStorage.removeItem(SAVE_KEY)}catch(e){}if(typeof uiSyncContinue==='function')uiSyncContinue()}
 function applyCampaignSave(d){
-  setDifficulty(d.d);setEndless(!!d.e);waveNum=d.w;
+  setDifficulty(d.d);setEndless(!!d.e);waveNum=d.w;if(d.tp&&TEMPERS[d.tp])aiTemper=d.tp;
   for(const pn of[1,2]){const p=players[pn],q=d.p[pn];p.credits=q.cr;p.castleHP=q.hp;p.maxHP=q.mx;p.kills=q.k;p.totalDmgDealt=q.dd;p.specials=3;p.ready=false}
   for(const [c,r,type,owner,hp,maxHp] of d.cells)grid[r][c]={type,owner,hp,maxHp};
   for(const s of d.towers){
@@ -5256,6 +5256,17 @@ const DIFFICULTY={
 let difficulty=(()=>{try{const d=localStorage.getItem('castleSiege_difficulty');return DIFFICULTY[d]?d:'normal'}catch(e){return'normal'}})();
 function setDifficulty(d){if(!DIFFICULTY[d])return;difficulty=d;try{localStorage.setItem('castleSiege_difficulty',d)}catch(e){}}
 function diffProfile(){return DIFFICULTY[difficulty]||DIFFICULTY.normal}
+// v3.56: Warlord temperaments — rolled per Campaign, they change *what*
+// the AI spends on (towers / walls / armies / bosses), not how much.
+const TEMPERS={
+  strategist:{name:'Strategist',desc:'Balances towers, walls and armies.',tw:0.45,wl:0.20,boss:1,bossW:0},
+  fortifier:{name:'Fortifier',desc:'Towers and mazes first; its armies are thin.',tw:0.54,wl:0.28,boss:0.85,bossW:0},
+  raider:{name:'Raider',desc:'Floods the field with soldiers; light defences.',tw:0.32,wl:0.10,boss:1,bossW:0},
+  beastmaster:{name:'Beastmaster',desc:'Saves for monsters \u2014 bosses come often.',tw:0.40,wl:0.16,boss:1.25,bossW:0},
+};
+let aiTemper='strategist';
+function rollTemper(){const k=Object.keys(TEMPERS);aiTemper=k[Math.floor(Math.random()*k.length)];return aiTemper}
+function temperProfile(){return TEMPERS[aiTemper]||TEMPERS.strategist}
 // v3.41: Endless campaign. No wave cap; unit counts stop growing at wave
 // 12 (keeps the battlefield readable and fast) and from wave 11 every
 // unit on BOTH sides gains +15% HP per wave. Every 5th wave beyond 10
@@ -5318,9 +5329,9 @@ function aiUpdate(dt){
 function aiDoBuildAction(ai){
   const pNum=2;
   // Strategy: mix of towers, walls, and enemies
-  const roll=Math.random();
+  const roll=Math.random(),TP=temperProfile();
 
-  if(roll<0.45&&ai.credits>=100){
+  if(roll<TP.tw&&ai.credits>=100){
     // v3.25: AI tries to upgrade an existing tower 40% of the time
     // before building a new one. Uses the v3.22 upgrade mechanic.
     const myTowers=towers.filter(t=>t.owner===pNum&&(t.level||1)<3);
@@ -5347,7 +5358,7 @@ function aiDoBuildAction(ai){
         }
       }
     }
-  }else if(roll<0.65&&ai.credits>=30){
+  }else if(roll<TP.tw+TP.wl&&ai.credits>=30){
     // Place a wall
     const spot=aiFindWallSpot(pNum);
     if(spot){
@@ -5368,7 +5379,7 @@ function aiDoBuildAction(ai){
   // enough credits, starting from wave 3). Makes 1P mode more
   // threatening in the mid-late game. Picks the most expensive
   // boss it can afford for maximum impact.
-  if(waveNum>=diffProfile().bossWave&&Math.random()<diffProfile().bossChance){
+  if(waveNum>=diffProfile().bossWave+TP.bossW&&Math.random()<diffProfile().bossChance*TP.boss){
     const affordableBoss=BOSS_DATA.filter(b=>ai.credits>=b.cost);
     if(affordableBoss.length){
       const boss=affordableBoss[affordableBoss.length-1]; // most expensive
@@ -5884,7 +5895,7 @@ function init(){
   const K=(t,round)=>`<span class="key${round?' round':''}">${t}</span>`;
   function select1P(){
     if(!audioCtx)initAudio();
-    gameMode='1p';
+    gameMode='1p';rollTemper();
     registerCanvasTouchListeners();
     for(const id in __lobbyDef)setHTML(id,__lobbyDef[id]);
     document.getElementById('title-sub-text').textContent='Campaign \u2014 vs AI Warlord';
