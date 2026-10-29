@@ -59,6 +59,12 @@ const {chromium}=require('playwright');
     SETTINGS.gfx='auto';uiApplySettings();const feed=(ms,secs)=>{for(let x=0;x<secs*1000;x+=ms)adaptResolution(ms)};
     feed(33,10);const low=__prScale;feed(16,90);ok('adaptive_res',low<0.8&&__prScale===1);
     SETTINGS.gfx='high';uiApplySettings();feed(50,10);ok('high_fixed_res',__prScale===1);SETTINGS.gfx='auto';uiApplySettings();
+    // --- specialisations: Lv3 only, once, effects apply, refund includes them
+    sel('bombard');at(14,11);tryPlace(pl,1);const bb=TW(14,11);ok('spec_needs_lv3',trySpecialize(pl,1,0)&&!bb.spec);
+    tryPlace(pl,1);tryPlace(pl,1);trySpecialize(pl,1,0);ok('spec_pierce',bb.spec==='pierce'&&bb._pierce===1);
+    trySpecialize(pl,1,1);ok('spec_once',bb.spec==='pierce');
+    spawnEnemy('darkKnight',30,8,2);const dk=enemies[enemies.length-1];dk.hp=999;dealDamage(dk,60,bb);ok('spec_pierce_ignores_armour',dk.hp===939);enemies.length=0;
+    ok('spec_refund',towerRefund(bb)===200+120+120+180);
     // --- keep warnings fire once per threshold
     pl.castleHP=pl.maxHP*0.45;keepWarn(1);pl.castleHP=pl.maxHP*0.44;keepWarn(1);
     ok('keep_warn_once',pl._warn[0.5]===true&&document.getElementById('callouts').childElementCount===1);

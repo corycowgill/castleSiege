@@ -598,6 +598,12 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
 .insp .is{border-top:1px solid rgba(255,220,150,.14);margin-top:5px;padding-top:5px}
 .insp .if{display:flex;justify-content:space-between;gap:6px;margin-top:6px;font-size:11px;letter-spacing:.06em;text-transform:uppercase}
 .insp .if span{white-space:nowrap;font-family:var(--f-display);font-size:10px;padding:2px 6px;border:1px solid rgba(255,215,110,.35);border-radius:3px;color:#ffd76a}
+.insp .spec-pick{display:flex;gap:5px;margin-top:6px}.insp .spec-pick span{flex:1;pointer-events:auto;cursor:pointer;display:flex;flex-direction:column;padding:4px 6px;border:1px solid rgba(255,215,110,.5);border-radius:3px;
+  background:linear-gradient(180deg,rgba(120,84,30,.35),rgba(40,26,8,.4));color:#ffe9a8;font-family:var(--f-display);font-size:10.5px;letter-spacing:.05em;line-height:1.25}
+.insp .spec-pick span i{font-family:var(--f-body);font-style:italic;letter-spacing:0;color:#cdbf9f;font-size:10.5px;text-transform:none}
+.insp .spec-pick span.poor{opacity:.6;border-color:rgba(255,120,100,.35)}.insp .spec-pick .key{font-size:8.5px;padding:0 3px;margin-right:4px}
+.insp .spec-on{margin-top:5px;color:#ffd76a;font-family:var(--f-display);font-size:11px;letter-spacing:.06em}.insp .spec-on i{display:block;font-family:var(--f-body);color:#cdbf9f;letter-spacing:0;font-size:10.5px}
+.insp .spec-pre{margin-top:4px;font-size:10.5px;font-style:italic;color:#9f927a}
 .insp .if span[data-a]{pointer-events:auto;cursor:pointer}.insp .if span[data-a]:active{transform:scale(.95)}
 .insp .ir.rally{color:#ffd76a}.insp .ir.rally b{color:#ffe9a8}.insp .hd2{font-size:11px;font-style:italic;color:#a89a7c;margin-top:4px}
 .insp .if span.full{color:#9fe07a;border-color:rgba(140,220,110,.4)}
@@ -710,7 +716,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
   </div>
   <div class="menu-foot">
     <div class="foot-hints"><span><span class="key">&uarr;</span><span class="key">&darr;</span> Navigate</span><span><span class="key">Enter</span> Select</span><span><span class="key round">A</span> Confirm</span></div>
-    <div class="foot-ver">Castle Siege <b>v3.61</b> &bull; Build 2026-10-24</div>
+    <div class="foot-ver">Castle Siege <b>v3.62</b> &bull; Build 2026-10-24</div>
   </div>
 </div>
 
@@ -838,7 +844,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
         <ul class="help-rules">
         <li>10 waves, 45s build phase &middot; keeps have 3500 HP &middot; Endless: no wave cap, an omen each wave past 10 &middot; <b>Daily Siege</b>: one fixed Endless run a day</li>
         <li>Build in your half; walls reroute the march (red arrows show the route)</li>
-        <li>Build on your own tower to upgrade it (Lv3 max) &middot; on a damaged wall to repair it</li>
+        <li>Build on your own tower to upgrade it to Lv3, then pick one of two <b>specialisations</b> (<span class="key">1</span>/<span class="key">2</span> or its card) &middot; build on a damaged wall to repair it</li>
         <li>Anything built this phase sells back in full until the wave starts</li>
         <li><span class="key">C</span> on a tower: target First, Last, Strongest or Closest</li>
         <li>Armies and bosses attack your rival; bought units pay half bounty when they fall</li>
@@ -3594,7 +3600,11 @@ function tryPlace(player,pNum){
   if(cell&&cell.type==='tower'&&cell.owner===pNum&&opt.cat==='tower'){
     const existingTower=towers.find(t=>t.col===c&&t.row===r);
     if(!existingTower)return;
-    if(existingTower.level>=3){uiToast(pNum,'Tower is at max level','bad','up');return} // already maxed
+    if(existingTower.level>=3){ // v3.62: point at the specialisations instead of a dead end
+      const o=TOWER_SPECS[existingTower.type]||[];
+      if(existingTower.spec||!o.length)uiToast(pNum,'Tower is fully upgraded','bad','up');
+      else uiToast(pNum,`Specialise: ${pNum===1?'1':'card'} ${o[0].name} \u00B7 ${pNum===1?'2':'or'} ${o[1].name} ($${specCost(existingTower.type)})`,'gold','up');
+      return}
     const td=TOWER_DATA.find(t=>t.id===existingTower.type);
     const upgradeCost=Math.floor(td.cost*0.6);
     if(player.credits<upgradeCost){uiToast(pNum,`Upgrade needs $${upgradeCost-player.credits} more gold`,'bad','coin');return}
@@ -3602,9 +3612,7 @@ function tryPlace(player,pNum){
     existingTower.level++;existingTower.fresh=(existingTower.fresh||0)+upgradeCost;
     // Recompute effective stats from base × level multipliers.
     const lv=existingTower.level;
-    existingTower.dmg=Math.round(td.dmg*(1+0.3*(lv-1)));
-    existingTower.range=td.range*(1+0.1*(lv-1));
-    existingTower.rate=td.rate*(1-0.15*(lv-1));refreshBannerBuffs();
+    recomputeTower(existingTower);refreshBannerBuffs();
     // Visual: syncTowers scales the mesh per level, pulses it and
     // rebuilds the gold level bands.
     existingTower._upT=0;
@@ -3648,10 +3656,45 @@ function tryPlace(player,pNum){
 // v3.43: anything built or upgraded during the current build phase sells
 // back at full price until the wave starts (misplaced taps cost nothing);
 // older investment still refunds half.
+// ==================== v3.62: TOWER SPECIALISATIONS ====================
+// At level 3 a tower can take one of two specialisations (~90% of its base
+// cost). Stats are recomputed from base x level, then the spec applies.
+const TOWER_SPECS={
+  turret:[{id:'longbow',name:'Longbow',desc:'+35% range',rng:1.35},{id:'volley',name:'Volley',desc:'Fires 40% faster',rate:1/1.4}],
+  magic:[{id:'frost',name:'Frost Orb',desc:'Hits chill foes: \u221235% speed for 2s',chill:2},{id:'arcane',name:'Arcane Nova',desc:'+50% blast radius',splashMul:1.5}],
+  catapult:[{id:'firepot',name:'Firepots',desc:'Hits set foes burning: 14 dmg/s for 3s',burn:14},{id:'boulder',name:'Great Stones',desc:'+40% damage',dmg:1.4}],
+  bombard:[{id:'pierce',name:'Armour-Piercer',desc:'Shots ignore armour',pierce:1},{id:'grape',name:'Grapeshot',desc:'Shots burst: splash 1.2',splashAdd:1.2}],
+  banner:[{id:'drums',name:'War Drums',desc:'Rallied towers also fire 15% faster',haste:0.15},{id:'gilded',name:'Gilded Standard',desc:'+40% reach',rng:1.4}],
+};
+function specCost(type){const td=TOWER_DATA.find(d=>d.id===type);return Math.round(td.cost*0.9/5)*5}
+function towerSpec(t){return t.spec?(TOWER_SPECS[t.type]||[]).find(x=>x.id===t.spec):null}
+function recomputeTower(t){
+  const td=TOWER_DATA.find(d=>d.id===t.type),lv=t.level||1,sp=towerSpec(t);
+  t.dmg=Math.round(td.dmg*(1+0.3*(lv-1))*(sp&&sp.dmg||1));
+  t.range=td.range*(1+0.1*(lv-1))*(sp&&sp.rng||1);
+  t.rate=td.rate*(1-0.15*(lv-1))*(sp&&sp.rate||1);
+  t.splash=sp&&sp.splashAdd?(td.splash||0)+sp.splashAdd:(td.splash||0)*(sp&&sp.splashMul||1);
+  t._chill=sp&&sp.chill||0;t._burn=sp&&sp.burn||0;t._pierce=sp&&sp.pierce||0;t._haste=sp&&sp.haste||0;
+}
+function trySpecialize(pl,pn,which){
+  const{c,r}=pl.cursor,t=towers.find(x=>x.col===c&&x.row===r&&x.owner===pn);
+  if(!t||gameState!=='build')return false;
+  if((t.level||1)<3){uiToast(pn,'Specialisations unlock at level 3','bad','up');return true}
+  if(t.spec){uiToast(pn,`Already specialised: ${towerSpec(t).name}`,'bad','up');return true}
+  const sp=(TOWER_SPECS[t.type]||[])[which];if(!sp)return false;
+  const cost=specCost(t.type);
+  if(pl.credits<cost){uiToast(pn,`${sp.name} needs $${cost-pl.credits} more gold`,'bad','coin');return true}
+  pl.credits-=cost;t.spec=sp.id;t.specCost=cost;t.fresh=(t.fresh||0)+cost;recomputeTower(t);refreshBannerBuffs();
+  sndBuild();__gridVer++;
+  const wp=tileToWorld(c,r);emitParticles(wp.x,1.2,wp.z,0xffe08a,22,90);spawnAuraPulse(wp.x,wp.z,1.4,0xffd76a,0.6);
+  spawnDmgNumber(wp.x,1.9,wp.z,sp.name.toUpperCase(),'#ffd76a');
+  uiToast(pn,`${TOWER_DATA.find(d=>d.id===t.type).name} specialised: ${sp.name}`,'gold','up');
+  return true;
+}
 function towerRefund(t){
   const td=TOWER_DATA.find(d=>d.id===t.type),lv=t.level||1;
-  const half=Math.floor(td.cost/2)+Math.floor(td.cost*0.6*(lv-1)/2);
-  const spent=td.cost+Math.floor(td.cost*0.6)*(lv-1),fresh=gameState==='build'?(t.fresh||0):0;
+  const half=Math.floor(td.cost/2)+Math.floor(td.cost*0.6*(lv-1)/2)+Math.floor((t.specCost||0)/2);
+  const spent=td.cost+Math.floor(td.cost*0.6)*(lv-1)+(t.specCost||0),fresh=gameState==='build'?(t.fresh||0):0;
   return fresh>=spent?spent:Math.min(spent,half+Math.ceil(fresh/2));
 }
 function wallRefund(cell){const c=cell.type==='wall'?WALL_COST:BARRICADE_COST;return gameState==='build'&&cell.fresh?c:Math.floor(c/2)}
@@ -3691,13 +3734,17 @@ function cycleTargetMode(player,pNum){
 let __bannerTick=0;
 function bannerBuffFor(b){return b.support+0.1*((b.level||1)-1)}
 function refreshBannerBuffs(){
-  for(const t of towers)t._buff=0;
+  for(const t of towers){t._buff=0;t._hasteBuff=0}
   for(const b of towers){if(!b.support)continue;const v=bannerBuffFor(b);
     for(const t of towers){if(t.support||t.owner!==b.owner)continue;
-      if(Math.hypot(t.col-b.col,t.row-b.row)<=b.range&&v>t._buff)t._buff=v}}
+      if(Math.hypot(t.col-b.col,t.row-b.row)<=b.range){if(v>t._buff)t._buff=v;if((b._haste||0)>t._hasteBuff)t._hasteBuff=b._haste}}}
 }
-function dealDamage(enemy,dmg,src){
-  const actual=dmg*(1-enemy.armor);
+function dealDamage(enemy,dmg,src,dot){
+  const actual=dmg*(1-(src&&src._pierce?0:enemy.armor)); // v3.62: Armour-Piercer
+  if(src&&!dot&&enemy.hp>actual){ // v3.62: on-hit effects from specialised towers
+    if(src._chill)enemy.chillTimer=src._chill;
+    if(src._burn){enemy.burnT=3;enemy.burnDps=src._burn;enemy.burnSrc=src}
+  }
   // v3.44: gold and stats count only the HP actually removed — overkill
   // (a 1000-damage shell on an 80-HP orc) used to pay out in full.
   const eff=Math.min(actual,Math.max(0,enemy.hp));enemy.hp-=actual;
@@ -3923,6 +3970,7 @@ function padControl(gp,pl,pn,prev,dt){
     if(P(5))pl.selectedIdx=(pl.selectedIdx+1)%BUILD_OPTS.length;
     if(P(0))tryActAt(pl,pn);if(P(1))trySell(pl,pn);if(P(9))pl.ready=true;
     if(P(3))pl.selectedSpecial=(pl.selectedSpecial+1)%4;
+    if(P(2))trySpecialize(pl,pn,1); // v3.62: X takes the second specialisation
   }
   if((gameState==='build'||gameState==='combat')&&P(10))cycleTargetMode(pl,pn);
   // v3.48: triggers zoom (LT out, RT in)
@@ -3953,6 +4001,7 @@ function processInput(dt){
       if(consumeKey('KeyR'))p1.ready=true;if(consumeKey('KeyZ'))p1.selectedSpecial=(p1.selectedSpecial+1)%4;
     }
     if((gameState==='build'||gameState==='combat')&&consumeKey('KeyC'))cycleTargetMode(p1,1);
+    if(gameState==='build'){if(consumeKey('Digit1'))trySpecialize(p1,1,0);if(consumeKey('Digit2'))trySpecialize(p1,1,1)}
     if(consumeKey('Equal')||consumeKey('NumpadAdd'))setCameraZoom(camZoom*1.15);
     if(consumeKey('Minus')||consumeKey('NumpadSubtract'))setCameraZoom(camZoom/1.15);
     if(gameState==='combat'){
@@ -4039,7 +4088,14 @@ function updateCombat(dt){
   // Update enemies
   for(const e of enemies){
     if(!e.alive)continue;
-    if(e.slowTimer>0){e.slowTimer-=dt;e.slowMult=0.3}else{e.slowMult=1}
+    if(e.slowTimer>0){e.slowTimer-=dt;e.slowMult=0.3}
+    else if(e.chillTimer>0){e.chillTimer-=dt;e.slowMult=0.65;if(Math.random()<dt*4){const cp=pixelToWorld(e.x,e.y);emitParticles(cp.x,0.5,cp.z,0xbfe8ff,1,20)}}
+    else{e.slowMult=1}
+    if(e.burnT>0){ // Firepots: damage in small batches so numbers don't spam
+      e.burnT-=dt;e._burnAcc=(e._burnAcc||0)+e.burnDps*dt;
+      if(Math.random()<dt*6){const bp=pixelToWorld(e.x,e.y);emitParticles(bp.x,0.6,bp.z,0xff8a30,1,30)}
+      if(e._burnAcc>=7||e.burnT<=0){const a=e._burnAcc;e._burnAcc=0;dealDamage(e,a,e.burnSrc,true);if(!e.alive)continue}
+    }
     e._anim+=dt*3*e.slowMult;
 
     // v3.27: re-route when the grid changed since this path was made
@@ -4225,7 +4281,7 @@ function updateCombat(dt){
     }
     t.target=best;if(best)t.angle=Math.atan2(best.y-t.y,best.x-t.x);
     if(best&&t.cooldown<=0){
-      t.cooldown=t.rate;t._recoilT=0.15; // v3.23: trigger recoil kick
+      t.cooldown=t.rate*(1-(t._hasteBuff||0));t._recoilT=0.15; // v3.23: trigger recoil kick; v3.62: War Drums
       const pType=t.type==='turret'?'proj_arrow':t.type==='magic'?'proj_magic':t.type==='catapult'?'proj_boulder':'proj_cannonball';
       projectiles.push({x:t.x,y:t.y,target:best,tx:best.x,ty:best.y,
         dmg:Math.round(t.dmg*(1+(t._buff||0))),spd:t.projSpd*T,splash:t.splash,type:pType,owner:t.owner,alive:true,src:t});
@@ -4320,7 +4376,7 @@ function saveCampaign(){
   const cells=[];for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){const x=grid[r][c];if(x&&x.type!=='castle'&&x.type!=='tower')cells.push([c,r,x.type,x.owner,Math.round(x.hp),x.maxHp])}
   const pl=pn=>{const p=players[pn];return{cr:Math.round(p.credits),hp:p.castleHP,mx:p.maxHP,k:p.kills,dd:Math.round(p.totalDmgDealt)}};
   const data={v:1,t:Date.now(),w:waveNum,d:difficulty,e:endless,tp:aiTemper,p:[null,pl(1),pl(2)],cells,
-    towers:towers.map(t=>({ty:t.type,c:t.col,r:t.row,o:t.owner,l:t.level||1,m:t.tmode||0,k:t.kills||0,dd:Math.round(t.dmgDone||0)}))};
+    towers:towers.map(t=>({ty:t.type,c:t.col,r:t.row,o:t.owner,l:t.level||1,m:t.tmode||0,k:t.kills||0,dd:Math.round(t.dmgDone||0),sp:t.spec||'',sc:t.specCost||0}))};
   try{localStorage.setItem(SAVE_KEY,JSON.stringify(data))}catch(e){}
   if(typeof uiSyncContinue==='function')uiSyncContinue();
 }
@@ -4335,6 +4391,7 @@ function applyCampaignSave(d){
     grid[s.r][s.c]={type:'tower',owner:s.o,towerType:s.ty};
     towers.push({type:s.ty,col:s.c,row:s.r,owner:s.o,range:td.range*(1+0.1*(lv-1)),dmg:Math.round(td.dmg*(1+0.3*(lv-1))),rate:td.rate*(1-0.15*(lv-1)),projSpd:td.spd,
       splash:td.splash,color:td.color,x:colToX(s.c),y:rowToY(s.r),cooldown:0,target:null,angle:0,level:lv,fresh:0,tmode:s.m,kills:s.k,dmgDone:s.dd,support:td.support||0});
+    {const nt=towers[towers.length-1];if(s.sp){nt.spec=s.sp;nt.specCost=s.sc}recomputeTower(nt)}
   }
   markGridDirty();applyTimeOfDay(timeOfDayForWave(waveNum));
   __tut.i=-1;uiTutorialHide();
@@ -5313,7 +5370,7 @@ function __cursorAction(pNum){
       if(gameState==='build'&&opt.cat==='tower'){
         ck.state=lv>=3?'bad':pl.credits>=upCost?'upg':'bad';
       }
-      ck.text=`${td.name} Lv${lv}${lv<3?` \u2014 Place: Upgrade $${upCost}`:' (MAX)'} \u00B7 Sell: +$${refund}${t.fresh&&gameState==='build'?(t.fresh>=refund?' (full refund)':' (upgrade refunded)'):''}${t.support?` \u00B7 Aura +${Math.round(bannerBuffFor(t)*100)}%`:` \u00B7 Target: ${TARGET_MODES[t.tmode||0]}`}`;
+      ck.text=`${td.name} Lv${lv}${lv<3?` \u2014 Place: Upgrade $${upCost}`:t.spec?` \u2605 ${towerSpec(t).name}`:TOWER_SPECS[t.type]?` \u2014 1/2: Specialise $${specCost(t.type)}`:' (MAX)'} \u00B7 Sell: +$${refund}${t.fresh&&gameState==='build'?(t.fresh>=refund?' (full refund)':' (upgrade refunded)'):''}${t.support?` \u00B7 Aura +${Math.round(bannerBuffFor(t)*100)}%`:` \u00B7 Target: ${TARGET_MODES[t.tmode||0]}`}`;
     }
     return ck;
   }
@@ -5545,7 +5602,12 @@ function aiDoBuildAction(ai){
     // v3.25: AI tries to upgrade an existing tower 40% of the time
     // before building a new one. Uses the v3.22 upgrade mechanic.
     const myTowers=towers.filter(t=>t.owner===pNum&&(t.level||1)<3);
-    if(myTowers.length&&Math.random()<0.4){
+    // v3.62: specialise a maxed tower (random choice of the two)
+    const maxed=towers.filter(t=>t.owner===pNum&&(t.level||1)>=3&&!t.spec);
+    if(maxed.length&&Math.random()<0.35&&ai.credits>=specCost(maxed[0].type)){
+      const t=maxed[Math.floor(Math.random()*maxed.length)];ai.cursor.c=t.col;ai.cursor.r=t.row;
+      const st=gameState;trySpecialize(ai,pNum,Math.random()<0.5?0:1);
+    }else if(myTowers.length&&Math.random()<0.4){
       const route=__aiEnemyRoute(pNum);
       let upg=myTowers[0],bestCov=-1;
       for(const t of myTowers){const cv=__aiCoverage(t.col,t.row,route,t.range)+Math.random()*2;if(cv>bestCov){bestCov=cv;upg=t}}
@@ -5740,6 +5802,16 @@ function pickTile(ndcX,ndcY){
 // damaged wall always "repair" — whatever happens to be selected.
 function tryActAt(pl,pn){
   const{c,r}=pl.cursor,cell=grid[r]&&grid[r][c];
+  // v3.62: on your own unspecialised level-3 tower the first press shows the
+  // two specialisations; a second press within 2.5s takes the first one.
+  if(cell&&cell.type==='tower'&&cell.owner===pn&&gameState==='build'){
+    const t=towers.find(x=>x.col===c&&x.row===r);
+    if(t&&(t.level||1)>=3&&!t.spec&&TOWER_SPECS[t.type]){
+      const key=c+','+r,now=performance.now();
+      if(pl._specArm===key&&now-pl._specArmT<2500){pl._specArm=null;trySpecialize(pl,pn,0);return}
+      pl._specArm=key;pl._specArmT=now;
+    }
+  }
   if(cell&&cell.owner===pn&&(cell.type==='tower'||cell.type==='wall'||cell.type==='barricade')){
     const want=cell.type==='tower'?'tower':'build',cur=BUILD_OPTS[pl.selectedIdx];
     if(cur.cat!==want){const keep=pl.selectedIdx;pl.selectedIdx=BUILD_OPTS.findIndex(o=>o.cat===want);tryPlace(pl,pn);pl.selectedIdx=keep;return}

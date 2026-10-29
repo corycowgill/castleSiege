@@ -531,16 +531,25 @@ document.addEventListener('DOMContentLoaded',()=>{const b=document.getElementByI
 const __insp={1:{sig:'',el:null},2:{sig:'',el:null}};
 const __inspV=typeof THREE!=='undefined'?new THREE.Vector3():null;
 // v3.55: War Banner card — aura strength, reach and how many towers it rallies
+// v3.62: specialisation row on the inspector card
+function __specRow(t,pl,pn){
+  const o=TOWER_SPECS[t.type];if(!o)return '';
+  const lv=t.level||1,sp=towerSpec(t),cost=specCost(t.type);
+  if(sp)return `<div class="spec-on">\u2605 ${sp.name}<i>${sp.desc}</i></div>`;
+  if(lv<3)return `<div class="spec-pre">At Lv3: ${o[0].name} or ${o[1].name}</div>`;
+  const key=k=>__touchUI()?'':`<b class="key">${k}</b>`;
+  return `<div class="spec-pick">${o.map((x,i)=>`<span data-a="spec${i}" class="${pl.credits<cost?'poor':''}" title="${x.desc}">${key(pn===1?String(i+1):i?'X':'A')}${x.name} $${cost}<i>${x.desc}</i></span>`).join('')}</div>`;
+}
 function __inspBanner(t,td,pl,pn){
-  const lv=t.level||1,mx=lv>=3,up=Math.floor(td.cost*0.6),sell=towerRefund(t),fresh=gameState==='build'&&t.fresh,full=fresh&&sell>=td.cost+up*(lv-1);
-  const v=Math.round(bannerBuffFor(t)*100),nv=v+10,nr=td.range*(1+0.1*lv);
+  const lv=t.level||1,mx=lv>=3,up=Math.floor(td.cost*0.6),sell=towerRefund(t),fresh=gameState==='build'&&t.fresh,full=fresh&&sell>=td.cost+up*(lv-1)+(t.specCost||0);
+  const v=Math.round(bannerBuffFor(t)*100),nv=v+10,nr=td.range*(1+0.1*lv),spn=__specRow(t,pl,pn);
   const n=towers.filter(o=>!o.support&&o.owner===t.owner&&Math.hypot(o.col-t.col,o.row-t.row)<=t.range).length;
   const pips='\u25C6'.repeat(lv)+`<i>${'\u25C6'.repeat(3-lv)}</i>`;
   return `<div class="ih"><span class="in">War Banner</span><span class="ip">${pips}</span></div>`+
     `<div class="ir">Damage aura<span><b>+${v}%</b>${mx?'':`<em>\u2192 +${nv}%</em>`}</span></div>`+
     `<div class="ir">Reach<span><b>${t.range.toFixed(1)}</b>${mx?'':`<em>\u2192 ${nr.toFixed(1)}</em>`}</span></div>`+
     `<div class="ir is">Towers rallied<span><b>${n}</b></span></div>`+
-    `<div class="hd2">Doesn\u2019t attack. The strongest banner in reach applies.</div>`+
+    `<div class="hd2">Doesn\u2019t attack. The strongest banner in reach applies.</div>`+spn+
     `<div class="if">${mx?'<span class="max">Max level</span>':`<span data-a="up" class="${pl.credits<up?'poor':''}">Upgrade $${up}</span>`}<span data-a="sell" class="${fresh?'full':''}">Sell +$${sell}${full?' \u00B7 full':fresh?' \u00B7 upg back':''}</span></div>`;
 }
 function __inspHTML(cell,pl,pn){
@@ -550,7 +559,7 @@ function __inspHTML(cell,pl,pn){
     const td=TOWER_DATA.find(x=>x.id===t.type),lv=t.level||1,mx=lv>=3;
     if(t.support)return __inspBanner(t,td,pl,pn);
     const nd=Math.round(td.dmg*(1+0.3*lv)),nr=td.range*(1+0.1*lv),nt=td.rate*(1-0.15*lv);
-    const up=Math.floor(td.cost*0.6),sell=towerRefund(t),fresh=gameState==='build'&&t.fresh,full=fresh&&sell>=td.cost+up*(lv-1);
+    const up=Math.floor(td.cost*0.6),sell=towerRefund(t),fresh=gameState==='build'&&t.fresh,full=fresh&&sell>=td.cost+up*(lv-1)+(t.specCost||0);
     const gain=(a,b,f)=>mx?'':`<em>→ ${f(b)}</em>`;
     const f1=v=>v.toFixed(1),fr=v=>(1/v).toFixed(2)+'/s';
     const pips='◆'.repeat(lv)+`<i>${'◆'.repeat(3-lv)}</i>`;
@@ -563,6 +572,7 @@ function __inspHTML(cell,pl,pn){
       `<div class="ir is">Kills<span><b>${t.kills||0}</b></span></div>`+
       `<div class="ir">Damage dealt<span><b>${Math.round(t.dmgDone||0).toLocaleString()}</b></span></div>`+
       `<div class="tgt" data-p="${pn}">Target<span><b>${TARGET_MODES[t.tmode||0]}</b>${__touchUI()?'':`<span class="key">${pn===1?'C':'MMB'}</span>`}</span></div>`+
+      __specRow(t,pl,pn)+
       `<div class="if">${mx?'<span class="max">Max level</span>':`<span data-a="up" class="${pl.credits<up?'poor':''}">Upgrade $${up}</span>`}<span data-a="sell" class="${fresh?'full':''}">Sell +$${sell}${full?' \u00B7 full':fresh?' \u00B7 upg back':''}</span></div>`;
   }
   if(cell.type==='wall'||cell.type==='barricade'){
@@ -608,6 +618,7 @@ document.addEventListener('DOMContentLoaded',()=>{
       const a=e.target.closest('[data-a]');
       if(a){e.preventDefault();e.stopPropagation(); // v3.54: tappable Upgrade / Repair / Sell
         if(a.dataset.a==='up'){if(gameState==='build')tryActAt(players[pn],pn);else uiToast(pn,'Upgrade during the build phase','bad','up')}
+        else if(a.dataset.a==='spec0'||a.dataset.a==='spec1'){if(gameState==='build')trySpecialize(players[pn],pn,+a.dataset.a.slice(4));else uiToast(pn,'Specialise during the build phase','bad','up')}
         else if(gameState==='build'||gameState==='combat')trySell(players[pn],pn);
         return}
       if(!e.target.closest('.tgt'))return;e.preventDefault();e.stopPropagation();cycleTargetMode(players[pn],pn)};
