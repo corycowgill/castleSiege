@@ -707,8 +707,8 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
         <span class="mi-idx">III</span><span class="mi-label">How to Play</span><span class="mi-sub">Reference</span></button>
       <button class="menu-item" id="btn-menu-settings" data-desc="Volume, graphics quality, screen shake and damage numbers.">
         <span class="mi-idx">IV</span><span class="mi-label">Settings</span><span class="mi-sub">Options</span></button>
-      <button class="menu-item" id="btn-menu-honours" data-desc="Sixteen feats of war to earn across Campaign, Endless and Versus.">
-        <span class="mi-idx">V</span><span class="mi-label">Honours</span><span class="mi-sub" id="btn-menu-hon-sub">0 / 16</span></button>
+      <button class="menu-item" id="btn-menu-honours" data-desc="Seventeen feats of war to earn across Campaign, Endless and Versus.">
+        <span class="mi-idx">V</span><span class="mi-label">Honours</span><span class="mi-sub" id="btn-menu-hon-sub">0 / 17</span></button>
       <a class="menu-item" id="btn-menu-guide" href="guide.html" data-desc="Inspect every tower, soldier and boss in the illustrated field guide.">
         <span class="mi-idx">VI</span><span class="mi-label">Field Guide</span><span class="mi-sub">Bestiary</span></a>
     </nav>
@@ -716,7 +716,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
   </div>
   <div class="menu-foot">
     <div class="foot-hints"><span><span class="key">&uarr;</span><span class="key">&darr;</span> Navigate</span><span><span class="key">Enter</span> Select</span><span><span class="key round">A</span> Confirm</span></div>
-    <div class="foot-ver">Castle Siege <b>v3.62</b> &bull; Build 2026-10-24</div>
+    <div class="foot-ver">Castle Siege <b>v3.63</b> &bull; Build 2026-10-24</div>
   </div>
 </div>
 
@@ -3687,7 +3687,6 @@ function trySpecialize(pl,pn,which){
   pl.credits-=cost;t.spec=sp.id;t.specCost=cost;t.fresh=(t.fresh||0)+cost;recomputeTower(t);refreshBannerBuffs();
   sndBuild();__gridVer++;
   const wp=tileToWorld(c,r);emitParticles(wp.x,1.2,wp.z,0xffe08a,22,90);spawnAuraPulse(wp.x,wp.z,1.4,0xffd76a,0.6);
-  spawnDmgNumber(wp.x,1.9,wp.z,sp.name.toUpperCase(),'#ffd76a');
   uiToast(pn,`${TOWER_DATA.find(d=>d.id===t.type).name} specialised: ${sp.name}`,'gold','up');
   return true;
 }
@@ -4575,6 +4574,32 @@ function __buildTowerMesh(t){
   if(bows.length)mesh.userData.bows=bows;
   if(anim.length)mesh.userData.anim=anim;
   return mesh;
+}
+// v3.63: specialised towers wear a small turning gem in the spec's colour
+// inside a gold ring on the front of the plinth, so a defence reads at a glance.
+const SPEC_COLORS={longbow:0x8fe36a,volley:0xffd76a,frost:0x8ed8ff,arcane:0xd08cff,firepot:0xff7a2a,boulder:0xd8c09a,pierce:0xdfe6f2,grape:0xff9a5a,drums:0xff5a4a,gilded:0xffe08a};
+const __specMarks=new Map();let __gemGeo=null,__ringGeo2=null;const __gemMats={};
+function syncSpecMarks(){
+  for(const [t,m] of __specMarks)if(!towers.includes(t)||!t.spec||m.userData.spec!==t.spec){scene.remove(m);__specMarks.delete(t)}
+  const now=performance.now()*0.001;
+  for(const t of towers){
+    if(!t.spec||(t._buildT!=null&&t._buildT<1))continue;const mesh=towerMeshes.get(t);if(!mesh)continue; // measure only at full size
+    let m=__specMarks.get(t);
+    if(!m){
+      if(!__gemGeo){__gemGeo=new THREE.OctahedronGeometry(0.11,0);__ringGeo2=new THREE.TorusGeometry(0.17,0.012,6,24)}
+      const col=SPEC_COLORS[t.spec]||0xffffff;
+      const gm=__gemMats[t.spec]||(__gemMats[t.spec]=new THREE.MeshStandardMaterial({color:col,emissive:col,emissiveIntensity:1.4,roughness:0.3,metalness:0.2}));
+      m=new THREE.Group();m.userData.spec=t.spec;
+      const gem=new THREE.Mesh(__gemGeo,gm);gem.scale.set(1,1.35,1);m.add(gem);
+      const ring=new THREE.Mesh(__ringGeo2,__gemMats._gold||(__gemMats._gold=new THREE.MeshStandardMaterial({color:0xf0b43c,emissive:0x6a4410,emissiveIntensity:0.6,metalness:0.8,roughness:0.35})));
+      m.add(ring);m.userData.gem=gem;m.userData.ring=ring; // ring faces the camera (+z)
+      scene.add(m);__specMarks.set(t,m);
+    }
+    // a medallion on the plinth's camera-facing side reads at every zoom
+    const wp=tileToWorld(t.col,t.row);
+    m.position.set(wp.x,0.62+Math.sin(now*2+t.col)*0.03,wp.z+0.56);
+    m.userData.gem.rotation.y=now*1.6;m.userData.ring.rotation.z=-now*0.8;
+  }
 }
 function syncTowers(){
   const activeTowers=new Set(towers);
@@ -6048,7 +6073,7 @@ function gameLoop(){
   // sets, so rendering between sim ticks shows the last sim state.
   __batchTick();
   __poolWarmTick(rawDt);
-  __windU.value+=rawDt||0.016;syncGroundDetail();
+  __windU.value+=rawDt||0.016;syncGroundDetail();syncSpecMarks();
   if(gameState!=='title'&&gameState!=='paused'){
     syncBuildings();syncTowers();syncEnemies();syncProjectiles();updateCursors();
     updateParticles(rawDt);updateDmgNumbers(rawDt);updateVfx(rawDt);updateSmoke(rawDt);updateCastleFx(rawDt);

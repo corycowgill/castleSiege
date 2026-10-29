@@ -647,6 +647,7 @@ const HONOURS=[
   {id:'night',name:'The Long Night',desc:'Reach wave 15 in Endless.',icon:'freeze'},
   {id:'eternal',name:'The Siege Eternal',desc:'Reach wave 25 in Endless.',icon:'lich'},
   {id:'duel',name:'Duelist',desc:'Finish a Versus match.',icon:'lightning'},
+  {id:'arms',name:'Master of Arms',desc:'Field a specialised tower of every type at once.',icon:'up'},
 ];
 let __hon=(()=>{try{return JSON.parse(localStorage.getItem('castleSiege_honours')||'{}')||{}}catch(e){return{}}})();
 let __honBattle=[],__honT=0,__honOpen=false;
@@ -667,6 +668,7 @@ function uiHonoursTick(dt){
   if(walls>=12)uiHonour('mason');
   if(mine.some(t=>(t.level||1)>=3))uiHonour('master');
   if(new Set(mine.map(t=>t.type)).size>=4)uiHonour('arsenal');
+  if(new Set(mine.filter(t=>t.spec).map(t=>t.type)).size>=TOWER_DATA.length)uiHonour('arms');
   if(mine.some(t=>(t.kills||0)>=100))uiHonour('veteran');
   if(gameState==='combat'&&p1.specials===0)uiHonour('rain');
   if(gameState==='waveEnd'&&waveNum>=1)uiHonour('firstwave');
