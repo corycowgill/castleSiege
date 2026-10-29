@@ -20,7 +20,7 @@ const __isMouse=e=>e.pointerType==='mouse'||(e.pointerType===undefined&&UI_HOVER
 // ==================== ICONS ====================
 function uiIcon(id,cls){return `<svg class="ico${cls?' '+cls:''}" viewBox="0 0 24 24"><use href="#i-${id}"/></svg>`}
 const OPT_ICON={banner:'banner',turret:'turret',magic:'magic',catapult:'catapult',bombard:'bombard',wall:'wall',barricade:'barricade',
-  goblin:'goblin',orc:'orc',darkKnight:'knight',archer:'archer',troll:'troll',dragon:'dragon',lich:'lich'};
+  goblin:'goblin',orc:'orc',darkKnight:'knight',archer:'archer',sapper:'sapper',troll:'troll',dragon:'dragon',lich:'lich'};
 const SPEC_ICON=['meteor','lightning','freeze','heal'];
 const OPT_DESC={
   turret:'Reliable arrow tower. Cheap, fast-firing single-target damage.',
@@ -717,7 +717,7 @@ document.addEventListener('DOMContentLoaded',()=>{
 // Campaign only: during the build phase the HUD shows what the Warlord
 // has bought for the next wave (Hard: only a head-count), and a callout
 // names the purchased units when the wave starts.
-const SCOUT_PLURAL={goblin:'Goblins',orc:'Orcs',darkKnight:'Dark Knights',archer:'Archers',troll:'Trolls',dragon:'Dragons',lich:'Liches'};
+const SCOUT_PLURAL={goblin:'Goblins',orc:'Orcs',darkKnight:'Dark Knights',archer:'Archers',sapper:'Sappers',troll:'Trolls',dragon:'Dragons',lich:'Liches'};
 const SCOUT_ONE={troll:'a Troll',dragon:'a Dragon',lich:'a Lich'};
 function uiScoutText(q,html){
   const parts=[];for(const id of Object.keys(SCOUT_PLURAL)){const n=q[id]||0;if(n)parts.push(n===1&&SCOUT_ONE[id]?SCOUT_ONE[id]:`${n} ${SCOUT_PLURAL[id]}`)}

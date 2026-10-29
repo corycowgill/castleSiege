@@ -65,6 +65,10 @@ const {chromium}=require('playwright');
     trySpecialize(pl,1,1);ok('spec_once',bb.spec==='pierce');
     spawnEnemy('darkKnight',30,8,2);const dk=enemies[enemies.length-1];dk.hp=999;dealDamage(dk,60,bb);ok('spec_pierce_ignores_armour',dk.hp===939);enemies.length=0;
     ok('spec_refund',towerRefund(bb)===200+120+120+180);
+    // --- sappers: blast flattens a wall (+50 to neighbours), never stop to brawl
+    grid[3][25]={type:'wall',owner:2,hp:150,maxHp:150};grid[3][26]={type:'wall',owner:2,hp:150,maxHp:150};
+    spawnEnemy('+sapper',24,3,1);const sp=enemies[enemies.length-1];ok('sapper_flag_halfbounty',sp.sapper&&sp.bountyMul===0.5);
+    sapperBlast(sp,25,3);ok('sapper_blast',grid[3][25]===null&&grid[3][26].hp===100&&!sp.alive);grid[3][26]=null;markGridDirty();enemies.length=0;
     // --- keep warnings fire once per threshold
     pl.castleHP=pl.maxHP*0.45;keepWarn(1);pl.castleHP=pl.maxHP*0.44;keepWarn(1);
     ok('keep_warn_once',pl._warn[0.5]===true&&document.getElementById('callouts').childElementCount===1);

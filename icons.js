@@ -19,6 +19,7 @@
   <symbol id="i-orc" viewBox="0 0 24 24"><path d="M6 10a6 6 0 0 1 12 0v3.5a6 6 0 0 1-12 0z M9 18.5l-.8-3.5M15 18.5l.8-3.5 M8.5 11h2.5M13 11h2.5M7 6.5L5 4M17 6.5L19 4"/></symbol>
   <symbol id="i-knight" viewBox="0 0 24 24"><path d="M6 21V11a6 6 0 0 1 12 0v10z M6 14h12M10.5 14v3M13.5 14v3M12 5V2.5M9 3.5c1-1 5-1 6 0"/></symbol>
   <symbol id="i-archer" viewBox="0 0 24 24"><path d="M6.5 3c7.5 3 7.5 15 0 18M6.5 3v18M3 12h16M16 9l3 3-3 3M3 10.5L4.5 12 3 13.5"/></symbol>
+  <symbol id="i-sapper" viewBox="0 0 24 24"><circle cx="10" cy="14.5" r="6.5"/><path d="M14.5 9.5l2.5-2.5M17 7c1-1 2.5-1 3.5 0M19.5 4.5l.8-1.6M21.4 6.6l1.6-.8M8 12.5a3 3 0 0 1 2.5-1.5"/></symbol>
   <symbol id="i-troll" viewBox="0 0 24 24"><path d="M4.5 20.5l7-7M10.5 14.5c-1.3-4 1.8-9.3 6.3-10.3 2.3.7 3.6 3 2.7 5.4-1.3 4-5.5 6.2-9 4.9zM14 6.5l.01.01M17 9.5l.01.01M13 10l.01.01"/></symbol>
   <symbol id="i-dragon" viewBox="0 0 24 24"><path d="M2.5 19c4-1 6.5-4.5 7.5-9 2 3 5 4.4 9 4.3-1.4-2.6-.8-6 2.5-8.6-3.5-.3-6.5.8-8.5 2.8-1-3-3.3-5.2-6.5-6 1.2 4.3.3 9.8-4 16.5z M10 10l2.5 2.5"/></symbol>
   <symbol id="i-lich" viewBox="0 0 24 24"><path d="M7 12a5 5 0 0 1 10 0v3.5h-2V19H9v-3.5H7z M10 13h.01M14 13h.01M11 16.5h2 M7.5 7.5L9.5 9l2.5-3.5L14.5 9l2-1.5"/></symbol>

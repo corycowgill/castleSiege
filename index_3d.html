@@ -716,7 +716,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
   </div>
   <div class="menu-foot">
     <div class="foot-hints"><span><span class="key">&uarr;</span><span class="key">&darr;</span> Navigate</span><span><span class="key">Enter</span> Select</span><span><span class="key round">A</span> Confirm</span></div>
-    <div class="foot-ver">Castle Siege <b>v3.63</b> &bull; Build 2026-10-24</div>
+    <div class="foot-ver">Castle Siege <b>v3.64</b> &bull; Build 2026-10-24</div>
   </div>
 </div>
 
@@ -828,6 +828,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
         <tr><td>Goblin</td><td class="cost-col">$60</td><td>Squad of 10 &middot; fast, weak swarm</td></tr>
         <tr><td>Orc</td><td class="cost-col">$100</td><td>Squad of 10 &middot; tanky bruiser</td></tr>
         <tr><td>D.Knight</td><td class="cost-col">$160</td><td>Squad of 10 &middot; 50% armor</td></tr>
+        <tr><td>Sapper</td><td class="cost-col">$140</td><td>Squad of 10 &middot; blows up walls in its way</td></tr>
         <tr><td>Archer</td><td class="cost-col">$120</td><td>Squad of 10 &middot; ranged, 3.5 tiles</td></tr>
         <tr><td>Troll</td><td class="cost-col">$200</td><td>Boss &middot; smashes walls in its way</td></tr>
         <tr><td>Dragon</td><td class="cost-col">$250</td><td>Boss &middot; flies over walls &amp; melee</td></tr>
@@ -1020,6 +1021,9 @@ const ENEMY_DATA=[
   // to `range` tiles away while marching, instead of being a reskinned
   // melee unit.
   {id:'archer',name:'Archer',cost:12,hp:40,spd:2.0,dmg:23,reward:20,color:'#8b6914',armor:0,range:3.5},
+  // v3.64: sappers blow up the first enemy wall they pass (150 damage, 50 to
+  // the walls beside it) — the answer to a heavy maze. Bought only.
+  {id:'sapper',name:'Sapper',cost:14,hp:45,spd:2.2,dmg:20,reward:14,color:'#7a5a2a',armor:0,sapper:true},
 ];
 // v3.14: boss-class enemies. Single-purchase (cost*1, not cost*10),
 // much higher HP/damage/reward, visually much larger. Balanced
@@ -3738,6 +3742,15 @@ function refreshBannerBuffs(){
     for(const t of towers){if(t.support||t.owner!==b.owner)continue;
       if(Math.hypot(t.col-b.col,t.row-b.row)<=b.range){if(v>t._buff)t._buff=v;if((b._haste||0)>t._hasteBuff)t._hasteBuff=b._haste}}}
 }
+function sapperBlast(e,nc,nr){
+  const hit=(c,r,d)=>{const cell=grid[r]&&grid[r][c];if(!cell||cell.owner===e.owner||(cell.type!=='wall'&&cell.type!=='barricade'))return;
+    cell.hp-=d;if(cell.hp<=0){grid[r][c]=null;markGridDirty();const w=pixelToWorld(colToX(c),rowToY(r));emitParticles(w.x,0.3,w.z,0x888888,25,120);spawnSmoke(w.x,0.3,w.z,0x8a8070,6,0.8)}};
+  hit(nc,nr,150);for(const[dc,dr]of[[1,0],[-1,0],[0,1],[0,-1]])hit(nc+dc,nr+dr,50);
+  const wp=pixelToWorld(colToX(nc),rowToY(nr));
+  fxImpact('proj_cannonball',wp.x,wp.z,1.4);emitParticles(wp.x,0.5,wp.z,0xffb040,18,140);spawnScorch(wp.x,wp.z,0.8);
+  sndWallHit();sndHit();screenShake=Math.max(screenShake,0.25);
+  e.alive=false;e._noCorpse=true;
+}
 function dealDamage(enemy,dmg,src,dot){
   const actual=dmg*(1-(src&&src._pierce?0:enemy.armor)); // v3.62: Armour-Piercer
   if(src&&!dot&&enemy.hp>actual){ // v3.62: on-hit effects from specialised towers
@@ -3842,7 +3855,7 @@ function spawnEnemy(type,spawnCol,spawnRow,owner){
     armor:Math.min(0.75,(d.armor||0)+(om.arm||0)),color:d.color,x:colToX(spawnCol),y:rowToY(spawnRow),
     path,pathIdx:1,alive:true,slowTimer:0,slowMult:1,wallCheckTimer:rnd(0.3,1),
     combatTarget:null,atkCooldown:0,combatScanTimer:rnd(0,0.3),_anim:Math.random()*Math.PI*2,
-    flying,ranged:d.range||0,rangedCd:rnd(0.2,0.8),auraCd:1.5,_pathVer:__gridVer,_spawnT:0});
+    flying,sapper:!!d.sapper,ranged:d.range||0,rangedCd:rnd(0.2,0.8),auraCd:1.5,_pathVer:__gridVer,_spawnT:0});
   // v3.28: boss entrance callout.
   if(BOSS_DATA.includes(d)){
     const side=owner===1?'Blue Crown':(gameMode==='1p'?'Warlord':'Red Crown');
@@ -3888,8 +3901,9 @@ function startWave(){
     orc:Math.max(0,wq-1)*2,
     darkKnight:Math.max(0,wq-3)*2,
     archer:Math.max(0,wq-3)*2,
+    sapper:0, // v3.64: bought only
   };
-  for(const eid of['goblin','orc','darkKnight','archer']){
+  for(const eid of['goblin','orc','darkKnight','archer','sapper']){
     const c1=(players[1].enemyQueue[eid]||0)+baseQ[eid];
     const c2=(players[2].enemyQueue[eid]||0)+baseQ[eid];
     // v3.42: purchased units are tagged '+' so they pay reduced bounty
@@ -3912,8 +3926,8 @@ function startWave(){
   if(omenFor(waveNum).id)setTimeout(()=>{if(gameState==='combat')sndOmen()},400);
   // v3.46: scouting callout — what the Warlord bought on top of the wave
   if(gameMode==='1p'){const t=uiScoutText(players[2].enemyQueue,true);if(t)setTimeout(()=>{if(gameState==='combat')uiCallout(t,'#ff7a8a','warn')},1100)}
-  players[1].enemyQueue={goblin:0,orc:0,darkKnight:0,archer:0,troll:0,dragon:0,lich:0};
-  players[2].enemyQueue={goblin:0,orc:0,darkKnight:0,archer:0,troll:0,dragon:0,lich:0};
+  players[1].enemyQueue={goblin:0,orc:0,darkKnight:0,archer:0,sapper:0,troll:0,dragon:0,lich:0};
+  players[2].enemyQueue={goblin:0,orc:0,darkKnight:0,archer:0,sapper:0,troll:0,dragon:0,lich:0};
   players[1].ready=false;players[2].ready=false;
   __waveTotal=spawnQueue1.length+spawnQueue2.length;
   showScreen('game');
@@ -4133,7 +4147,8 @@ function updateCombat(dt){
     // archers don't go looking for melee (archers still fight back
     // when an enemy closes on them).
     if(e.combatTarget&&(!e.combatTarget.alive||dist(e.x,e.y,e.combatTarget.x,e.combatTarget.y)>T*2.5))e.combatTarget=null;
-    if(!e.combatTarget&&!e.flying&&!e.ranged){
+    if(e.sapper)e.combatTarget=null; // v3.64: sappers slip past the fighting to reach the walls
+    if(!e.combatTarget&&!e.flying&&!e.ranged&&!e.sapper){
       e.combatScanTimer=(e.combatScanTimer||0)-dt;
       if(e.combatScanTimer<=0){
         e.combatScanTimer=0.2;let closest=null,closestD=T*1.5;
@@ -4146,7 +4161,7 @@ function updateCombat(dt){
           const d2=dist(e.x,e.y,e2.x,e2.y);
           if(d2<closestD){closestD=d2;closest=e2}
         }
-        if(closest){e.combatTarget=closest;if(!closest.combatTarget)closest.combatTarget=e}
+        if(closest){e.combatTarget=closest;if(!closest.combatTarget&&!closest.sapper)closest.combatTarget=e}
       }
     }
     if(e.combatTarget&&e.combatTarget.alive){
@@ -4209,6 +4224,17 @@ function updateCombat(dt){
           emitParticles(wp.x,0.4,wp.z,0x999988,14,90);spawnSmoke(wp.x,0.3,wp.z,0x9a9080,3,0.6);
           sndWallHit();screenShake=Math.max(screenShake,0.12);
           if(cell.hp<=0){grid[er][fc]=null;markGridDirty();emitParticles(wp.x,0.3,wp.z,0x888888,25,120);spawnSmoke(wp.x,0.3,wp.z,0x8a8070,8,0.9)}
+        }
+      }else if(e.type==='sapper'){
+        // v3.64: detonate against any adjacent enemy wall while the march is long
+        e.wallCheckTimer=0.2;
+        if(remainPath>3){
+          for(const[dc,dr]of[[e.owner===1?1:-1,0],[0,1],[0,-1],[e.owner===1?-1:1,0]]){
+            const nc=ec+dc,nr=er+dr;if(nc<0||nc>=COLS||nr<0||nr>=ROWS)continue;
+            const cell=grid[nr][nc];
+            if(cell&&(cell.type==='wall'||cell.type==='barricade')&&cell.owner!==e.owner){sapperBlast(e,nc,nr);break}
+          }
+          if(!e.alive)continue;
         }
       }else{
         e.wallCheckTimer=0.5;
@@ -4472,10 +4498,10 @@ function restartGame(){
   players[1]._hitT=0;players[2]._hitT=0;players[1]._warn={};players[2]._warn={};
   players[1].castleHP=CASTLE_HP;players[1].maxHP=CASTLE_HP;players[1].credits=START_CREDITS;
   players[1].specials=3;players[1].ready=false;players[1].selectedIdx=0;players[1].kills=0;players[1].totalDmgDealt=0;
-  players[1].enemyQueue={goblin:0,orc:0,darkKnight:0,archer:0,troll:0,dragon:0,lich:0};players[1].cursor={c:10,r:9};
+  players[1].enemyQueue={goblin:0,orc:0,darkKnight:0,archer:0,sapper:0,troll:0,dragon:0,lich:0};players[1].cursor={c:10,r:9};
   players[2].castleHP=CASTLE_HP;players[2].maxHP=CASTLE_HP;players[2].credits=START_CREDITS;
   players[2].specials=3;players[2].ready=false;players[2].selectedIdx=0;players[2].kills=0;players[2].totalDmgDealt=0;
-  players[2].enemyQueue={goblin:0,orc:0,darkKnight:0,archer:0,troll:0,dragon:0,lich:0};players[2].cursor={c:30,r:9};
+  players[2].enemyQueue={goblin:0,orc:0,darkKnight:0,archer:0,sapper:0,troll:0,dragon:0,lich:0};players[2].cursor={c:30,r:9};
   applyDifficultyStart();uiTutorialReset();uiHonoursReset();
   stopMusic(0.3);startMusic();gameState='build';buildTimer=BUILD_TIME;
   aiBuildTimer=0;aiSpecialTimer=0;
@@ -5007,7 +5033,7 @@ function __poolWarmTick(dt){
   if(__warmNeedT<=0||!__warmNeed){
     __warmNeedT=1;__warmNeed=[];
     const nw=waveNum+1,base={goblin:6+nw*3,orc:Math.max(0,nw-1)*2,darkKnight:Math.max(0,nw-3)*2,archer:Math.max(0,nw-3)*2};
-    for(const o of[1,2])for(const t of['goblin','orc','darkKnight','archer','troll','dragon','lich']){
+    for(const o of[1,2])for(const t of['goblin','orc','darkKnight','archer','sapper','troll','dragon','lich']){
       const want=Math.min(POOL_CAP,(base[t]||0)+(players[o].enemyQueue[t]||0));
       const have=(__enemyPool.get(__enemyKey(t,o))||[]).length;
       if(want>have)__warmNeed.push([t,o,want-have]);
@@ -5667,7 +5693,10 @@ function aiDoBuildAction(ai){
     // Buy enemies
     const affordable=ENEMY_DATA.filter(e=>ai.credits>=e.cost*10);
     if(affordable.length){
-      const ed=affordable[Math.floor(Math.random()*affordable.length)];
+      // v3.64: answer a heavy maze with sappers
+      let walls=0;for(const row of grid)for(const c of row)if(c&&c.owner===1&&(c.type==='wall'||c.type==='barricade'))walls++;
+      const sap=affordable.find(e=>e.id==='sapper');
+      const ed=sap&&walls>=4&&Math.random()<0.4?sap:affordable[Math.floor(Math.random()*affordable.length)];
       ai.selectedIdx=BUILD_OPTS.findIndex(o=>o.id===ed.id);
       if(ai.selectedIdx>=0)tryPlace(ai,pNum);
     }
@@ -6174,7 +6203,7 @@ function __batchTick(){
 function __warmShaders(){
   const tmp=[];
   for(const o of[1,2]){
-    for(const t of['goblin','orc','darkKnight','archer','troll','dragon','lich']){const m=acquireEnemyMesh(t,o);m.position.set(0,-40,0);if(!m.parent)scene.add(m);m.visible=true;tmp.push(['e',m])}
+    for(const t of['goblin','orc','darkKnight','archer','sapper','troll','dragon','lich']){const m=acquireEnemyMesh(t,o);m.position.set(0,-40,0);if(!m.parent)scene.add(m);m.visible=true;tmp.push(['e',m])}
     for(const t of TOWER_DATA)for(let lv=1;lv<=(artHasLevels(t.id)?3:1);lv++){const m=__buildTowerMesh({type:t.id,owner:o,level:lv});m.position.set(0,-40,0);scene.add(m);tmp.push(['t',m])}
     const w=createWall(o);__canonicalizeEnemyMaterials(w);__mergeEnemyModel(w);w.position.set(0,-40,0);scene.add(w);tmp.push(['t',w]);
   }

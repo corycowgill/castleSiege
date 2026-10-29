@@ -260,6 +260,23 @@ function buildArrowBastion(owner,level){
   return g;
 }
 
+// ==================== UNIT: SAPPER (v3.64) ====================
+// A goblin demolitionist: the goblin body with a black-powder keg on its
+// back, a lit fuse and a satchel strap, and a lighter tan headwrap.
+function buildSapper(owner){
+  const g=buildGoblin(owner),M=artMats(owner);
+  const keg=mkMat(0x5a3a1e,{map:texWood()}),hoop=mkMat(0x2e2f36,{metalness:0.6});
+  const back=G(g,[0,0.235,-0.088]);
+  P(back,cyl(0.055,0.055,0.11,12),keg,[0,0,0],[Math.PI/2,0,0.15]);
+  for(const z of[-0.04,0.04])P(back,torus(0.056,0.007,5,16),hoop,[0,0,z],[0,0,0]);
+  P(back,ell(0.03,0.03,0.03,8,6),M.black,[0.03,0.06,-0.02]);
+  P(back,strap([[0.03,0.07,-0.02],[0.045,0.11,-0.035],[0.03,0.14,-0.02]],0.004),M.rope);
+  const sp=G(back,[0.03,0.145,-0.02],'float');sp.userData.spd=14;sp.userData.amp=0.006;
+  P(sp,ell(0.012,0.012,0.012,6,4),M.flameCore,[0,0,0]);P(sp,cone(0.01,0.03,5),M.flame,[0,0.015,0]);
+  P(g,strap([[-0.06,0.29,0.03],[0,0.23,0.066],[0.065,0.17,0.03],[0.05,0.2,-0.06]],0.007),M.leather);
+  return g;
+}
+
 // ==================== TOWER: WAR BANNER (v3.55, support) ====================
 // No weapon: a rallying standard on a stone plinth. A tall pole carries a
 // crossbar and a big team banner; Lv2 adds braziers, Lv3 a slowly turning
@@ -1144,7 +1161,7 @@ function buildProjectile(type){
 const ART={
   tower:{banner:{levels:3,build:buildWarBanner},turret:{levels:3,build:buildArrowBastion},magic:{levels:3,build:buildArcaneSpire},catapult:{levels:3,build:buildStonebreaker},bombard:{levels:3,build:buildIronThunder}},
   build:{wall:buildStoneWall,barricade:buildPalisade},
-  enemy:{goblin:{build:buildGoblin},orc:{build:buildOrc},darkKnight:{build:buildDarkKnight},archer:{build:buildArcher},troll:{build:buildTroll,boss:true},dragon:{build:buildDragon,boss:true},lich:{build:buildLich,boss:true}},
+  enemy:{sapper:{build:buildSapper},goblin:{build:buildGoblin},orc:{build:buildOrc},darkKnight:{build:buildDarkKnight},archer:{build:buildArcher},troll:{build:buildTroll,boss:true},dragon:{build:buildDragon,boss:true},lich:{build:buildLich,boss:true}},
   castle:{build:buildCastle},
 };
 function artHasLevels(type){return !!(ART.tower[type]&&ART.tower[type].levels>1)}

@@ -28,7 +28,7 @@ const {chromium}=require('playwright');
      ok('catapult_arm_follows_reload',a0>1.2&&Math.abs(a1-(-0.3))<0.05);ok('magic_rings_spin',sp.rotation.y+sp.rotation.x+sp.rotation.z!==s0);
      trySell(P,1);P.cursor={c:6,r:5};trySell(P,1);tick();}
     // enemies: all 7 art models, limb contract, scale
-    for(const ty of['goblin','orc','darkKnight','archer','troll','dragon','lich']){
+    for(const ty of['goblin','orc','darkKnight','archer','sapper','troll','dragon','lich']){
       const m=createEnemyModel(ty,2);const L=new Set();m.traverse(c=>{if(c.userData.limb)L.add(c.userData.limb)});
       const boss=['troll','dragon','lich'].includes(ty);
       ok(`${ty}_model`,!!ART.enemy[ty]&&m.scale.x===(boss?3.8:2.2)&&L.has('leftArm')&&L.has('rightArm')&&(ty==='lich'||L.has('leftLeg')));
@@ -58,7 +58,7 @@ const {chromium}=require('playwright');
     {gameState='combat';restartGame();tick();fx();const seq=[scene.children.length];
      for(let k=0;k<3;k++){const P=players[1];P.credits=1e6;['turret','magic','catapult','bombard'].forEach((ty,i)=>{P.cursor={c:4+i*2,r:3};P.selectedIdx=BUILD_OPTS.findIndex(o=>o.id===ty);tryPlace(P,1);tryPlace(P,1);tryPlace(P,1)});
       P.cursor={c:4,r:14};P.selectedIdx=BUILD_OPTS.findIndex(o=>o.id==='wall');tryPlace(P,1);
-      for(const ty of['goblin','orc','darkKnight','archer','troll','dragon','lich'])spawnEnemy(ty,4,8,1);
+      for(const ty of['goblin','orc','darkKnight','archer','sapper','troll','dragon','lich'])spawnEnemy(ty,4,8,1);
       gameState='combat';for(let i=0;i<30;i++)updateCombat(1/60);tick();restartGame();tick();fx();seq.push(scene.children.length)}
      res.scene_children=seq.join(',');ok('restart_no_leak',seq[1]===seq[2]&&seq[2]===seq[3]);}
     return res;
