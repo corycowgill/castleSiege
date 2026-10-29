@@ -80,6 +80,11 @@ const {chromium}=require('playwright');
       const base=previewPath(2).length;grid[t.r][t.c]={type:'temp',owner:1};const len=previewPath(2).length;grid[t.r][t.c]=null;
       if(a.delta!==len-base||(a.delta>0)!==!!a.ghost){hit=-1;break}hit++}
     ok('maze_delta_matches_route',hit>0);
+    // --- veterancy: 25 kills promotes (+7% dmg); sold towers lose it; saved via kills
+    sel('turret');at(17,2);tryPlace(pl,1);const vt=TW(17,2);const d0=vt.dmg;vt.kills=24;
+    spawnEnemy('goblin',30,8,2);const ve=enemies[enemies.length-1];dealDamage(ve,9999,vt);enemies.length=0;
+    ok('vet_promote',vt.rank===1&&vt.dmg===Math.round(d0*1.07));
+    vt.kills=175;recomputeTower(vt);ok('vet_elite_cap',vt.rank===3&&vt.dmg===Math.round(d0*1.21));
     updatePathPreview();const pm=__pathPrev.meshes[2];
     ok('kill_zone_tint',__pathPrev.cov.some(c=>c>0)&&__pathPrev.cov.some(c=>c===0)&&!!pm.instanceColor);
     // --- keep warnings fire once per threshold

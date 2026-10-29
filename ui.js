@@ -563,7 +563,7 @@ function __inspHTML(cell,pl,pn){
     const t=towers.find(x=>x.col===c&&x.row===r);if(!t)return null;
     const td=TOWER_DATA.find(x=>x.id===t.type),lv=t.level||1,mx=lv>=3;
     if(t.support)return __inspBanner(t,td,pl,pn);
-    const nd=Math.round(td.dmg*(1+0.3*lv)),nr=td.range*(1+0.1*lv),nt=td.rate*(1-0.15*lv);
+    const nd=Math.round(td.dmg*(1+0.3*lv)*vetMul(t)),nr=td.range*(1+0.1*lv),nt=td.rate*(1-0.15*lv);
     const up=Math.floor(td.cost*0.6),sell=towerRefund(t),fresh=gameState==='build'&&t.fresh,full=fresh&&sell>=td.cost+up*(lv-1)+(t.specCost||0);
     const gain=(a,b,f)=>mx?'':`<em>→ ${f(b)}</em>`;
     const f1=v=>v.toFixed(1),fr=v=>(1/v).toFixed(2)+'/s';
@@ -574,7 +574,7 @@ function __inspHTML(cell,pl,pn){
       `<div class="ir">Fire rate<span><b>${fr(t.rate)}</b>${gain(t.rate,nt,fr)}</span></div>`+
       (td.splash?`<div class="ir">Splash<span><b>${td.splash}</b></span></div>`:'')+
       (t._buff?`<div class="ir rally">Rallied by a banner<span><b>+${Math.round(t._buff*100)}%</b> \u2192 ${Math.round(t.dmg*(1+t._buff))} dmg</span></div>`:'')+
-      `<div class="ir is">Kills<span><b>${t.kills||0}</b></span></div>`+
+      `<div class="ir is">Kills<span><b>${t.kills||0}</b><em>${VET_NAMES[t.rank||0]}${t.rank?` +${Math.round(VET_BONUS*t.rank*100)}%`:''}${t.rank<VET_RANKS.length?` \u00B7 ${VET_RANKS[t.rank||0]-(t.kills||0)} to ${VET_NAMES[(t.rank||0)+1]}`:''}</em></span></div>`+
       `<div class="ir">Damage dealt<span><b>${Math.round(t.dmgDone||0).toLocaleString()}</b></span></div>`+
       `<div class="tgt" data-p="${pn}">Target<span><b>${TARGET_MODES[t.tmode||0]}</b>${__touchUI()?'':`<span class="key">${pn===1?'C':'MMB'}</span>`}</span></div>`+
       __specRow(t,pl,pn)+
