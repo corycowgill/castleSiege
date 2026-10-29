@@ -73,6 +73,13 @@ const {chromium}=require('playwright');
     sel('wall');pl._paintFrom=null;pl._paintLast=null;paintStroke(pl,1,4,1);paintStroke(pl,1,9,1);
     ok('paint_fills_line',[4,5,6,7,8,9].every(c=>grid[1][c]&&grid[1][c].type==='wall'));
     pl._paintFrom=null;pl._paintLast=null;for(let r=0;r<ROWS;r++)paintStroke(pl,1,3,r);ok('paint_keeps_route_open',!!previewPath(2));
+    // --- maze preview: hovering shows how far a build pushes the route
+    sel('wall');const g=[...Array(ROWS).keys()].find(r=>!grid[r][3]);
+    at(4,g);ok('maze_seal_no_preview',__cursorAction(1).state==='bad'&&__cursorAction(1).delta===null);
+    sel('turret');let hit=0;for(const t of previewPath(2).filter(t=>t.c>=6&&t.c<=19)){at(t.c,t.r);const a=__cursorAction(1);if(a.state!=='ok')continue;
+      const base=previewPath(2).length;grid[t.r][t.c]={type:'temp',owner:1};const len=previewPath(2).length;grid[t.r][t.c]=null;
+      if(a.delta!==len-base||(a.delta>0)!==!!a.ghost){hit=-1;break}hit++}
+    ok('maze_delta_matches_route',hit>0);
     // --- keep warnings fire once per threshold
     pl.castleHP=pl.maxHP*0.45;keepWarn(1);pl.castleHP=pl.maxHP*0.44;keepWarn(1);
     ok('keep_warn_once',pl._warn[0.5]===true&&document.getElementById('callouts').childElementCount===1);

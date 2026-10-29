@@ -717,7 +717,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
   </div>
   <div class="menu-foot">
     <div class="foot-hints"><span><span class="key">&uarr;</span><span class="key">&darr;</span> Navigate</span><span><span class="key">Enter</span> Select</span><span><span class="key round">A</span> Confirm</span></div>
-    <div class="foot-ver">Castle Siege <b>v3.69</b> &bull; Build 2026-10-24</div>
+    <div class="foot-ver">Castle Siege <b>v3.70</b> &bull; Build 2026-10-24</div>
   </div>
 </div>
 
@@ -845,7 +845,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
       <div class="help-section panel frame rules"><h3><svg class="ico"><use href="#i-wall"/></svg>Rules of War</h3>
         <ul class="help-rules">
         <li>10 waves, 45s build phase &middot; keeps have 3500 HP &middot; Endless: no wave cap, an omen each wave past 10 &middot; <b>Daily Siege</b>: one fixed Endless run a day</li>
-        <li>Build in your half; walls reroute the march (red arrows show the route) &middot; <b>drag</b> with a wall selected to lay a line</li>
+        <li>Build in your half; walls reroute the march (red arrows show the route; hover a tile to see the detour, <b>+N</b> tiles) &middot; <b>drag</b> with a wall selected to lay a line</li>
         <li>Build on your own tower to upgrade it to Lv3, then pick one of two <b>specialisations</b> (<span class="key">1</span>/<span class="key">2</span> or its card) &middot; build on a damaged wall to repair it</li>
         <li>Anything built this phase sells back in full until the wave starts</li>
         <li><span class="key">C</span> on a tower: target First, Last, Strongest or Closest</li>
@@ -5552,6 +5552,15 @@ function __cursorAction(pNum){
   }
   if(gameState!=='build'||(opt.cat!=='tower'&&opt.cat!=='build'))return ck;
   ck.state=(canPlace(c,r,pNum)&&pl.credits>=opt.cost)?'ok':'bad';
+  // v3.70: maze preview. Try the build and measure how much longer the
+  // opponent's units would have to walk; the chevrons follow the
+  // rerouted path while hovering.
+  ck.ghost=null;ck.delta=null;
+  if(!grid[r][c]&&canPlace(c,r,pNum)){
+    const foe=pNum===1?2:1,base=(previewPath(foe)||[]).length;
+    grid[r][c]={type:'temp',owner:pNum};const g=previewPath(foe);grid[r][c]=null;
+    if(g){ck.delta=g.length-base;if(ck.delta)ck.ghost=g}
+  }
   return ck;
 }
 function __tintCursor(mesh,col){
@@ -5562,7 +5571,7 @@ let __hintEls=null;
 function updateCursors(){
   const vis=gameState==='build'||gameState==='combat';
   cursor1Mesh.visible=vis;cursor2Mesh.visible=vis&&gameMode==='2p';
-  if(!vis){rangeMesh.visible=false;rangeMesh2.visible=false;return}
+  if(!vis){rangeMesh.visible=false;rangeMesh2.visible=false;__routeLabel(1,null);__routeLabel(2,null);return}
   if(!__hintEls)__hintEls=[null,document.getElementById('hint-left'),document.getElementById('hint-right')];
   const pulse=0.25+Math.sin(performance.now()*0.006)*0.08;
   for(const pn of[1,2]){
@@ -5570,8 +5579,9 @@ function updateCursors(){
     const pl=players[pn],wp=tileToWorld(pl.cursor.c,pl.cursor.r);
     cm.position.set(wp.x,0.02,wp.z);
     // The AI's cursor jumps around; don't draw or describe it.
-    if(gameMode==='1p'&&pn===2){rm.visible=false;continue}
+    if(gameMode==='1p'&&pn===2){rm.visible=false;__routeLabel(2,null);continue}
     const act=__cursorAction(pn);
+    __routeLabel(pn,act.state==='ok'&&act.delta!=null?act:null,wp);
     __tintCursor(cm,act.state==='ok'?__CUR_OK[pn]:act.state==='upg'?__CUR_UPG:act.state==='bad'?__CUR_BAD:__CUR_IDLE);
     cm.material.opacity=pulse;
     // Range ring: selected tower type while building, or the hovered
@@ -5594,6 +5604,17 @@ function updateCursors(){
   updatePathPreview();
 }
 
+// v3.70: floating route-length label over the cursor while building.
+const __rtLbl=[null,null,null];
+function __routeLabel(pn,act,wp){
+  let sp=__rtLbl[pn];
+  if(!act){if(sp)sp.visible=false;return}
+  if(!sp){sp=__rtLbl[pn]=new THREE.Sprite(new THREE.SpriteMaterial({transparent:true,depthTest:false}));sp.renderOrder=5;scene.add(sp)}
+  const txt=act.delta>0?'+'+act.delta:'\u00B10',col=act.delta>0?0xffd34a:0xbbbbbb;
+  if(sp._k!==txt){sp._k=txt;sp.material.map=__dnTexture(txt,col);sp.material.needsUpdate=true}
+  const bob=Math.sin(performance.now()*0.004)*0.05;
+  sp.position.set(wp.x,1.3+bob,wp.z);sp.scale.set(1.5,0.75,1);sp.visible=true;
+}
 // v3.27: build-phase route preview. Glowing chevrons stream along the
 // path each side's units will walk, so mazing with walls is visible
 // before the wave starts. Rebuilt only when the grid changes.
@@ -5615,7 +5636,10 @@ function updatePathPreview(){
   if(P.ver!==__gridVer){P.ver=__gridVer;P.routes[1]=previewPath(1);P.routes[2]=previewPath(2)}
   const now=performance.now()*0.001,SP=0.75;
   for(const o of[1,2]){
-    const m=P.meshes[o],route=P.routes[o];m.visible=true;
+    // The builder hovering a maze tile sees this route rerouted live.
+    const bp=o===1?2:1,ga=(gameMode==='1p'&&bp===2)?null:__curCache[bp];
+    const route=(ga&&ga.state==='ok'&&ga.ghost)||P.routes[o];
+    const m=P.meshes[o];m.visible=true;
     if(!route||route.length<2){m.count=0;continue}
     const L=route.length-1;let n=0;
     const off=(now*1.6)%SP;
