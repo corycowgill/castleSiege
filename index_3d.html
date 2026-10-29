@@ -717,7 +717,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
   </div>
   <div class="menu-foot">
     <div class="foot-hints"><span><span class="key">&uarr;</span><span class="key">&darr;</span> Navigate</span><span><span class="key">Enter</span> Select</span><span><span class="key round">A</span> Confirm</span></div>
-    <div class="foot-ver">Castle Siege <b>v3.68</b> &bull; Build 2026-10-24</div>
+    <div class="foot-ver">Castle Siege <b>v3.69</b> &bull; Build 2026-10-24</div>
   </div>
 </div>
 
@@ -1465,14 +1465,17 @@ const camFocus={x:0,z:0};
 function setCameraZoom(z){
   camZoom=clamp(z,0.8,2.2);
   if(camera){
-    camera.position.set(camFocus.x+CAM_BASE.x,CAM_BASE.y/camZoom,camFocus.z+CAM_BASE.z/camZoom);
+    const zz=camZoom*(1+__camPunch); // v3.69: brief zoom punch on big moments
+    camera.position.set(camFocus.x+CAM_BASE.x,CAM_BASE.y/zz,camFocus.z+CAM_BASE.z/zz);
     camera.lookAt(camFocus.x,-1,camFocus.z);
   }
 }
 function updateCameraFocus(dt){
-  if(!camera||!(gameState==='build'||gameState==='combat'||gameState==='waveEnd'))return;
+  if(!camera||!(gameState==='build'||gameState==='combat'||gameState==='waveEnd'||(gameState==='gameover'&&__finaleFocus)))return;
+  __camPunch=Math.max(0,__camPunch-(dt||0.016)*(__finaleFocus?0.05:0.5));
   const k=Math.max(0,Math.min(1,(camZoom-1)/1.2));
   let tx=0,tz=0;
+  if(__finaleFocus){tx=__finaleFocus.x*0.55;tz=__finaleFocus.z*0.4}else
   if(k>0){
     const pl=players[1],wp=tileToWorld(pl.cursor.c,pl.cursor.r);
     const mx=(COLS/2)*(1-1/camZoom),mz=(ROWS/2)*(1-1/camZoom)+1;
@@ -4489,6 +4492,12 @@ function updateCombat(dt){
 
   // Check end conditions
   if(players[1].castleHP<=0||players[2].castleHP<=0){gameState='gameover';stopMusic(1.5);sndGameEnd(gameMode==='2p'||players[2].castleHP<=0&&players[1].castleHP>0);showGameOver();return}
+  {let alive=0,last=null;for(const e of enemies)if(e.alive){alive++;last=e}
+   if(alive===1&&!spawnQueue1.length&&!spawnQueue2.length)__lastFoePos=pixelToWorld(last.x,last.y);
+   if(alive===0&&__aliveLast>0&&!spawnQueue1.length&&!spawnQueue2.length&&players[1].castleHP>0&&players[2].castleHP>0){
+     slowMo(1.1,0.22);__camPunch=0.07;if(typeof sndHonour==='function')sndHonour();
+     if(__lastFoePos){emitParticles(__lastFoePos.x,0.8,__lastFoePos.z,0xffe08a,26,140);spawnAuraPulse(__lastFoePos.x,__lastFoePos.z,2.2,0xffd76a,0.9)}}
+   __aliveLast=alive}
   if(spawnQueue1.length===0&&spawnQueue2.length===0&&enemies.length===0){
     if(!isEndless()&&waveNum>=MAX_WAVES){gameState='gameover';stopMusic(1.5);sndGameEnd(gameMode==='2p'||players[1].castleHP>=players[2].castleHP);showGameOver()}
     else{gameState='waveEnd';waveEndTimer=3;uiWaveEnd();showScreen('waveEnd')}
@@ -4567,7 +4576,7 @@ function showGameOver(){
     const nw=waveNum>d.best;if(nw)d.best=waveNum;const ns=score>(d.score||0);if(ns)d.score=score;
     try{localStorage.setItem('castleSiege_daily',JSON.stringify(d))}catch(e){}
     if(typeof uiSyncDaily==='function')uiSyncDaily();
-    uiGameOver(winner,score,d.score,ns,{bestWave:nw?null:d.best,newWave:nw,daily:true});showScreen('gameover');return;
+    uiGameOver(winner,score,d.score,ns,{bestWave:nw?null:d.best,newWave:nw,daily:true});__revealGameOver();return;
   }
   try{
     const key='castleSiege_bestScore'+(gameMode==='1p'&&difficulty!=='normal'?'_'+difficulty:'');
@@ -4578,7 +4587,14 @@ function showGameOver(){
   let bestWave=null,newWave=false;
   if(isEndless()){try{const k='castleSiege_endlessWave_'+difficulty;bestWave=parseInt(localStorage.getItem(k)||'0',10);if(waveNum>bestWave){localStorage.setItem(k,String(waveNum));newWave=true}}catch(e){}}
   uiGameOver(winner,score,best,isNew,{bestWave,newWave});
-  showScreen('gameover');
+  __revealGameOver();
+}
+// v3.69: the overlay is filled at once but shown after a beat — a keep that
+// falls gets a slow push-in on its ruins first.
+function __revealGameOver(){
+  const fell=players[1].castleHP<=0?1:players[2].castleHP<=0?2:0;
+  if(fell){const w=tileToWorld(fell===1?1:38,9);__finaleFocus={x:w.x,z:w.z};__camPunch=0.32;slowMo(1.4,0.3);screenShake=Math.max(screenShake,0.5)}
+  const go=gameState;setTimeout(()=>{if(gameState==='gameover'&&go==='gameover')showScreen('gameover')},fell?1400:500);
 }
 
 function restartGame(){
@@ -4594,7 +4610,7 @@ function restartGame(){
   towerMeshes.forEach(m=>scene.remove(m));towerMeshes.clear();
   buildingMeshes.forEach(m=>scene.remove(m));buildingMeshes.clear();
   projMeshes.forEach(m=>releaseProjMesh(m));projMeshes.clear();
-  initGrid();markGridDirty();waveNum=0;spawnTimer=0;__simAcc=0;__combatSpeed=1;camFocus.x=0;camFocus.z=0;
+  initGrid();markGridDirty();waveNum=0;spawnTimer=0;__simAcc=0;__combatSpeed=1;camFocus.x=0;camFocus.z=0;__finaleFocus=null;__camPunch=0;__slowmo.t=0;__aliveLast=0;
   // v3.27: reset the day/weather cycle back to wave-1 noon.
   applyTimeOfDay(0);__weatherRain=false;if(__rain)__rain.visible=false;
   if(scene.fog)scene.fog.density=0.005;
@@ -6133,6 +6149,11 @@ const MAX_SIM_STEPS=4; // cap catch-up to prevent spiral of death
 let __simAcc=0;
 // v3.22: 2x combat speed toggle. Press T during combat to fast-forward.
 let __combatSpeed=1;
+// v3.69: moments — slow motion and a camera punch for the last kill of a
+// wave, and a held beat on the fallen keep before the game-over screen.
+const __slowmo={t:0,dur:1,min:1};let __camPunch=0,__finaleFocus=null,__aliveLast=0,__lastFoePos=null;
+function slowMo(dur,min){__slowmo.t=dur;__slowmo.dur=dur;__slowmo.min=min}
+function slowFactor(){if(__slowmo.t<=0)return 1;const k=__slowmo.t/__slowmo.dur;return __slowmo.min+(1-__slowmo.min)*(1-k*k)}
 // v3.58: 1x -> 2x -> 3x during a wave (T, the Ready button, or RDY on touch)
 function cycleSpeed(){
   if(gameState!=='combat')return;
@@ -6148,7 +6169,9 @@ function gameLoop(){
   // worth of sim time in a single frame (handles tab-switch gaps).
   // v3.22: 2x speed during combat — multiply raw delta so the sim
   // accumulator fills twice as fast. Visual updates also run faster.
-  const rawDt=Math.min(clock.getDelta(),MAX_SIM_STEPS*SIM_DT)*__combatSpeed;
+  const __realDt=Math.min(clock.getDelta(),MAX_SIM_STEPS*SIM_DT);
+  const rawDt=__realDt*__combatSpeed*slowFactor();
+  if(__slowmo.t>0)__slowmo.t=Math.max(0,__slowmo.t-__realDt);
   __lastRawDt=rawDt; // v3.23: expose for syncEnemies hit-flash decay
 
   if(gameState==='modeselect'){
