@@ -717,7 +717,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
   </div>
   <div class="menu-foot">
     <div class="foot-hints"><span><span class="key">&uarr;</span><span class="key">&darr;</span> Navigate</span><span><span class="key">Enter</span> Select</span><span><span class="key round">A</span> Confirm</span></div>
-    <div class="foot-ver">Castle Siege <b>v3.65</b> &bull; Build 2026-10-24</div>
+    <div class="foot-ver">Castle Siege <b>v3.66</b> &bull; Build 2026-10-24</div>
   </div>
 </div>
 
@@ -845,7 +845,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
       <div class="help-section panel frame rules"><h3><svg class="ico"><use href="#i-wall"/></svg>Rules of War</h3>
         <ul class="help-rules">
         <li>10 waves, 45s build phase &middot; keeps have 3500 HP &middot; Endless: no wave cap, an omen each wave past 10 &middot; <b>Daily Siege</b>: one fixed Endless run a day</li>
-        <li>Build in your half; walls reroute the march (red arrows show the route)</li>
+        <li>Build in your half; walls reroute the march (red arrows show the route) &middot; <b>drag</b> with a wall selected to lay a line</li>
         <li>Build on your own tower to upgrade it to Lv3, then pick one of two <b>specialisations</b> (<span class="key">1</span>/<span class="key">2</span> or its card) &middot; build on a damaged wall to repair it</li>
         <li>Anything built this phase sells back in full until the wave starts</li>
         <li><span class="key">C</span> on a tower: target First, Last, Strongest or Closest</li>
@@ -1392,6 +1392,28 @@ const players=[null,
 
 // ==================== INPUT STATE ====================
 let mouseClicked=false,mouseRightClicked=false,middleClicked=false,scrollDelta=0,__mouseMoved=false;
+// v3.66: drag-to-paint walls. Held mouse button / dragged finger lays the
+// selected wall or barricade on each new tile it crosses; tiles that can't
+// take one (occupied, wrong side, would seal the route, no gold) are skipped
+// silently so a sweep never spams errors.
+let __paintDown=false,__touchPaint=null;
+// Fast drags (and coalesced touch events) can jump several tiles between
+// samples: fill the straight line from the last painted tile.
+function paintStroke(pl,pn,c,r){
+  const from=pl._paintFrom;pl._paintFrom={c,r};
+  if(!from){paintWallAt(pl,pn,c,r);return}
+  let x0=from.c,y0=from.r;const dx=Math.abs(c-x0),dy=-Math.abs(r-y0),sx=x0<c?1:-1,sy=y0<r?1:-1;let err=dx+dy;
+  for(let guard=0;guard<80;guard++){
+    paintWallAt(pl,pn,x0,y0);if(x0===c&&y0===r)break;
+    const e2=2*err;if(e2>=dy){err+=dy;x0+=sx}if(e2<=dx){err+=dx;y0+=sy}
+  }
+}
+function paintWallAt(pl,pn,c,r){
+  const opt=BUILD_OPTS[pl.selectedIdx];if(!opt||opt.cat!=='build'||gameState!=='build')return false;
+  const key=c+','+r;if(pl._paintLast===key)return false;pl._paintLast=key;
+  if(r<0||r>=ROWS||c<0||c>=COLS||grid[r][c]||pl.credits<opt.cost||!canPlace(c,r,pn))return false;
+  pl.cursor.c=c;pl.cursor.r=r;tryPlace(pl,pn);return true;
+}
 let mouseX=0,mouseY=0;
 const keys={},keyPressed={};
 const gameKeys=new Set(['KeyM','KeyW','KeyA','KeyS','KeyD','Space','KeyQ','KeyE','KeyR','KeyF','KeyZ','KeyT','KeyP','KeyH','Tab','Enter','Escape','ArrowUp','ArrowDown','ArrowLeft','ArrowRight']);
@@ -4042,14 +4064,15 @@ function processInput(dt){
   // v3.51: only when the mouse moved or clicked — a resting pointer used to
   // pin the cursor every tick, overriding WASD / a second controller and
   // dragging the cursor along while the camera zoomed.
-  const mouseActive=__mouseMoved||mouseClicked||mouseRightClicked||middleClicked;
+  const mouseActive=__mouseMoved||mouseClicked||mouseRightClicked||middleClicked;const __mouseMovedTick=__mouseMoved;
   let mTile=null;
   if(mouseActive){mTile=pickTile(mouseNDC.x,mouseNDC.y);if(mTile){mousePlayer.cursor.c=mTile.c;mousePlayer.cursor.r=mTile.r}}
   __mouseMoved=false;
 
   if(gameState==='build'){
     if(scrollDelta){mousePlayer.selectedIdx=(mousePlayer.selectedIdx+Math.sign(scrollDelta)+BUILD_OPTS.length)%BUILD_OPTS.length}
-    if(mouseClicked&&mTile)tryActAt(mousePlayer,mousePNum);
+    if(mouseClicked&&mTile){tryActAt(mousePlayer,mousePNum);mousePlayer._paintLast=mTile.c+','+mTile.r;mousePlayer._paintFrom={c:mTile.c,r:mTile.r}}
+    else if(__paintDown&&mTile&&__mouseMovedTick){const g=pickTile(mouseNDC.x,mouseNDC.y,true);if(g)paintStroke(mousePlayer,mousePNum,g.c,g.r)}
     if(mouseRightClicked)trySell(mousePlayer,mousePNum);
     if(middleClicked&&!cycleTargetMode(mousePlayer,mousePNum))mousePlayer.ready=true;
   }
@@ -5852,10 +5875,10 @@ let __lastTapTile=null;
 // tower's body used to hit the ground tile *behind* it, so on touch you
 // could never tap the same tower twice to upgrade it), else the ground.
 const __pickObjs=[];
-function pickTile(ndcX,ndcY){
+function pickTile(ndcX,ndcY,groundOnly){
   mouseNDC.x=ndcX;mouseNDC.y=ndcY;raycaster.setFromCamera(mouseNDC,camera);
   __pickObjs.length=0;for(const m of towerMeshes.values())__pickObjs.push(m);for(const m of buildingMeshes.values())__pickObjs.push(m);
-  if(__pickObjs.length){
+  if(__pickObjs.length&&!groundOnly){ // painting walls picks the ground: the wall just laid would otherwise catch the ray
     const hits=raycaster.intersectObjects(__pickObjs,true);
     for(const h of hits){let o=h.object;while(o&&!o.userData.__tile)o=o.parent;if(o)return o.userData.__tile}
   }
@@ -5912,6 +5935,9 @@ function registerCanvasTouchListeners(){
         // merely resting on a tile never builds by surprise.)
         const key=nc+','+nr;
         if(gameState==='build'&&__lastTapTile===key&&players[1].cursor.c===nc&&players[1].cursor.r===nr)touchPlaceFlag=true;
+        // v3.66: a one-finger drag with a wall selected paints walls (incl. this tile once it leaves it)
+        const so=BUILD_OPTS[players[1].selectedIdx];
+        __touchPaint=gameState==='build'&&so&&so.cat==='build'?{c:nc,r:nr,moved:false}:null;players[1]._paintLast=null;
         __lastTapTile=key;
         players[1].cursor.c=nc;players[1].cursor.r=nr;
       }
@@ -5932,11 +5958,19 @@ function registerCanvasTouchListeners(){
     const touch=e.touches[0];
     const rect=renderer.domElement.getBoundingClientRect();
     mouseX=touch.clientX-rect.left;mouseY=touch.clientY-rect.top;
+    if(__touchPaint&&e.touches.length===1){
+      const t=pickTile((mouseX/renderer.domElement.clientWidth)*2-1,-(mouseY/renderer.domElement.clientHeight)*2+1,true);
+      if(t&&(t.c!==__touchPaint.c||t.r!==__touchPaint.r||__touchPaint.moved)){
+        if(!__touchPaint.moved){__touchPaint.moved=true;players[1]._paintFrom=null;paintStroke(players[1],1,__touchPaint.c,__touchPaint.r);touchPlaceFlag=false}
+        paintStroke(players[1],1,t.c,t.r);
+      }
+    }
     e.preventDefault();
   },{passive:false});
 
   renderer.domElement.addEventListener('touchend',(e)=>{
     if(e.touches.length<2)pinchStartDist=0;
+    if(!e.touches.length){if(__touchPaint&&__touchPaint.moved)__lastTapTile=null;__touchPaint=null}
   },{passive:true});
 }
 
@@ -6313,11 +6347,12 @@ function init(){
   const cvs=renderer.domElement;
   cvs.addEventListener('mousedown',(e)=>{
     if(!audioCtx)initAudio();
-    if(e.button===0)mouseClicked=true;
+    if(e.button===0){mouseClicked=true;__paintDown=true}
     if(e.button===2)mouseRightClicked=true;
     if(e.button===1)middleClicked=true;
     e.preventDefault();
   });
+  window.addEventListener('mouseup',e=>{if(e.button===0)__paintDown=false});
   cvs.addEventListener('mousemove',(e)=>{
     const rect=cvs.getBoundingClientRect();
     mouseX=e.clientX-rect.left;mouseY=e.clientY-rect.top;__mouseMoved=true;

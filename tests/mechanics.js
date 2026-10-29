@@ -69,6 +69,10 @@ const {chromium}=require('playwright');
     grid[3][25]={type:'wall',owner:2,hp:150,maxHp:150};grid[3][26]={type:'wall',owner:2,hp:150,maxHp:150};
     spawnEnemy('+sapper',24,3,1);const sp=enemies[enemies.length-1];ok('sapper_flag_halfbounty',sp.sapper&&sp.bountyMul===0.5);
     sapperBlast(sp,25,3);ok('sapper_blast',grid[3][25]===null&&grid[3][26].hp===100&&!sp.alive);grid[3][26]=null;markGridDirty();enemies.length=0;
+    // --- wall painting: a stroke fills skipped tiles, never seals the route
+    sel('wall');pl._paintFrom=null;pl._paintLast=null;paintStroke(pl,1,4,1);paintStroke(pl,1,9,1);
+    ok('paint_fills_line',[4,5,6,7,8,9].every(c=>grid[1][c]&&grid[1][c].type==='wall'));
+    pl._paintFrom=null;pl._paintLast=null;for(let r=0;r<ROWS;r++)paintStroke(pl,1,3,r);ok('paint_keeps_route_open',!!previewPath(2));
     // --- keep warnings fire once per threshold
     pl.castleHP=pl.maxHP*0.45;keepWarn(1);pl.castleHP=pl.maxHP*0.44;keepWarn(1);
     ok('keep_warn_once',pl._warn[0.5]===true&&document.getElementById('callouts').childElementCount===1);
