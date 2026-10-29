@@ -80,6 +80,8 @@ const {chromium}=require('playwright');
       const base=previewPath(2).length;grid[t.r][t.c]={type:'temp',owner:1};const len=previewPath(2).length;grid[t.r][t.c]=null;
       if(a.delta!==len-base||(a.delta>0)!==!!a.ghost){hit=-1;break}hit++}
     ok('maze_delta_matches_route',hit>0);
+    updatePathPreview();const pm=__pathPrev.meshes[2];
+    ok('kill_zone_tint',__pathPrev.cov.some(c=>c>0)&&__pathPrev.cov.some(c=>c===0)&&!!pm.instanceColor);
     // --- keep warnings fire once per threshold
     pl.castleHP=pl.maxHP*0.45;keepWarn(1);pl.castleHP=pl.maxHP*0.44;keepWarn(1);
     ok('keep_warn_once',pl._warn[0.5]===true&&document.getElementById('callouts').childElementCount===1);

@@ -717,7 +717,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
   </div>
   <div class="menu-foot">
     <div class="foot-hints"><span><span class="key">&uarr;</span><span class="key">&darr;</span> Navigate</span><span><span class="key">Enter</span> Select</span><span><span class="key round">A</span> Confirm</span></div>
-    <div class="foot-ver">Castle Siege <b>v3.70</b> &bull; Build 2026-10-24</div>
+    <div class="foot-ver">Castle Siege <b>v3.71</b> &bull; Build 2026-10-24</div>
   </div>
 </div>
 
@@ -845,7 +845,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
       <div class="help-section panel frame rules"><h3><svg class="ico"><use href="#i-wall"/></svg>Rules of War</h3>
         <ul class="help-rules">
         <li>10 waves, 45s build phase &middot; keeps have 3500 HP &middot; Endless: no wave cap, an omen each wave past 10 &middot; <b>Daily Siege</b>: one fixed Endless run a day</li>
-        <li>Build in your half; walls reroute the march (red arrows show the route; hover a tile to see the detour, <b>+N</b> tiles) &middot; <b>drag</b> with a wall selected to lay a line</li>
+        <li>Build in your half; walls reroute the march (red arrows show the route; hover a tile to see the detour, <b>+N</b> tiles; arrows glow gold where your towers cover them) &middot; <b>drag</b> with a wall selected to lay a line</li>
         <li>Build on your own tower to upgrade it to Lv3, then pick one of two <b>specialisations</b> (<span class="key">1</span>/<span class="key">2</span> or its card) &middot; build on a damaged wall to repair it</li>
         <li>Anything built this phase sells back in full until the wave starts</li>
         <li><span class="key">C</span> on a tower: target First, Last, Strongest or Closest</li>
@@ -5555,7 +5555,8 @@ function __cursorAction(pNum){
   // v3.70: maze preview. Try the build and measure how much longer the
   // opponent's units would have to walk; the chevrons follow the
   // rerouted path while hovering.
-  ck.ghost=null;ck.delta=null;
+  ck.ghost=null;ck.delta=null;ck.c=c;ck.r=r;
+  ck.range=ck.state==='ok'&&opt.cat==='tower'&&!TOWER_DATA.find(t=>t.id===opt.id).support?TOWER_DATA.find(t=>t.id===opt.id).range:0;
   if(!grid[r][c]&&canPlace(c,r,pNum)){
     const foe=pNum===1?2:1,base=(previewPath(foe)||[]).length;
     grid[r][c]={type:'temp',owner:pNum};const g=previewPath(foe);grid[r][c]=null;
@@ -5581,7 +5582,7 @@ function updateCursors(){
     // The AI's cursor jumps around; don't draw or describe it.
     if(gameMode==='1p'&&pn===2){rm.visible=false;__routeLabel(2,null);continue}
     const act=__cursorAction(pn);
-    __routeLabel(pn,act.state==='ok'&&act.delta!=null?act:null,wp);
+    __routeLabel(pn,act.state==='ok'&&act.delta!=null&&(act.delta>0||!act.range)?act:null,wp);
     __tintCursor(cm,act.state==='ok'?__CUR_OK[pn]:act.state==='upg'?__CUR_UPG:act.state==='bad'?__CUR_BAD:__CUR_IDLE);
     cm.material.opacity=pulse;
     // Range ring: selected tower type while building, or the hovered
@@ -5624,11 +5625,13 @@ function __initPathPreview(){
   sh.moveTo(-0.16,-0.12);sh.lineTo(0,0.02);sh.lineTo(0.16,-0.12);sh.lineTo(0.16,0.02);sh.lineTo(0,0.16);sh.lineTo(-0.16,0.02);sh.closePath();
   const geo=new THREE.ShapeGeometry(sh);geo.rotateX(-Math.PI/2);
   const mk=(col)=>{
-    const m=new THREE.InstancedMesh(geo,new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:0.6,depthWrite:false,blending:THREE.AdditiveBlending}),200);
-    m.frustumCulled=false;m.count=0;m.renderOrder=2;scene.add(m);return m;
+    const m=new THREE.InstancedMesh(geo,new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:0.6,depthWrite:false,blending:THREE.AdditiveBlending}),200);
+    m.frustumCulled=false;m.count=0;m.renderOrder=2;m._base=new THREE.Color(col);
+    m.setColorAt(0,m._base);scene.add(m);return m;
   };
-  __pathPrev={ver:-1,routes:[null,null,null],meshes:[null,mk(0x66aaff),mk(0xff6688)],dummy:new THREE.Object3D()};
+  __pathPrev={ver:-1,routes:[null,null,null],meshes:[null,mk(0x66aaff),mk(0xff6688)],dummy:new THREE.Object3D(),col:new THREE.Color(),cov:[]};
 }
+const __COV_HOT=new THREE.Color(0xffd34a);
 function updatePathPreview(){
   if(!__pathPrev)__initPathPreview();
   const P=__pathPrev,show=gameState==='build';
@@ -5642,6 +5645,19 @@ function updatePathPreview(){
     const m=P.meshes[o];m.visible=true;
     if(!route||route.length<2){m.count=0;continue}
     const L=route.length-1;let n=0;
+    // v3.71: kill-zone tint. Each route tile counts the defender's
+    // towers in range (plus the one being hovered), and the chevrons
+    // there warm from the team colour to gold and white-hot, so gaps
+    // in coverage read at a glance.
+    const cov=P.cov;cov.length=route.length;
+    const def=towers.filter(t=>t.owner===bp&&!t.support);
+    const hov=ga&&ga.state==='ok'&&ga.range?ga:null;
+    for(let k=0;k<route.length;k++){
+      const rt=route[k];let c=0;
+      for(const t of def)if((t.col-rt.c)**2+(t.row-rt.r)**2<=t.range*t.range)c++;
+      if(hov&&(hov.c-rt.c)**2+(hov.r-rt.r)**2<=hov.range*hov.range)c++;
+      cov[k]=c;
+    }
     const off=(now*1.6)%SP;
     for(let sd=off;sd<L&&n<200;sd+=SP){
       const i=Math.floor(sd),f=sd-i,a=route[i],b=route[i+1];
@@ -5655,9 +5671,13 @@ function updatePathPreview(){
       // fade in/out at the ends
       const edge=Math.min(1,sd/1.5,(L-sd)/1.5);
       P.dummy.scale.setScalar(0.6+0.4*edge);
-      P.dummy.updateMatrix();m.setMatrixAt(n++,P.dummy.matrix);
+      P.dummy.updateMatrix();m.setMatrixAt(n,P.dummy.matrix);
+      const cv=cov[f<0.5?i:i+1];
+      if(!cv)P.col.copy(m._base).multiplyScalar(0.7);
+      else P.col.copy(m._base).lerp(__COV_HOT,Math.min(1,0.45+0.2*cv)).multiplyScalar(0.9+0.25*Math.min(cv,4));
+      m.setColorAt(n++,P.col);
     }
-    m.count=n;m.instanceMatrix.needsUpdate=true;
+    m.count=n;m.instanceMatrix.needsUpdate=true;if(m.instanceColor)m.instanceColor.needsUpdate=true;
   }
 }
 
