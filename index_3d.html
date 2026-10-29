@@ -717,7 +717,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
   </div>
   <div class="menu-foot">
     <div class="foot-hints"><span><span class="key">&uarr;</span><span class="key">&darr;</span> Navigate</span><span><span class="key">Enter</span> Select</span><span><span class="key round">A</span> Confirm</span></div>
-    <div class="foot-ver">Castle Siege <b>v3.66</b> &bull; Build 2026-10-24</div>
+    <div class="foot-ver">Castle Siege <b>v3.67</b> &bull; Build 2026-10-24</div>
   </div>
 </div>
 
@@ -1914,7 +1914,10 @@ function createScenery(){
     const h=Math.sin(x*0.18)*0.35+Math.cos(z*0.23)*0.35+seededRandom(Math.floor(x*2),Math.floor(z*2))*0.2;
     // v3.61: ease the hills in over ~5 tiles so the field doesn't end in a step
     const out=Math.max(Math.abs(x)-FIELD_HX,Math.abs(z)-FIELD_HZ),f=__smooth(0.4,5.5,out);
-    pos.setY(i,0.05*(1-f)+(h-0.12)*f);
+    let y=0.05*(1-f)+(h-0.12)*f;
+    // v3.67: a shallow basin for the pond (a hill used to slice across it)
+    const pd=Math.hypot(x+32,z+20);if(pd<8.5){const k=__smooth(6.2,8.5,pd);y=-0.06*(1-k)+y*k}
+    pos.setY(i,y);
   }
   outerGeo.computeVertexNormals();
   const outerMat=new THREE.MeshStandardMaterial({color:0x4c7834,roughness:0.95});
@@ -2032,8 +2035,29 @@ function createScenery(){
 
   // ---- Pond ----
   const pondX=-32,pondZ=-20,pondR=5.5;
-  const waterMat=new THREE.MeshStandardMaterial({color:0x2f6a9a,roughness:0.25,metalness:0.3,emissive:0x0a2a44,emissiveIntensity:0.2});
-  const pondGeo=new THREE.CircleGeometry(pondR,28);
+  // v3.67: animated water — layered ripples, a sky-tinted fresnel rim, sun
+  // glints and a soft shoreline foam ring; dims with the time of day.
+  const waterMat=new THREE.ShaderMaterial({
+    uniforms:{uTime:__windU,uDay:__groundU.uDay,uR:{value:pondR},uNoise:__groundU.uCloud},
+    vertexShader:`varying vec2 vP;void main(){vP=position.xz;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
+    fragmentShader:`uniform float uTime,uDay,uR;uniform sampler2D uNoise;varying vec2 vP;
+      void main(){
+        float r=length(vP)/uR;
+        float w=sin(vP.x*2.3+uTime*1.4)*.5+sin(vP.y*2.9-uTime*1.1)*.5+sin((vP.x+vP.y)*4.1+uTime*2.2)*.35;
+        vec3 deep=vec3(.012,.05,.12),shal=vec3(.03,.14,.22),sky=mix(vec3(.02,.03,.08),vec3(.20,.32,.45),uDay);
+        vec3 c=mix(deep,shal,smoothstep(.15,1.,r));
+        c=mix(c,sky,.10+.06*w+.18*smoothstep(.6,1.,r));
+        // sun sparkle from two drifting noise layers (no repeating lattice)
+        float n=texture2D(uNoise,vP*.33+vec2(uTime*.031,-uTime*.017)).r*texture2D(uNoise,vP*.47+vec2(-uTime*.023,uTime*.029)+.37).r;
+        c+=vec3(1.,.95,.82)*smoothstep(.42,.62,n)*.9*uDay;
+        c+=vec3(.06,.1,.12)*texture2D(uNoise,vP*.12+uTime*.01).r; // slow caustic swell
+        float foam=smoothstep(.9,.98,r)*(.5+.5*sin(r*55.-uTime*2.));c=mix(c,vec3(.55,.62,.64),foam*.35);
+        c*=.45+.55*uDay;
+        gl_FragColor=vec4(c,1.);
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
+      }`});
+  const pondGeo=new THREE.CircleGeometry(pondR,48);
   pondGeo.rotateX(-Math.PI/2);
   const pondMesh=new THREE.Mesh(pondGeo,waterMat);
   pondMesh.position.set(pondX,0.02,pondZ);

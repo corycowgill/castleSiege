@@ -1,4 +1,5 @@
 // Castle Siege — v3.31 post-processing: bloom + cinematic colour grade.
+// v3.67: + tilt-shift depth of field and fine film grain.
 // Loaded by index_3d.html. Requires THREE (r160).
 //
 // The scene renders into a HDR (half-float, MSAA) target. A bright pass
@@ -14,11 +15,11 @@
 function createPost(renderer){
   const isGL2=renderer.capabilities.isWebGL2;
   const ok=isGL2&&(renderer.extensions.has('EXT_color_buffer_float')||renderer.extensions.has('EXT_color_buffer_half_float'));
-  const P={enabled:ok,bloom:0.55,threshold:0.82,auto:true,_slow:0,_w:0,_h:0};
+  const P={enabled:ok,bloom:0.55,threshold:0.82,auto:true,_slow:0,_w:0,_h:0,tilt:0.85,grain:0.022,focusY:0.47};
   if(!ok){P.render=(s,c)=>renderer.render(s,c);P.resize=()=>{};return P}
 
   const mkRT=(w,h,samples)=>new THREE.WebGLRenderTarget(w,h,{type:THREE.HalfFloatType,samples:samples||0,depthBuffer:!!samples});
-  let rtScene=mkRT(4,4,4),rtA=mkRT(2,2),rtB=mkRT(2,2);
+  let rtScene=mkRT(4,4,4),rtA=mkRT(2,2),rtB=mkRT(2,2),rtD=mkRT(2,2),rtE=mkRT(2,2);
   const quadCam=new THREE.OrthographicCamera(-1,1,1,-1,0,1);
   const quadGeo=new THREE.PlaneGeometry(2,2);
   const quad=new THREE.Mesh(quadGeo);quad.frustumCulled=false;
@@ -38,6 +39,14 @@ function createPost(renderer){
         float k=clamp((l-uTh)/(uTh*0.6+1e-4),0.0,1.0);k*=k;
         gl_FragColor=vec4(c*k,1.0);
       }`});
+  // v3.67: tilt-shift depth of field — half-res blurred copy of the scene,
+  // mixed back in away from a horizontal focus band (diorama look).
+  const copyMat=new THREE.ShaderMaterial({
+    uniforms:{tSrc:{value:null},uTexel:{value:new THREE.Vector2()}},
+    vertexShader:VS,toneMapped:false,depthTest:false,depthWrite:false,
+    fragmentShader:`uniform sampler2D tSrc;uniform vec2 uTexel;varying vec2 vUv;
+      void main(){vec3 c=texture2D(tSrc,vUv+uTexel*vec2(-.5,-.5)).rgb+texture2D(tSrc,vUv+uTexel*vec2(.5,-.5)).rgb
+        +texture2D(tSrc,vUv+uTexel*vec2(-.5,.5)).rgb+texture2D(tSrc,vUv+uTexel*vec2(.5,.5)).rgb;gl_FragColor=vec4(c*.25,1.);}`});
   const blurMat=new THREE.ShaderMaterial({
     uniforms:{tSrc:{value:null},uDir:{value:new THREE.Vector2()}},
     vertexShader:VS,toneMapped:false,depthTest:false,depthWrite:false,
@@ -49,11 +58,16 @@ function createPost(renderer){
         gl_FragColor=vec4(c,1.0);
       }`});
   const compMat=new THREE.ShaderMaterial({
-    uniforms:{tScene:{value:null},tBloom:{value:null},uBloom:{value:P.bloom},uAspect:{value:1}},
+    uniforms:{tScene:{value:null},tBloom:{value:null},tDof:{value:null},uBloom:{value:P.bloom},uAspect:{value:1},uTilt:{value:P.tilt},uFocus:{value:P.focusY},uGrain:{value:P.grain},uTime:{value:0}},
     vertexShader:VS,toneMapped:true,depthTest:false,depthWrite:false,
-    fragmentShader:`uniform sampler2D tScene,tBloom;uniform float uBloom,uAspect;varying vec2 vUv;
+    fragmentShader:`uniform sampler2D tScene,tBloom,tDof;uniform float uBloom,uAspect,uTilt,uFocus,uGrain,uTime;varying vec2 vUv;
+      float h12(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(p.x*p.y);}
       void main(){
-        vec3 col=texture2D(tScene,vUv).rgb+texture2D(tBloom,vUv).rgb*uBloom;
+        vec3 sc=texture2D(tScene,vUv).rgb;
+        // far (top) edge blurs more than the foreground
+        float dy=vUv.y-uFocus,band=dy>0.?smoothstep(.16,.48,dy):smoothstep(.22,.55,-dy)*.75;
+        sc=mix(sc,texture2D(tDof,vUv).rgb,clamp(band*uTilt,0.,1.));
+        vec3 col=sc+texture2D(tBloom,vUv).rgb*uBloom;
         gl_FragColor=vec4(col,1.0);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
@@ -68,6 +82,8 @@ function createPost(renderer){
         // vignette
         vec2 d=(vUv-0.5)*vec2(uAspect,1.0);
         c*=mix(1.0,0.7,smoothstep(0.45,1.05,length(d)));
+        // fine film grain (luminance-weighted so shadows stay clean)
+        float gr=h12(vUv*vec2(1733.,977.)+fract(uTime*7.31))-.5;c+=gr*uGrain*(.35+.65*dot(c,vec3(.3,.59,.11)));
         gl_FragColor=vec4(clamp(c,0.0,1.0),1.0);
       }`});
 
@@ -79,6 +95,8 @@ function createPost(renderer){
     rtScene.setSize(w,h);
     const bw=Math.max(2,w>>2),bh=Math.max(2,h>>2);
     rtA.setSize(bw,bh);rtB.setSize(bw,bh);
+    const dw=Math.max(2,w>>1),dh=Math.max(2,h>>1);rtD.setSize(dw,dh);rtE.setSize(dw,dh);
+    copyMat.uniforms.uTexel.value.set(1/w,1/h);
     brightMat.uniforms.uTexel.value.set(0.5/w,0.5/h);
     compMat.uniforms.uAspect.value=w/h;
   };
@@ -100,6 +118,15 @@ function createPost(renderer){
       blurMat.uniforms.tSrc.value=rtA.texture;blurMat.uniforms.uDir.value.set((1+i)/rtA.width,0);pass(blurMat,rtB);
       blurMat.uniforms.tSrc.value=rtB.texture;blurMat.uniforms.uDir.value.set(0,(1+i)/rtA.height);pass(blurMat,rtA);
     }
+    // depth-of-field chain at half resolution (skipped when tilt is off)
+    if(P.tilt>0){
+      copyMat.uniforms.tSrc.value=rtScene.texture;pass(copyMat,rtD);
+      for(let i=0;i<2;i++){
+        blurMat.uniforms.tSrc.value=rtD.texture;blurMat.uniforms.uDir.value.set((1.5+i)/rtD.width,0);pass(blurMat,rtE);
+        blurMat.uniforms.tSrc.value=rtE.texture;blurMat.uniforms.uDir.value.set(0,(1.5+i)/rtD.height);pass(blurMat,rtD);
+      }
+    }
+    const cu=compMat.uniforms;cu.tDof.value=rtD.texture;cu.uTilt.value=P.tilt;cu.uFocus.value=P.focusY;cu.uGrain.value=P.grain;cu.uTime.value=performance.now()*0.001;
     compMat.uniforms.tScene.value=rtScene.texture;compMat.uniforms.tBloom.value=rtA.texture;compMat.uniforms.uBloom.value=P.bloom;
     pass(compMat,null);
   };

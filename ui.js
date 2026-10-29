@@ -375,7 +375,7 @@ function uiGameOver(winner,score,best,isNewBest,ex){ex=ex||{};
 
 
 // ==================== v3.37: SETTINGS ====================
-const SETTINGS={music:0.5,sfx:0.8,gfx:'auto',shake:true,dmg:true,tips:true,perf:false,v:2};
+const SETTINGS={music:0.5,sfx:0.8,gfx:'auto',dof:true,shake:true,dmg:true,tips:true,perf:false,v:2};
 try{const sv=JSON.parse(localStorage.getItem('castleSiege_settings')||'{}')||{};
   // v3.59: 'high' used to be the saved default; move those players to Auto once
   if(!sv.v&&sv.gfx==='high')sv.gfx='auto';sv.v=2;Object.assign(SETTINGS,sv)}catch(e){}
@@ -390,7 +390,11 @@ function uiApplySettings(init){
   // v3.59: resolution per mode — Auto adapts, High fixed full, Low capped at 1x
   if(typeof applyPR==='function'&&typeof basePR==='function'&&uiApplySettings._gfx!==SETTINGS.gfx){
     uiApplySettings._gfx=SETTINGS.gfx;__prScale=SETTINGS.gfx==='low'?Math.min(1,1/basePR()):1;applyPR();
+    // v3.67: sharper sun shadows outside Low
+    if(typeof __sunLight!=='undefined'&&__sunLight){const ms=SETTINGS.gfx==='low'?1024:2048;
+      if(__sunLight.shadow.mapSize.width!==ms){__sunLight.shadow.mapSize.set(ms,ms);if(__sunLight.shadow.map){__sunLight.shadow.map.dispose();__sunLight.shadow.map=null}}}
   }
+  if(typeof __post!=='undefined'&&__post)__post.tilt=SETTINGS.dof?0.85:0;
 }
 // Hide plain damage numbers when disabled (gold rewards and castle hits
 // are strings and always show).
@@ -400,6 +404,7 @@ const SETTING_ROWS=[
   {k:'sfx',label:'Effects',kind:'pct'},
   {k:'muted',label:'Sound',kind:'mute'},
   {k:'gfx',label:'Graphics',kind:'opt',opts:['auto','high','low'],names:{auto:'Auto (adapts)',high:'High',low:'Low (faster)'}},
+  {k:'dof',label:'Depth of field',kind:'bool'},
   {k:'shake',label:'Screen shake',kind:'bool'},
   {k:'dmg',label:'Damage numbers',kind:'bool'},
   {k:'tips',label:'Tutorial tips',kind:'bool'},
