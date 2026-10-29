@@ -485,7 +485,7 @@ const TUT=[
    text:()=>__touchUI()?`Tap a special icon to cast it at your cursor — try ${K('Meteor')} on a crowd. Three charges per round.`:`Pick a special with ${K('Z')} and cast it at your cursor with ${K('F')} — try ${K('Meteor')} on a crowd. Three charges per round.`,
    done:()=>players[1].specials<3},
   {phase:'any',title:'You have the basics',auto:9,
-   text:()=>`Each wave pays <b>+250 gold</b> plus <b>10% interest</b> on what you saved. Bosses are bought from the specials row. ${__touchUI()?'Tap a tower\'s <b>Target</b> tag':K('C')+' on a tower'} changes who it shoots. ${K('Esc')} pauses. Good luck, commander!`,
+   text:()=>`Each wave pays <b>+250 gold</b> plus <b>10% interest</b> on what you saved. Level-3 towers can <b>specialise</b>, and <b>Sappers</b> blow open mazes. ${__touchUI()?'Tap a tower\'s <b>Target</b> tag':K('C')+' on a tower'} changes who it shoots. ${K('Esc')} pauses. Good luck, commander!`,
    done:()=>false},
 ];
 let __tut={i:-1,t:0,shown:-1};

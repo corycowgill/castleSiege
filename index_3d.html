@@ -275,6 +275,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
   color:#0e1a08;background:linear-gradient(180deg,#b8f08a,#6cc04a);box-shadow:0 0 10px rgba(140,230,100,.45);white-space:nowrap}
 .ready-pill.on{display:inline-flex;animation:pillIn .3s var(--ease-back) both}
 @keyframes pillIn{from{transform:scale(.6);opacity:0}to{transform:none;opacity:1}}
+.btn.danger{color:#ffe0d8!important;border-color:#ff7a6a!important;background:linear-gradient(180deg,rgba(150,40,30,.7),rgba(80,18,12,.8))!important}
 .p2-ready-btn.speed{color:#e8f2ff!important;background:linear-gradient(180deg,#5a7cc8,#2c4688)!important;border-color:#8eb0ff!important;letter-spacing:.1em!important}
 .touch-act-btn.ready-btn.speed{background:radial-gradient(circle at 40% 35%,#8eb0ff,#2c4688)!important;color:#fff!important;font-size:15px!important}
 .p2-ready-btn.is-ready{color:#0e1a08!important;background:linear-gradient(180deg,#c4f49a,#6cc04a)!important;border-color:#a8ec80!important;box-shadow:0 0 14px rgba(140,230,100,.45)!important}
@@ -716,7 +717,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
   </div>
   <div class="menu-foot">
     <div class="foot-hints"><span><span class="key">&uarr;</span><span class="key">&darr;</span> Navigate</span><span><span class="key">Enter</span> Select</span><span><span class="key round">A</span> Confirm</span></div>
-    <div class="foot-ver">Castle Siege <b>v3.64</b> &bull; Build 2026-10-24</div>
+    <div class="foot-ver">Castle Siege <b>v3.65</b> &bull; Build 2026-10-24</div>
   </div>
 </div>
 
@@ -3311,7 +3312,15 @@ function initHUD(){
   document.getElementById('btn-pause-settings').addEventListener('click',()=>uiOpenSettings('pause'));
   document.getElementById('btn-menu-settings').addEventListener('click',()=>uiOpenSettings('menu'));
   document.getElementById('btn-settings-done').addEventListener('click',uiCloseSettings);
-  document.getElementById('btn-restart').addEventListener('click',()=>{uiFade(()=>{document.getElementById('pause-ov').style.display='none';setMusicDuck(false);restartGame()})});
+  // v3.65: restarting wipes the run (and the Campaign save) — confirm first
+  {const rb=document.getElementById('btn-restart');let armT=0,armTimer=null;
+   const disarm=()=>{armT=0;rb.classList.remove('danger');rb.textContent='Restart Battle'};
+   rb.addEventListener('click',()=>{
+     const now=performance.now();
+     if(waveNum>=1&&now-armT>3000){armT=now;rb.classList.add('danger');rb.textContent=`Restart? Wave ${waveNum} progress is lost`;uiSfx('error');clearTimeout(armTimer);armTimer=setTimeout(disarm,3000);return}
+     clearTimeout(armTimer);disarm();
+     uiFade(()=>{document.getElementById('pause-ov').style.display='none';setMusicDuck(false);restartGame()});
+   });}
   document.getElementById('btn-quit').addEventListener('click',uiReturnToMenu);
   document.getElementById('btn-go-again').addEventListener('click',()=>uiFade(restartGame));
   document.getElementById('btn-go-menu').addEventListener('click',uiReturnToMenu);
@@ -5678,6 +5687,8 @@ function aiDoBuildAction(ai){
           ai.cursor.c=spot.c;ai.cursor.r=spot.r;
           ai.selectedIdx=BUILD_OPTS.findIndex(o=>o.id===td.id);
           if(ai.selectedIdx>=0)tryPlace(ai,pNum);
+          // v3.65: heavy single-target guns hunt the biggest threat (not on Easy)
+          if(td.id==='bombard'&&difficulty!=='easy'){const nt=towers.find(t=>t.col===spot.c&&t.row===spot.r&&t.owner===pNum);if(nt)nt.tmode=2}
         }
       }
     }

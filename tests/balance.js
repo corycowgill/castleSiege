@@ -1,5 +1,5 @@
 // Balance sim: a scripted defence vs the AI on $DIFF (default Normal) for each Warlord
-// temperament, 3 seeds each. Slow (~10 min). Usage: node tests/balance.js PORT [tempers]
+// temperament, 3 seeds each. MAZE=1 makes the defence also build up to 14 walls. Slow (~10 min). Usage: node tests/balance.js PORT [tempers]
 const {chromium}=require('playwright');
 const PORT=process.argv[2]||8765;
 (async()=>{
@@ -7,7 +7,7 @@ const PORT=process.argv[2]||8765;
   const res={};
   for(const d of(process.argv[3]||'strategist,fortifier,raider,beastmaster').split(','))for(const seed0 of[1,7,4242]){
     const p=await b.newPage({viewport:{width:480,height:270}});
-    await p.goto(`http://localhost:${PORT}/index_3d.html`);await p.evaluate(d=>{window.__DIFF=d},process.env.DIFF||'normal');await p.waitForTimeout(2500);
+    await p.goto(`http://localhost:${PORT}/index_3d.html`);await p.evaluate(([d,m])=>{window.__DIFF=d;window.__MAZE=m},[process.env.DIFF||'normal',!!process.env.MAZE]);await p.waitForTimeout(2500);
     const r=await p.evaluate(([d,seed0])=>{
       document.getElementById('welcome-screen').style.display='none';window._select1P();setDifficulty(window.__DIFF||'normal');aiTemper=d;
       gameState='build';buildTimer=BUILD_TIME;applyDifficultyStart();
@@ -18,6 +18,7 @@ const PORT=process.argv[2]||8765;
         if(gameState==='build'){
           if(i%30===0){
             if(si<spots.length&&P.credits>=150){P.cursor={c:spots[si][0],r:spots[si][1]};P.selectedIdx=BUILD_OPTS.findIndex(o=>o.id===['turret','catapult','magic','bombard'][si%4]);tryPlace(P,1);si++}
+            else if(window.__MAZE&&P.credits>=60&&grid.flat().filter(c=>c&&c.owner===1&&c.type==='wall').length<14){const sp=aiFindWallSpot(1);if(sp){P.cursor={c:sp.c,r:sp.r};P.selectedIdx=BUILD_OPTS.findIndex(o=>o.id==='wall');tryPlace(P,1)}}
             else{const t=towers.find(t=>t.owner===1&&t.level<3);if(t&&P.credits>=120){P.cursor={c:t.col,r:t.row};P.selectedIdx=0;tryPlace(P,1)}else if(P.credits>=100){P.selectedIdx=BUILD_OPTS.findIndex(o=>o.id==='goblin');tryPlace(P,1)}}
           }
           if(buildTimer<2)P.ready=true;updateBuild(1/60);
