@@ -87,6 +87,18 @@ const {chromium}=require('playwright');
     vt.kills=175;recomputeTower(vt);ok('vet_elite_cap',vt.rank===3&&vt.dmg===Math.round(d0*1.21));
     updatePathPreview();const pm=__pathPrev.meshes[2];
     ok('kill_zone_tint',__pathPrev.cov.some(c=>c>0)&&__pathPrev.cov.some(c=>c===0)&&!!pm.instanceColor);
+    // --- v3.73 undo: build, upgrade, army, a dragged wall line as one step; cleared at wave start
+    pl._undo=[];sel('turret');at(18,14);let u0=pl.credits;tryPlace(pl,1);tryPlace(pl,1);
+    tryUndo(pl,1);ok('undo_upgrade',TW(18,14).level===1&&pl.credits===u0-100);
+    tryUndo(pl,1);ok('undo_build',!TW(18,14)&&!grid[14][18]&&pl.credits===u0);
+    sel('goblin');const gq=pl.enemyQueue.goblin||0;tryPlace(pl,1);tryUndo(pl,1);ok('undo_army',(pl.enemyQueue.goblin||0)===gq&&pl.credits===u0);
+    sel('wall');pl._paintFrom=null;pl._paintLast=null;paintStroke(pl,1,6,16);paintStroke(pl,1,10,16);
+    tryUndo(pl,1);ok('undo_stroke_one_step',[6,7,8,9,10].every(c=>!grid[16][c])&&pl.credits===u0);
+    tryPlace(pl,1);clearFreshBuilds();ok('undo_cleared_at_wave',!tryUndo(pl,1));trySell(pl,1);
+    // --- v3.73 controls: digit hotkeys, held movement repeats faster
+    pl.cursor={c:5,r:5};keyPressed['Digit3']=true;processInput(0.016);ok('hotkey_3_catapult',BUILD_OPTS[pl.selectedIdx].id===BUILD_OPTS[HOTKEY_OPTS[2]].id&&HOTKEY_OPTS.length===10);
+    {const q={cursor:{c:0,r:5}};heldMove(q,'_m',1,0,0.016,1);const a1=q.cursor.c;for(let k=0;k<60;k++)heldMove(q,'_m',1,0,1/60,1);
+     ok('held_move_accel',a1===1&&q.cursor.c>=9&&q.cursor.c<=14);heldMove(q,'_m',0,0,0.016,1);heldMove(q,'_m',0,1,0.016,1);ok('held_move_new_dir_instant',q.cursor.r===6)}
     // --- keep warnings fire once per threshold
     pl.castleHP=pl.maxHP*0.45;keepWarn(1);pl.castleHP=pl.maxHP*0.44;keepWarn(1);
     ok('keep_warn_once',pl._warn[0.5]===true&&document.getElementById('callouts').childElementCount===1);

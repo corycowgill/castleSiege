@@ -370,6 +370,11 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
 .boss-btn .boss-cost{color:var(--parch-d);font-size:.92em}
 @media(hover:hover){.boss-btn:hover{transform:translateY(-1px);box-shadow:0 0 16px rgba(246,220,142,.45),inset 0 1px 0 rgba(255,230,170,.3)}}
 .boss-btn.disabled{opacity:.32;pointer-events:none;filter:grayscale(.6)}
+.undo-btn{font-family:var(--f-display);font-weight:700;font-size:clamp(9px,.9vw,11px);letter-spacing:.12em;padding:0 10px;height:28px;margin-left:auto;margin-right:6px;flex-shrink:0;white-space:nowrap;
+  color:var(--gold-b);background:linear-gradient(180deg,rgba(40,31,22,.9),rgba(12,9,7,.92));border:1px solid rgba(217,178,95,.4);pointer-events:auto;cursor:pointer;display:none}
+.undo-btn.on{display:block}.undo-btn:hover{border-color:var(--gold-b)}
+.undo-btn.on+.p2-ready-btn{margin-left:0}
+.build-opt .opt-key{position:absolute;top:2px;left:4px;font-family:var(--f-body,inherit);font-size:10px;font-weight:700;line-height:1;color:var(--gold);opacity:.85;pointer-events:none}
 .p2-ready-btn{font-family:var(--f-display);font-weight:900;font-size:clamp(9px,.95vw,12px);letter-spacing:.18em;padding:0 12px;height:32px;margin-left:auto;flex-shrink:0;white-space:nowrap;
   color:#140e05;background:linear-gradient(180deg,#f6dc8e,#c9993f 60%,#9a7128);border:1px solid #ffe9a8;pointer-events:auto;cursor:pointer;text-shadow:0 1px 0 rgba(255,240,200,.5);
   box-shadow:0 0 18px rgba(246,220,142,.35);animation:readyGlow 2s ease-in-out infinite}
@@ -717,7 +722,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
   </div>
   <div class="menu-foot">
     <div class="foot-hints"><span><span class="key">&uarr;</span><span class="key">&darr;</span> Navigate</span><span><span class="key">Enter</span> Select</span><span><span class="key round">A</span> Confirm</span></div>
-    <div class="foot-ver">Castle Siege <b>v3.72</b> &bull; Build 2026-10-24</div>
+    <div class="foot-ver">Castle Siege <b>v3.73</b> &bull; Build 2026-10-24</div>
   </div>
 </div>
 
@@ -771,7 +776,8 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
         <span class="k"><span class="key">WASD</span><span class="key round">L</span></span><span class="a">Move cursor</span>
         <span class="k"><span class="key">Space</span><span class="key round">A</span></span><span class="a">Build / upgrade</span>
         <span class="k"><span class="key">E</span><span class="key round">B</span></span><span class="a">Sell</span>
-        <span class="k"><span class="key">Q</span><span class="key">Tab</span></span><span class="a">Cycle build</span>
+        <span class="k"><span class="key">1&ndash;0</span><span class="key">Q</span><span class="key round">LB</span></span><span class="a">Pick build</span>
+        <span class="k"><span class="key">Ctrl+Z</span><span class="key round">R3</span></span><span class="a">Undo</span>
         <span class="k"><span class="key">Z</span><span class="key">F</span></span><span class="a">Pick / cast special</span>
         <span class="k"><span class="key">C</span><span class="key round">L3</span></span><span class="a">Tower target</span>
         <span class="k"><span class="key">R</span><span class="key round">&#9776;</span></span><span class="a">Ready up</span>
@@ -847,7 +853,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
         <li>10 waves, 45s build phase &middot; keeps have 3500 HP &middot; Endless: no wave cap, an omen each wave past 10 &middot; <b>Daily Siege</b>: one fixed Endless run a day</li>
         <li>Build in your half; walls reroute the march (red arrows show the route; hover a tile to see the detour, <b>+N</b> tiles; arrows glow gold where your towers cover them) &middot; <b>drag</b> with a wall selected to lay a line</li>
         <li>Build on your own tower to upgrade it to Lv3, then pick one of two <b>specialisations</b> (<span class="key">1</span>/<span class="key">2</span> or its card) &middot; build on a damaged wall to repair it</li>
-        <li>Anything built this phase sells back in full until the wave starts</li>
+        <li>Anything built this phase sells back in full until the wave starts &middot; <span class="key">Ctrl+Z</span> / R3 / &#8630; undoes the last action</li>
         <li>Towers earn <b>veterancy</b> from kills &mdash; &#9733; at 25, 75 and 175 kills, +7% damage each &mdash; and lose it if sold</li>
         <li><span class="key">C</span> on a tower: target First, Last, Strongest or Closest</li>
         <li>Armies and bosses attack your rival; bought units pay half bounty when they fall</li>
@@ -899,7 +905,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
 <!-- BOTTOM HUD -->
 <div id="hud-bottom">
   <div class="hud-bottom-hints">
-    <div class="hint-half"><span class="hint-text" id="hint-left">WASD Move &middot; Q/Tab Cycle &middot; Space Build &middot; E Sell &middot; R Ready</span></div>
+    <div class="hint-half"><span class="hint-text" id="hint-left">WASD Move &middot; 1&ndash;0 / Q/Tab Pick &middot; Space Build &middot; E Sell &middot; Ctrl+Z Undo &middot; R Ready</span></div>
     <div class="hint-half"><span class="hint-text" id="hint-right">Wheel Cycle &middot; L-Click Build &middot; R-Click Sell &middot; M-Click Ready</span></div>
   </div>
   <div class="hud-bottom-build">
@@ -910,6 +916,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
     <div class="spec-half spec-left"><div class="spec-buttons" id="p1-specials"></div></div>
     <div class="spec-half spec-right">
       <div class="spec-buttons" id="p2-specials"></div>
+      <button id="btn-undo" class="undo-btn" title="Undo (Ctrl+Z)">&#8630; Undo</button>
       <button id="btn-p2-ready" class="p2-ready-btn">Ready</button>
     </div>
   </div>
@@ -979,6 +986,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
   <div id="touch-cycle">
     <div class="touch-cycle-btn" id="tc-prev">&larr;</div>
     <div class="touch-cycle-btn" id="tc-next">&rarr;</div>
+    <div class="touch-cycle-btn" id="tc-undo" title="Undo">&#8630;</div>
   </div>
   <div id="touch-special-row"></div>
   <div id="touch-pause" class="touch-act-btn">&#10074;&#10074;</div>
@@ -1402,7 +1410,7 @@ let __paintDown=false,__touchPaint=null;
 // samples: fill the straight line from the last painted tile.
 function paintStroke(pl,pn,c,r){
   const from=pl._paintFrom;pl._paintFrom={c,r};
-  if(!from){paintWallAt(pl,pn,c,r);return}
+  if(!from){pl._strokeG=++__undoG;paintWallAt(pl,pn,c,r);return}
   let x0=from.c,y0=from.r;const dx=Math.abs(c-x0),dy=-Math.abs(r-y0),sx=x0<c?1:-1,sy=y0<r?1:-1;let err=dx+dy;
   for(let guard=0;guard<80;guard++){
     paintWallAt(pl,pn,x0,y0);if(x0===c&&y0===r)break;
@@ -1413,15 +1421,17 @@ function paintWallAt(pl,pn,c,r){
   const opt=BUILD_OPTS[pl.selectedIdx];if(!opt||opt.cat!=='build'||gameState!=='build')return false;
   const key=c+','+r;if(pl._paintLast===key)return false;pl._paintLast=key;
   if(r<0||r>=ROWS||c<0||c>=COLS||grid[r][c]||pl.credits<opt.cost||!canPlace(c,r,pn))return false;
-  pl.cursor.c=c;pl.cursor.r=r;tryPlace(pl,pn);return true;
+  pl.cursor.c=c;pl.cursor.r=r;pl._painting=true;tryPlace(pl,pn);pl._painting=false;return true;
 }
 let mouseX=0,mouseY=0;
 const keys={},keyPressed={};
-const gameKeys=new Set(['KeyM','KeyW','KeyA','KeyS','KeyD','Space','KeyQ','KeyE','KeyR','KeyF','KeyZ','KeyT','KeyP','KeyH','Tab','Enter','Escape','ArrowUp','ArrowDown','ArrowLeft','ArrowRight']);
+const gameKeys=new Set(['KeyM','KeyW','KeyA','KeyS','KeyD','Space','KeyQ','KeyE','KeyR','KeyF','KeyZ','KeyT','KeyP','KeyH','Tab','Enter','Escape','Backspace','ArrowUp','ArrowDown','ArrowLeft','ArrowRight']);
 window.addEventListener('keydown',(e)=>{if(!audioCtx)initAudio();if(gameKeys.has(e.code))e.preventDefault();if(!keys[e.code])keyPressed[e.code]=true;keys[e.code]=true});
 window.addEventListener('keyup',(e)=>{keys[e.code]=false});
 // v3.29: M toggles mute from anywhere.
 window.addEventListener('keydown',(e)=>{if(e.code==='KeyM'&&!e.repeat){const m=toggleMute();if(typeof uiToast==='function')uiToast(1,m?'Sound muted \u00B7 M to unmute':'Sound on','gold');if(typeof uiSyncSoundBtn==='function')uiSyncSoundBtn();if(typeof uiSettingsOpen==='function'&&uiSettingsOpen())uiRenderSettings()}});
+// v3.73: number-key build hotkeys, in build-bar order (bosses excluded)
+const HOTKEY_OPTS=BUILD_OPTS.map((o,i)=>o.cat==='boss'?-1:i).filter(i=>i>=0).slice(0,10);
 function consumeKey(code){if(keyPressed[code]){keyPressed[code]=false;return true}return false}
 
 // ==================== 3D COORDINATE HELPERS ====================
@@ -3341,7 +3351,8 @@ function initHUD(){
       // v3.28: icon card. Armies show the squad price (cost x10).
       div.dataset.price=opt.cat==='enemy'?opt.cost*10:opt.cost;
       const costSuffix=opt.cat==='enemy'?'<small>x10</small>':'';
-      div.innerHTML=`${uiIcon(OPT_ICON[opt.id])}<span class="opt-name">${opt.name}</span><span class="opt-cost">$${opt.cat==='enemy'?opt.cost*10:opt.cost}${costSuffix}</span>`;
+      const hk=pid==='p1'&&!isMobile?HOTKEY_OPTS.indexOf(i):-1; // v3.73: number-key hint (keyboard commander)
+      div.innerHTML=`${hk>=0?`<span class="opt-key">${(hk+1)%10}</span>`:''}${uiIcon(OPT_ICON[opt.id])}<span class="opt-name">${opt.name}</span><span class="opt-cost">$${opt.cat==='enemy'?opt.cost*10:opt.cost}${costSuffix}</span>`;
       uiTooltipFor(div);
       div.addEventListener('click',()=>{
         const t=panelTarget(pid);
@@ -3390,6 +3401,7 @@ function initHUD(){
       specContainer.appendChild(div);
     });
   });
+  document.getElementById('btn-undo').addEventListener('click',()=>{const t=gameMode==='1p'?1:2;tryUndo(players[t],t)});
   document.getElementById('btn-p2-ready').addEventListener('click',()=>{
     const t=gameMode==='1p'&&!isMobile?1:2;
     if(gameState==='build')players[t].ready=!players[t].ready; // v3.53: click again to cancel
@@ -3648,6 +3660,8 @@ function updateHUD(){
    const rb=gameMode==='1p'&&!isMobile?r1:r2,cb=gameState==='combat';
    if(h._rb!==rb){h._rb=rb;h.btnP2ready.classList.toggle('is-ready',rb)}
    h.btnP2ready.classList.toggle('speed',cb);
+   {if(!h.undo)h.undo=document.getElementById('btn-undo');const ut=gameMode==='1p'?players[1]:players[2];
+    const uo=gameState==='build'&&!!(ut._undo&&ut._undo.length)&&!(gameMode==='1p'&&isMobile);if(h._uo!==uo){h._uo=uo;h.undo.classList.toggle('on',uo)}}
    __st(h.btnP2ready,cb?`\u25B6 ${__combatSpeed}\u00D7`:rb?'\u2713 Ready':'Ready');
    if(h.rp[3]&&!r1){const tx=cb?`${__combatSpeed}\u00D7`:'RDY';if(h.rp[3]._t!==tx){h.rp[3]._t=tx;h.rp[3].textContent=tx;h.rp[3].classList.toggle('speed',cb)}}}
 
@@ -3687,7 +3701,7 @@ function tryPlace(player,pNum){
   const opt=BUILD_OPTS[player.selectedIdx];const{c,r}=player.cursor;
   if(opt.cat==='enemy'){
     const cost=opt.cost*10;
-    if(player.credits>=cost){player.credits-=cost;player.enemyQueue[opt.id]=(player.enemyQueue[opt.id]||0)+10;sndBuild();
+    if(player.credits>=cost){player.credits-=cost;player.enemyQueue[opt.id]=(player.enemyQueue[opt.id]||0)+10;sndBuild();undoPush(player,{k:'army',id:opt.id,n:10,cost});
       uiToast(pNum,`10 ${opt.name}s march next wave \u00B7 ${player.enemyQueue[opt.id]} queued`,'good',OPT_ICON[opt.id])}
     else uiToast(pNum,`Need $${cost-player.credits} more gold`,'bad','coin');
     return;
@@ -3697,7 +3711,7 @@ function tryPlace(player,pNum){
     if(player.credits>=opt.cost){
       player.credits-=opt.cost;
       player.enemyQueue[opt.id]=(player.enemyQueue[opt.id]||0)+1;
-      sndBuild();uiToast(pNum,`${opt.name} joins the next wave`,'gold',OPT_ICON[opt.id]);if(pNum===1)uiHonoursEvent('boss');
+      sndBuild();undoPush(player,{k:'army',id:opt.id,n:1,cost:opt.cost});uiToast(pNum,`${opt.name} joins the next wave`,'gold',OPT_ICON[opt.id]);if(pNum===1)uiHonoursEvent('boss');
     }else uiToast(pNum,`Need $${opt.cost-player.credits} more gold`,'bad','coin');
     return;
   }
@@ -3719,7 +3733,7 @@ function tryPlace(player,pNum){
     const upgradeCost=Math.floor(td.cost*0.6);
     if(player.credits<upgradeCost){uiToast(pNum,`Upgrade needs $${upgradeCost-player.credits} more gold`,'bad','coin');return}
     player.credits-=upgradeCost;
-    existingTower.level++;existingTower.fresh=(existingTower.fresh||0)+upgradeCost;
+    existingTower.level++;existingTower.fresh=(existingTower.fresh||0)+upgradeCost;undoPush(player,{k:'up',c,r,cost:upgradeCost});
     // Recompute effective stats from base × level multipliers.
     const lv=existingTower.level;
     recomputeTower(existingTower);refreshBannerBuffs();
@@ -3759,8 +3773,42 @@ function tryPlace(player,pNum){
     refreshBannerBuffs();
   }else if(opt.id==='wall'){grid[r][c]={type:'wall',owner:pNum,hp:150,maxHp:150,fresh:true}}
   else{grid[r][c]={type:'barricade',owner:pNum,hp:75,maxHp:75,fresh:true}}
+  undoPush(player,{k:'new',c,r,g:player._painting?player._strokeG:0});
   markGridDirty();
   sndBuild();
+}
+
+// v3.73: Undo (Ctrl+Z / Backspace, R3, the Undo button). Takes back this
+// build phase's actions newest first — a build, an upgrade, a
+// specialisation or an army purchase — for a full refund; a dragged wall
+// line comes back as one step. The history clears when the wave starts.
+let __undoG=0;
+function undoPush(pl,e){const u=pl._undo||(pl._undo=[]);u.push(e);if(u.length>80)u.shift()}
+function __undoOne(pl,pn,e){
+  if(e.k==='army'){const q=pl.enemyQueue[e.id]||0;if(q<e.n)return 0;pl.enemyQueue[e.id]=q-e.n;pl.credits+=e.cost;return e.cost}
+  const cell=grid[e.r]&&grid[e.r][e.c];if(!cell||cell.owner!==pn)return 0;
+  const t=cell.type==='tower'?towers.find(x=>x.col===e.c&&x.row===e.r):null;
+  if(e.k==='new'){
+    if(cell.type==='tower'?!(t&&t.fresh):!cell.fresh)return 0;
+    const keep=pl.cursor;pl.cursor={c:e.c,r:e.r};const c0=pl.credits;trySell(pl,pn);pl.cursor=keep;return pl.credits-c0;
+  }
+  if(!t||(t.fresh||0)<e.cost)return 0;
+  if(e.k==='up'){if(t.spec||(t.level||1)<2)return 0;t.level--;t._upT=0}
+  else if(e.k==='spec'){if(t.spec!==e.id)return 0;t.spec=null;t.specCost=0}
+  else return 0;
+  t.fresh-=e.cost;pl.credits+=e.cost;recomputeTower(t);refreshBannerBuffs();__gridVer++;
+  const wp=tileToWorld(e.c,e.r);spawnSmoke(wp.x,0.6,wp.z,0xb8a888,4,0.4);spawnDmgNumber(wp.x,1.3,wp.z,'+$'+e.cost,'#ffd700');
+  return e.cost;
+}
+function tryUndo(pl,pn){
+  if(gameState!=='build')return false;
+  const u=pl._undo||[];let got=0;
+  while(u.length&&!got){ // skip history the board no longer matches (sold, destroyed)
+    const e=u.pop();got+=__undoOne(pl,pn,e);
+    if(e.g)while(u.length&&u[u.length-1].g===e.g)got+=__undoOne(pl,pn,u.pop());
+  }
+  if(!got){uiToast(pn,'Nothing to undo this build phase','bad','x');return false}
+  uiSfx('select');uiToast(pn,`Undone \u00B7 +$${got} refunded`,'good','coin');return true;
 }
 
 // v3.43: anything built or upgraded during the current build phase sells
@@ -3810,7 +3858,7 @@ function trySpecialize(pl,pn,which){
   const sp=(TOWER_SPECS[t.type]||[])[which];if(!sp)return false;
   const cost=specCost(t.type);
   if(pl.credits<cost){uiToast(pn,`${sp.name} needs $${cost-pl.credits} more gold`,'bad','coin');return true}
-  pl.credits-=cost;t.spec=sp.id;t.specCost=cost;t.fresh=(t.fresh||0)+cost;recomputeTower(t);refreshBannerBuffs();
+  pl.credits-=cost;t.spec=sp.id;t.specCost=cost;t.fresh=(t.fresh||0)+cost;recomputeTower(t);refreshBannerBuffs();undoPush(pl,{k:'spec',c,r,id:sp.id,cost});
   sndBuild();__gridVer++;
   const wp=tileToWorld(c,r);emitParticles(wp.x,1.2,wp.z,0xffe08a,22,90);spawnAuraPulse(wp.x,wp.z,1.4,0xffd76a,0.6);
   uiToast(pn,`${TOWER_DATA.find(d=>d.id===t.type).name} specialised: ${sp.name}`,'gold','up');
@@ -3824,7 +3872,7 @@ function towerRefund(t){
 }
 function wallRefund(cell){const c=cell.type==='wall'?WALL_COST:BARRICADE_COST;return gameState==='build'&&cell.fresh?c:Math.floor(c/2)}
 function wallRepairCost(cell){const c=cell.type==='wall'?WALL_COST:BARRICADE_COST;return Math.max(1,Math.ceil((1-cell.hp/cell.maxHp)*c))}
-function clearFreshBuilds(){for(const t of towers)t.fresh=0;for(const row of grid)for(const c of row)if(c&&c.fresh)c.fresh=false}
+function clearFreshBuilds(){for(const p of players)if(p)p._undo=[];for(const t of towers)t.fresh=0;for(const row of grid)for(const c of row)if(c&&c.fresh)c.fresh=false}
 function trySell(player,pNum){
   const{c,r}=player.cursor;const cell=grid[r][c];
   if(!cell||cell.type==='castle'||cell.owner!==pNum)return;
@@ -4089,21 +4137,30 @@ window.addEventListener('gamepadconnected',()=>{setTimeout(()=>{
   if(n===1)uiToast(1,'Controller connected \u00B7 Blue Crown','good','check');
   else if(n===2)uiToast(gameMode==='2p'?2:1,gameMode==='2p'?'Controller 2 connected \u00B7 Red Crown':'Controller 2 connected \u00B7 used in Versus','good','check');
 },50)});
+// v3.73: held-direction cursor movement for keys, pads and the touch d-pad.
+// The first step lands at once, then after a short pause it repeats,
+// speeding up the longer it's held (crossing the board went from ~2.3s
+// at a fixed 0.12s/tile to ~1s), and a half-tilted stick moves slower.
+function heldMove(pl,src,dx,dy,dt,mag){
+  const s=pl[src]||(pl[src]={dx:0,dy:0,t:0,held:0});
+  if(!dx&&!dy){s.dx=s.dy=0;s.held=0;return}
+  const step=()=>{pl.cursor.c=clamp(pl.cursor.c+dx,0,COLS-1);pl.cursor.r=clamp(pl.cursor.r+dy,0,ROWS-1)};
+  if(dx!==s.dx||dy!==s.dy){s.dx=dx;s.dy=dy;s.held=0;s.t=0.2;step();return}
+  s.held+=dt;s.t-=dt;
+  if(s.t<=0){step();s.t=Math.max(0.035,0.1-s.held*0.06)*(1.8-0.8*clamp(mag||1,0,1))}
+}
 // One controller driving one commander (P1 pad 1; in Versus, P2 pad 2).
 function padControl(gp,pl,pn,prev,dt){
-  const P=b=>gpPressed(gp,b,prev);
+  const P=b=>gpPressed(gp,b,prev),H=b=>gp.buttons[b]&&gp.buttons[b].pressed;
   const dz=0.3,lx=Math.abs(gp.axes[0])>dz?gp.axes[0]:0,ly=Math.abs(gp.axes[1])>dz?gp.axes[1]:0;
-  pl.stickTimer=(pl.stickTimer||0)-dt;
-  if(pl.stickTimer<=0&&(lx||ly)){pl.cursor.c=clamp(pl.cursor.c+Math.sign(lx),0,COLS-1);pl.cursor.r=clamp(pl.cursor.r+Math.sign(ly),0,ROWS-1);pl.stickTimer=0.12}
-  if(!lx&&!ly)pl.stickTimer=0;
-  if(P(12))pl.cursor.r=Math.max(0,pl.cursor.r-1);
-  if(P(13))pl.cursor.r=Math.min(ROWS-1,pl.cursor.r+1);
-  if(P(14))pl.cursor.c=Math.max(0,pl.cursor.c-1);
-  if(P(15))pl.cursor.c=Math.min(COLS-1,pl.cursor.c+1);
+  let dx=Math.sign(lx),dy=Math.sign(ly),mag=Math.max(Math.abs(lx),Math.abs(ly));
+  if(H(12)||H(13)||H(14)||H(15)){dx=H(14)?-1:H(15)?1:0;dy=H(12)?-1:H(13)?1:0;mag=1}
+  heldMove(pl,'_mvPad',dx,dy,dt,(mag-dz)/(1-dz));
+  if(gameState==='build'&&P(11))tryUndo(pl,pn); // v3.73: R3 undoes
   if(gameState==='build'){
     if(P(4))pl.selectedIdx=(pl.selectedIdx-1+BUILD_OPTS.length)%BUILD_OPTS.length;
     if(P(5))pl.selectedIdx=(pl.selectedIdx+1)%BUILD_OPTS.length;
-    if(P(0))tryActAt(pl,pn);if(P(1))trySell(pl,pn);if(P(9))pl.ready=true;
+    if(P(0))tryActAt(pl,pn);if(P(1))trySell(pl,pn);if(P(9))pl.ready=!pl.ready;
     if(P(3))pl.selectedSpecial=(pl.selectedSpecial+1)%4;
     if(P(2))trySpecialize(pl,pn,1); // v3.62: X takes the second specialisation
   }
@@ -4124,19 +4181,27 @@ function processInput(dt){
 
   // P1 Keyboard
   {
-    p1.stickTimer-=dt;let kx=0,ky=0;
+    let kx=0,ky=0;
     if(keys['KeyA']||keys['ArrowLeft'])kx=-1;if(keys['KeyD']||keys['ArrowRight'])kx=1;
     if(keys['KeyW']||keys['ArrowUp'])ky=-1;if(keys['KeyS']||keys['ArrowDown'])ky=1;
-    if(!gp&&p1.stickTimer<=0&&(kx||ky)){p1.cursor.c=clamp(p1.cursor.c+kx,0,COLS-1);p1.cursor.r=clamp(p1.cursor.r+ky,0,ROWS-1);p1.stickTimer=0.12}
-    if(!kx&&!ky&&!gp)p1.stickTimer=0;
+    heldMove(p1,'_mvKey',kx,ky,dt,1);
+    const ctrl=keys['ControlLeft']||keys['ControlRight']||keys['MetaLeft']||keys['MetaRight'];
     if(gameState==='build'){
+      // v3.73: Ctrl+Z / Backspace undo; 1-9,0 pick a build option directly
+      // (on your own unspecialised Lv3 tower, 1/2 still specialise).
+      if((ctrl&&consumeKey('KeyZ'))|consumeKey('Backspace'))tryUndo(p1,1);
+      for(let d=0;d<10;d++){
+        if(!consumeKey('Digit'+((d+1)%10))&&!consumeKey('Numpad'+((d+1)%10)))continue;
+        const{c,r}=p1.cursor,ct=grid[r][c],t=ct&&ct.type==='tower'&&ct.owner===1?towers.find(x=>x.col===c&&x.row===r):null;
+        if(d<2&&t&&(t.level||1)>=3&&!t.spec&&TOWER_SPECS[t.type]){trySpecialize(p1,1,d);continue}
+        const idx=HOTKEY_OPTS[d];if(idx!=null){p1.selectedIdx=idx;uiSfx('select')}
+      }
       if(consumeKey('KeyQ'))p1.selectedIdx=(p1.selectedIdx-1+BUILD_OPTS.length)%BUILD_OPTS.length;
       if(consumeKey('Tab'))p1.selectedIdx=(p1.selectedIdx+1)%BUILD_OPTS.length;
       if(consumeKey('Space'))tryActAt(p1,1);if(consumeKey('KeyE'))trySell(p1,1);
-      if(consumeKey('KeyR'))p1.ready=true;if(consumeKey('KeyZ'))p1.selectedSpecial=(p1.selectedSpecial+1)%4;
+      if(consumeKey('KeyR')|consumeKey('Enter'))p1.ready=!p1.ready;if(consumeKey('KeyZ'))p1.selectedSpecial=(p1.selectedSpecial+1)%4;
     }
     if((gameState==='build'||gameState==='combat')&&consumeKey('KeyC'))cycleTargetMode(p1,1);
-    if(gameState==='build'){if(consumeKey('Digit1'))trySpecialize(p1,1,0);if(consumeKey('Digit2'))trySpecialize(p1,1,1)}
     if(consumeKey('Equal')||consumeKey('NumpadAdd'))setCameraZoom(camZoom*1.15);
     if(consumeKey('Minus')||consumeKey('NumpadSubtract'))setCameraZoom(camZoom/1.15);
     if(gameState==='combat'){
@@ -4162,7 +4227,10 @@ function processInput(dt){
 
   if(gameState==='build'){
     if(scrollDelta){mousePlayer.selectedIdx=(mousePlayer.selectedIdx+Math.sign(scrollDelta)+BUILD_OPTS.length)%BUILD_OPTS.length}
-    if(mouseClicked&&mTile){tryActAt(mousePlayer,mousePNum);mousePlayer._paintLast=mTile.c+','+mTile.r;mousePlayer._paintFrom={c:mTile.c,r:mTile.r}}
+    if(mouseClicked&&mTile){
+      // the click starts a stroke: a drag continuing from it undoes as one
+      mousePlayer._strokeG=++__undoG;mousePlayer._painting=true;tryActAt(mousePlayer,mousePNum);mousePlayer._painting=false;
+      mousePlayer._paintLast=mTile.c+','+mTile.r;mousePlayer._paintFrom={c:mTile.c,r:mTile.r}}
     else if(__paintDown&&mTile&&__mouseMovedTick){const g=pickTile(mouseNDC.x,mouseNDC.y,true);if(g)paintStroke(mousePlayer,mousePNum,g.c,g.r)}
     if(mouseRightClicked)trySell(mousePlayer,mousePNum);
     if(middleClicked&&!cycleTargetMode(mousePlayer,mousePNum))mousePlayer.ready=true;
@@ -6004,7 +6072,7 @@ function aiUseSpecial(ai){
 // ==================== TOUCH INPUT SYSTEM ====================
 let touchDpadDir=null, touchDpadTimer=0;
 let touchPlaceFlag=false, touchSellFlag=false, touchReadyFlag=false;
-let touchCyclePrev=false, touchCycleNext=false;
+let touchCyclePrev=false, touchCycleNext=false, touchUndoFlag=false;
 let touchSpecialIdx=-1;
 
 function initTouchControls(){
@@ -6021,6 +6089,7 @@ function initTouchControls(){
   document.getElementById('touch-pause').addEventListener('touchstart',(e)=>{e.preventDefault();if(gameState==='paused')uiResume();else uiPause()},{passive:false});
   document.getElementById('tc-prev').addEventListener('touchstart',(e)=>{e.preventDefault();touchCyclePrev=true},{passive:false});
   document.getElementById('tc-next').addEventListener('touchstart',(e)=>{e.preventDefault();touchCycleNext=true},{passive:false});
+  document.getElementById('tc-undo').addEventListener('touchstart',(e)=>{e.preventDefault();touchUndoFlag=true},{passive:false});
 
   // Build special buttons
   const specRow=document.getElementById('touch-special-row');
@@ -6145,14 +6214,8 @@ function processTouchInput(dt){
   const p1=players[1];
 
   // D-pad movement
-  touchDpadTimer-=dt;
-  if(touchDpadDir&&touchDpadTimer<=0){
-    touchDpadTimer=0.15;
-    if(touchDpadDir==='up')p1.cursor.r=Math.max(0,p1.cursor.r-1);
-    if(touchDpadDir==='down')p1.cursor.r=Math.min(ROWS-1,p1.cursor.r+1);
-    if(touchDpadDir==='left')p1.cursor.c=Math.max(0,p1.cursor.c-1);
-    if(touchDpadDir==='right')p1.cursor.c=Math.min(COLS-1,p1.cursor.c+1);
-  }
+  heldMove(p1,'_mvTouch',touchDpadDir==='left'?-1:touchDpadDir==='right'?1:0,touchDpadDir==='up'?-1:touchDpadDir==='down'?1:0,dt,1);
+  if(touchUndoFlag){touchUndoFlag=false;tryUndo(p1,1)}
 
   // Actions
   if(touchPlaceFlag){
@@ -6475,12 +6538,12 @@ function init(){
     if(!isMobile){
       setHTML('lobby-p1-dev','Player 1 &bull; Keyboard + Mouse');
       setHTML('lobby-p1-keys',keyRow(K('WASD')+K('Mouse'),'Move cursor')+keyRow(K('Space')+K('L-Click'),'Build / upgrade')+
-        keyRow(K('E')+K('R-Click'),'Sell')+keyRow(K('Q')+K('Wheel'),'Cycle build')+keyRow(K('Z')+K('F'),'Pick / cast special')+keyRow(K('C')+K('M-Click'),'Tower target')+
+        keyRow(K('E')+K('R-Click'),'Sell')+keyRow(K('1&ndash;0')+K('Wheel'),'Pick build')+keyRow(K('Ctrl+Z'),'Undo')+keyRow(K('Z')+K('F'),'Pick / cast special')+keyRow(K('C')+K('M-Click'),'Tower target')+
         keyRow(K('R')+K('Esc'),'Ready &middot; Pause'));
     }else{
       setHTML('lobby-p1-dev','Player 1 &bull; Touch');
       setHTML('lobby-p1-keys',keyRow(K('Tap')+K('D-Pad'),'Aim \u00B7 tap again to build or upgrade')+keyRow(K('Place'),'Build / upgrade')+keyRow(K('Sell'),'Sell')+
-        keyRow(K('&larr;')+K('&rarr;'),'Cycle build')+keyRow(K('Icon'),'Cast special')+keyRow(K('Target'),'Tower target (on its card)')+keyRow(K('RDY'),'Ready up'));
+        keyRow(K('&larr;')+K('&rarr;'),'Cycle build')+keyRow(K('&#8630;'),'Undo')+keyRow(K('Icon'),'Cast special')+keyRow(K('Target'),'Tower target (on its card)')+keyRow(K('RDY'),'Ready up'));
     }
     setHTML('lobby-p2-name','The Warlord');
     setHTML('lobby-p2-dev','AI Opponent &bull; Ruthless');
@@ -6493,7 +6556,7 @@ function init(){
     document.getElementById('title-p2-ready').classList.add('is-ready');
     // Update HUD hints
     if(!isMobile){
-      document.getElementById('hint-left').textContent='WASD / Mouse Aim \u00B7 Q/Tab/Wheel Cycle \u00B7 Space/Click Build \u00B7 E/R-Click Sell \u00B7 C Target \u00B7 Z/F Special \u00B7 +/\u2212 Zoom \u00B7 R Ready \u00B7 Esc';
+      document.getElementById('hint-left').textContent='WASD / Mouse Aim \u00B7 1\u20130 / Q/Tab/Wheel Pick \u00B7 Space/Click Build \u00B7 E/R-Click Sell \u00B7 Ctrl+Z Undo \u00B7 C Target \u00B7 Z/F Special \u00B7 +/\u2212 Zoom \u00B7 R Ready \u00B7 Esc';
       document.getElementById('hint-right').textContent='Mouse Aim \u00B7 Wheel Cycle \u00B7 L-Click Build \u00B7 R-Click Sell \u00B7 F Special';
     }
     for(const id of['hint-left','hint-right'])document.getElementById(id)._def=undefined;
