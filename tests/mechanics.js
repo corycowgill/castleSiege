@@ -99,6 +99,12 @@ const {chromium}=require('playwright');
     pl.cursor={c:5,r:5};keyPressed['Digit3']=true;processInput(0.016);ok('hotkey_3_catapult',BUILD_OPTS[pl.selectedIdx].id===BUILD_OPTS[HOTKEY_OPTS[2]].id&&HOTKEY_OPTS.length===10);
     {const q={cursor:{c:0,r:5}};heldMove(q,'_m',1,0,0.016,1);const a1=q.cursor.c;for(let k=0;k<60;k++)heldMove(q,'_m',1,0,1/60,1);
      ok('held_move_accel',a1===1&&q.cursor.c>=9&&q.cursor.c<=14);heldMove(q,'_m',0,0,0.016,1);heldMove(q,'_m',0,1,0.016,1);ok('held_move_new_dir_instant',q.cursor.r===6)}
+    // --- v3.74 trampled ground: marching wears it, flyers don't, build phase regrows, reset clears
+    wearReset();gameState='combat';spawnEnemy('orc',6,3,2);const we=enemies[enemies.length-1];
+    for(let k=0;k<120;k++)updateWear(1/60);const wx=we.x/T,wz=(we.y-GAME_Y)/T,w1=wearAt(wx,wz);
+    we.flying=true;const w1b=wearAt(wx,wz);for(let k=0;k<60;k++)updateWear(1/60);ok('wear_flyers_none',wearAt(wx,wz)===w1b);
+    enemies.length=0;gameState='build';updateWear(10);ok('wear_marching_regrows',w1>0.05&&wearAt(wx,wz)<w1&&wearAt(wx,wz)>0);
+    wearReset();ok('wear_reset',wearAt(wx,wz)===0);
     // --- keep warnings fire once per threshold
     pl.castleHP=pl.maxHP*0.45;keepWarn(1);pl.castleHP=pl.maxHP*0.44;keepWarn(1);
     ok('keep_warn_once',pl._warn[0.5]===true&&document.getElementById('callouts').childElementCount===1);

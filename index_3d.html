@@ -722,7 +722,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
   </div>
   <div class="menu-foot">
     <div class="foot-hints"><span><span class="key">&uarr;</span><span class="key">&darr;</span> Navigate</span><span><span class="key">Enter</span> Select</span><span><span class="key round">A</span> Confirm</span></div>
-    <div class="foot-ver">Castle Siege <b>v3.73</b> &bull; Build 2026-10-24</div>
+    <div class="foot-ver">Castle Siege <b>v3.74</b> &bull; Build 2026-10-24</div>
   </div>
 </div>
 
@@ -1784,6 +1784,40 @@ function __smooth(e0,e1,x){const t=clamp((x-e0)/(e1-e0),0,1);return t*t*(3-2*t)}
 // tiling detail layer and slow drifting cloud shadows, both in world space
 // so the two surfaces match exactly where they meet.
 const __groundU={uDetail:{value:null},uCloud:{value:null},uDay:{value:1}};
+// v3.74: trampled ground. Marching enemies wear the grass into bare earth
+// (4 texels per tile, CPU-side floats uploaded a few times a second), so
+// the route a maze really forces gets worn into the field over a match;
+// the grass grows back slowly during build phases.
+const WEAR_RES=4,WEAR_W=COLS*WEAR_RES,WEAR_H=ROWS*WEAR_RES;
+const __wear={a:new Float32Array(WEAR_W*WEAR_H),px:new Uint8Array(WEAR_W*WEAR_H*4),tex:null,dirty:false,upT:0,ver:0,regT:0};
+function __wearTex(){
+  if(!__wear.tex){const t=new THREE.DataTexture(__wear.px,WEAR_W,WEAR_H,THREE.RGBAFormat);t.magFilter=t.minFilter=THREE.LinearFilter;t.needsUpdate=true;__wear.tex=t}
+  return __wear.tex;
+}
+function wearAt(tx,tz){const i=Math.floor(tx*WEAR_RES),j=Math.floor(tz*WEAR_RES);return i<0||j<0||i>=WEAR_W||j>=WEAR_H?0:__wear.a[j*WEAR_W+i]}
+function wearAdd(tx,tz,amt){
+  const a=__wear.a,cx=tx*WEAR_RES-0.5,cz=tz*WEAR_RES-0.5,i0=Math.floor(cx),j0=Math.floor(cz);
+  for(let j=j0-1;j<=j0+2;j++){if(j<0||j>=WEAR_H)continue;
+    for(let i=i0-1;i<=i0+2;i++){if(i<0||i>=WEAR_W)continue;
+      const k=j*WEAR_W+i,d2=(i-cx)*(i-cx)+(j-cz)*(j-cz);a[k]=Math.min(1,a[k]+amt*Math.exp(-d2/1.4))}}
+  __wear.dirty=true;
+}
+function wearReset(){__wear.a.fill(0);__wear.dirty=true;__wear.upT=0}
+function updateWear(dt){
+  if(!dt)return;
+  if(gameState==='combat'){
+    for(const e of enemies){if(!e.alive||e.flying)continue;
+      wearAdd(e.x/T,(e.y-GAME_Y)/T,dt*(e.type==='troll'||e.type==='lich'?0.12:0.04))}
+  }else if(gameState==='build'){ // regrowth, applied in 1s batches
+    __wear.regT+=dt;if(__wear.regT>=1){const f=Math.pow(0.993,__wear.regT);__wear.regT=0;const a=__wear.a;for(let k=0;k<a.length;k++)a[k]*=f;__wear.dirty=true}
+  }
+  __wear.upT-=dt;
+  if(__wear.dirty&&__wear.upT<=0&&__wear.tex){
+    __wear.upT=0.25;__wear.dirty=false;__wear.ver++;
+    const a=__wear.a,px=__wear.px;for(let k=0;k<a.length;k++)px[k*4]=a[k]*255;
+    __wear.tex.needsUpdate=true;
+  }
+}
 function __cloudTex(){
   const N=128,c=document.createElement('canvas');c.width=c.height=N;const x=c.getContext('2d'),img=x.createImageData(N,N);
   const T=[[1,0,0.3],[0,1,1.7],[1,1,2.9],[2,1,0.8],[1,2,4.1],[3,2,2.2],[2,3,5.3]];
@@ -1793,12 +1827,21 @@ function __cloudTex(){
   }
   x.putImageData(img,0,0);const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;return t;
 }
-function __groundShader(mat,stage){
+function __groundShader(mat,stage,wear){
   if(!__groundU.uDetail.value){__groundU.uDetail.value=__groundDetailTex();__groundU.uCloud.value=__cloudTex()}
   mat.onBeforeCompile=sh=>{
-    Object.assign(sh.uniforms,__groundU);sh.uniforms.uTime=__windU;
+    Object.assign(sh.uniforms,__groundU);sh.uniforms.uTime=__windU;sh.uniforms.uWear={value:__wearTex()};
     sh.vertexShader='varying vec2 vGW;\n'+sh.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\n vGW=(modelMatrix*vec4(transformed,1.0)).xz;');
-    sh.fragmentShader='varying vec2 vGW;uniform sampler2D uDetail,uCloud;uniform float uDay,uTime;\n'+sh.fragmentShader.replace(stage,stage+`
+    sh.fragmentShader=(wear?'#define GROUND_WEAR\n':'')+'varying vec2 vGW;uniform sampler2D uDetail,uCloud,uWear;uniform float uDay,uTime;\n'+sh.fragmentShader.replace(stage,stage+`
+      #ifdef GROUND_WEAR
+      { float w=texture2D(uWear,vec2((vGW.x+${(COLS/2).toFixed(1)})/${COLS.toFixed(1)},(vGW.y+${(ROWS/2).toFixed(1)})/${ROWS.toFixed(1)})).r;
+        float br=texture2D(uDetail,vGW*0.9+0.17).g,br2=texture2D(uDetail,vGW*0.31+0.6).r;
+        float raw=w;w=smoothstep(0.12,0.8,clamp(w*1.25+(br-0.5)*0.5+(br2-0.5)*0.35,0.0,1.0)); // ragged, patchy edges
+        float verge=smoothstep(0.02,0.25,raw)*(1.0-w); // flattened, yellowed grass along the track
+        diffuseColor.rgb=mix(diffuseColor.rgb,diffuseColor.rgb*vec3(1.25,1.05,0.6),verge*0.45);
+        vec3 dirt=vec3(0.19,0.13,0.065)*(0.8+br*0.4);
+        diffuseColor.rgb=mix(diffuseColor.rgb,dirt,w*0.82); }
+      #endif
       { float d1=texture2D(uDetail,vGW*0.5).r, d2=texture2D(uDetail,vGW*1.37+0.31).g;
         diffuseColor.rgb*=1.0+((d1*0.6+d2*0.4)-0.5)*0.42;
         float cs=texture2D(uCloud,vGW*0.017+vec2(uTime*0.007,uTime*0.003)).r;
@@ -1895,7 +1938,7 @@ function createTerrain(){
   geo.computeVertexNormals();
   const tmat=new THREE.MeshStandardMaterial({map:tex,roughness:0.9});
   // v3.60/61: tiling detail layer + drifting cloud shadows (shared with the meadow)
-  __groundShader(tmat,'#include <map_fragment>');
+  __groundShader(tmat,'#include <map_fragment>',true);
   const mesh=new THREE.Mesh(geo,tmat);
   mesh.receiveShadow=true;mesh.name='terrain';
   scene.add(mesh);
@@ -3101,7 +3144,7 @@ function createGroundDetail(){
     e.set(0,r()*Math.PI*2,0);q.setFromEuler(e);const s2=0.7+r()*0.7;sc.set(s2,s2*(0.8+r()*0.5),s2);
     v.set(wp.x,gy,wp.z);m4.compose(v,q,sc);inst.setMatrixAt(n,m4);
     const tc=new THREE.Color().setHSL(0.24+r()*0.06,0.45+r()*0.2,0.38+r()*0.14);inst.setColorAt(n,tc);
-    cells.push({c:Math.floor(c),r:Math.floor(rw),m:m4.clone()});n++;
+    cells.push({c:Math.floor(c),r:Math.floor(rw),fc:c,fr:rw,m:m4.clone()});n++;
   }
   inst.count=n;inst.instanceMatrix.needsUpdate=true;if(inst.instanceColor)inst.instanceColor.needsUpdate=true;
   inst.receiveShadow=false;inst.castShadow=false;inst.name='grassTufts';scene.add(inst);
@@ -3140,9 +3183,10 @@ function syncGroundDetail(){
   if(!__tufts)return;
   const lowGfx=typeof SETTINGS!=='undefined'&&SETTINGS.gfx==='low';
   __tufts.inst.visible=!lowGfx;for(const x of __tufts.extra)x.visible=!lowGfx;
-  if(__tufts.ver===__gridVer)return;__tufts.ver=__gridVer;
+  const wv=__wear.ver>>2; // v3.74: trampled tufts flatten (checked ~1/s)
+  if(__tufts.ver===__gridVer&&__tufts.wv===wv)return;__tufts.ver=__gridVer;__tufts.wv=wv;
   const{inst,cells,zero}=__tufts;
-  for(let i=0;i<cells.length;i++){const k=cells[i],cell=grid[k.r]&&grid[k.r][k.c];inst.setMatrixAt(i,cell&&cell.type!=='castle'?zero:k.m)}
+  for(let i=0;i<cells.length;i++){const k=cells[i],cell=grid[k.r]&&grid[k.r][k.c];inst.setMatrixAt(i,cell&&cell.type!=='castle'||wearAt(k.fc,k.fr)>0.4?zero:k.m)}
   inst.instanceMatrix.needsUpdate=true;
 }
 function createBattlefieldDecals(){
@@ -4683,6 +4727,7 @@ function __revealGameOver(){
 }
 
 function restartGame(){
+  wearReset();
   if(gameMode==='1p'&&!__daily)clearCampaignSave(); // a restart starts the campaign over
   enemies.length=0;towers.length=0;projectiles.length=0;spawnQueue1.length=0;spawnQueue2.length=0;
   // Clean 3D meshes
@@ -6384,7 +6429,7 @@ function gameLoop(){
   // sets, so rendering between sim ticks shows the last sim state.
   __batchTick();
   __poolWarmTick(rawDt);
-  __windU.value+=rawDt||0.016;syncGroundDetail();syncSpecMarks();syncRankMarks();
+  __windU.value+=rawDt||0.016;updateWear(rawDt);syncGroundDetail();syncSpecMarks();syncRankMarks();
   if(gameState!=='title'&&gameState!=='paused'){
     syncBuildings();syncTowers();syncEnemies();syncProjectiles();updateCursors();
     updateParticles(rawDt);updateDmgNumbers(rawDt);updateVfx(rawDt);updateSmoke(rawDt);updateCastleFx(rawDt);
