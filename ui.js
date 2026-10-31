@@ -359,6 +359,7 @@ function uiGameOver(winner,score,best,isNewBest,ex){ex=ex||{};
   if(hon)hon.innerHTML=__honBattle.length?`<span class="mk">Honours earned</span> `+__honBattle.map(id=>{const h=HONOURS.find(x=>x.id===id);return `<span class="hb">${uiIcon(h.icon)}${h.name}</span>`}).join(''):'';
   const m1=mvp(1),m2=mvp(2);
   document.getElementById('go-mvp').innerHTML=(m1||m2)?mv(m1,'l')+mv(m2,'r'):'';
+  uiChronicle();
   // v3.58: everything the share card needs, captured at game over
   __shareData={title,kicker,sub,score,best,isNewBest,defeat:gameMode==='1p'&&!p1won&&!draw,
     rows:[['Waves',waveNum],['Keep',Math.max(0,Math.ceil(p1.castleHP))],['Kills',p1.kills],['Damage',Math.round(p1.totalDmgDealt)]],
@@ -373,6 +374,50 @@ function uiGameOver(winner,score,best,isNewBest,ex){ex=ex||{};
   uiNavSet('#gameover-ov .btn');
 }
 
+
+// v3.75: battle chronicle — two small line charts (keeps, net worth) drawn
+// once the overlay is on screen, lines sweeping in left to right.
+function uiChronicle(){
+  const el=document.getElementById('go-chron');if(!el)return;
+  const H=(typeof __chron!=='undefined'?__chron:[]);
+  if(H.length<2){el.innerHTML='';return}
+  const last=H[H.length-1],fmt=v=>v>=10000?(v/1000).toFixed(1)+'k':Math.round(v).toLocaleString();
+  el.innerHTML=`<div class="ch"><div class="ct">Keeps<span><b class="c1">${fmt(last.h1)}</b> \u00B7 <b class="c2">${fmt(last.h2)}</b></span></div><canvas></canvas></div>`+
+    `<div class="ch"><div class="ct">War chest<span><b class="c1">$${fmt(last.g1)}</b> \u00B7 <b class="c2">$${fmt(last.g2)}</b></span></div><canvas></canvas></div>`;
+  // caption: the wave that hurt the local commander most
+  let worst=null;for(let i=1;i<H.length;i++){const d=H[i-1].h1-H[i].h1;if(d>0&&(!worst||d>worst.d))worst={d,w:H[i].w}}
+  const who=gameMode==='1p'?'your keep':'the Blue keep';
+  el.insertAdjacentHTML('beforeend',`<div class="cap">${worst?`Heaviest blow: wave ${worst.w} cost ${who} ${worst.d.toLocaleString()} HP`:`${gameMode==='1p'?'Your':'The Blue'} keep was never breached`}</div>`);
+  const cs=getComputedStyle(document.documentElement),C1=cs.getPropertyValue('--p1').trim()||'#69a0ff',C2=cs.getPropertyValue('--p2').trim()||'#ff6a82';
+  const cv=el.querySelectorAll('canvas');
+  const series=[[H.map(s=>s.h1/s.m1),H.map(s=>s.h2/s.m2),1],[H.map(s=>s.g1),H.map(s=>s.g2),0]];
+  let t0=0,wait=0;
+  (function frame(now){
+    if(!cv[0].isConnected)return;
+    if(!cv[0].clientWidth){if(++wait<900)requestAnimationFrame(frame);return} // overlay not shown yet (the finale beat)
+    if(!t0)t0=now;const k=Math.min(1,(now-t0)/1300),e=1-Math.pow(1-k,3);
+    cv.forEach((c,ci)=>{
+      const dpr=Math.min(2,window.devicePixelRatio||1),w=c.clientWidth,h=c.clientHeight;
+      if(c.width!==Math.round(w*dpr)){c.width=Math.round(w*dpr);c.height=Math.round(h*dpr)}
+      const x=c.getContext('2d');x.setTransform(dpr,0,0,dpr,0,0);x.clearRect(0,0,w,h);
+      const[a,b,frac]=series[ci],mx=frac?1:Math.max(1,...a,...b)*1.08,n=H.length-1,P=4;
+      const X=i=>P+(w-2*P)*i/n,Y=v=>h-P-(h-2*P)*v/mx;
+      x.strokeStyle='rgba(233,220,192,.10)';x.lineWidth=1;
+      for(let g=1;g<4;g++){const y=Math.round(P+(h-2*P)*g/4)+0.5;x.beginPath();x.moveTo(P,y);x.lineTo(w-P,y);x.stroke()}
+      for(let i=0;i<=n;i++){const xx=Math.round(X(i))+0.5;x.fillStyle='rgba(233,220,192,.18)';x.fillRect(xx-0.5,h-P,1,3)}
+      x.save();x.beginPath();x.rect(0,0,P+(w-2*P)*e+1,h);x.clip();
+      for(const[d,col]of[[b,C2],[a,C1]]){
+        x.beginPath();d.forEach((v,i)=>i?x.lineTo(X(i),Y(v)):x.moveTo(X(i),Y(v)));
+        x.lineTo(X(n),h-P);x.lineTo(X(0),h-P);x.closePath();
+        const gr=x.createLinearGradient(0,0,0,h);gr.addColorStop(0,col+'40');gr.addColorStop(1,col+'00');x.fillStyle=gr;x.fill();
+        x.beginPath();d.forEach((v,i)=>i?x.lineTo(X(i),Y(v)):x.moveTo(X(i),Y(v)));
+        x.strokeStyle=col;x.lineWidth=2;x.lineJoin='round';x.shadowColor=col;x.shadowBlur=6;x.stroke();x.shadowBlur=0;
+      }
+      x.restore();
+    });
+    if(k<1)requestAnimationFrame(frame);
+  })(performance.now());
+}
 
 // ==================== v3.37: SETTINGS ====================
 const SETTINGS={music:0.5,sfx:0.8,gfx:'auto',dof:true,shake:true,dmg:true,tips:true,perf:false,v:2};

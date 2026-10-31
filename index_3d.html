@@ -481,6 +481,13 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
 .cmp .bar i{position:absolute;top:0;bottom:0;width:0;transition:width 1.2s var(--ease-out)}
 .cmp .bar.l i{right:0;background:linear-gradient(270deg,var(--p1),var(--p1-d));box-shadow:0 0 8px var(--p1-glow)}
 .cmp .bar.r i{left:0;background:linear-gradient(90deg,var(--p2),var(--p2-d));box-shadow:0 0 8px var(--p2-glow)}
+#go-chron{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:8px}#go-chron:empty{display:none}
+#go-chron .ch{min-width:0}#go-chron .ct{font-family:var(--f-display);font-size:9.5px;letter-spacing:.26em;text-transform:uppercase;color:var(--parch-d);margin-bottom:4px;display:flex;justify-content:space-between}
+#go-chron .ct b{color:var(--parch);font-weight:700;letter-spacing:.12em}
+#go-chron canvas{width:100%;height:58px;display:block}#go-chron .ct b.c1{color:var(--p1)}#go-chron .ct b.c2{color:var(--p2)}
+@media(min-height:860px){#go-chron canvas{height:92px}}
+#go-chron .cap{grid-column:1/-1;font-size:12px;font-style:italic;color:var(--parch-d);text-align:center;margin-top:-4px}
+@media(max-height:560px){#go-chron{gap:10px;margin-top:6px}#go-chron canvas{height:44px}}
 .go-actions{display:flex;justify-content:center;gap:14px;animation:fadeIn .8s 1.5s both}
 .stat-col,.restart-prompt{display:none}
 
@@ -722,7 +729,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
   </div>
   <div class="menu-foot">
     <div class="foot-hints"><span><span class="key">&uarr;</span><span class="key">&darr;</span> Navigate</span><span><span class="key">Enter</span> Select</span><span><span class="key round">A</span> Confirm</span></div>
-    <div class="foot-ver">Castle Siege <b>v3.74</b> &bull; Build 2026-10-24</div>
+    <div class="foot-ver">Castle Siege <b>v3.75</b> &bull; Build 2026-10-24</div>
   </div>
 </div>
 
@@ -948,6 +955,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
       <div class="go-head"><span class="p1c" id="go-p1-name">Player 1</span><span class="p2c" id="go-p2-name">Player 2</span></div>
       <div id="go-cmp"></div>
       <div id="go-mvp"></div>
+      <div id="go-chron"></div>
       <!-- legacy stat fields (kept for compatibility, hidden) -->
       <div class="stat-col"><span id="go-p1-hp"></span><span id="go-p1-kills"></span><span id="go-p1-dmg"></span><span id="go-p1-waves"></span>
         <span id="go-p2-hp"></span><span id="go-p2-kills"></span><span id="go-p2-dmg"></span><span id="go-p2-waves"></span></div>
@@ -4154,6 +4162,7 @@ function startBuild(){
   // v3.15: per-wave credit bonus 200 → 250 (since there are now 10 waves
   // and the enemy curve is tougher late).
   if(waveNum>0){
+    chronSnap(); // v3.75: the state the wave left, before income
     for(const pn of[1,2]){
       const pl=players[pn];
       const interest=interestFor(pl.credits);
@@ -4642,7 +4651,7 @@ function saveCampaign(){
   const cells=[];for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){const x=grid[r][c];if(x&&x.type!=='castle'&&x.type!=='tower')cells.push([c,r,x.type,x.owner,Math.round(x.hp),x.maxHp])}
   const pl=pn=>{const p=players[pn];return{cr:Math.round(p.credits),hp:p.castleHP,mx:p.maxHP,k:p.kills,dd:Math.round(p.totalDmgDealt)}};
   const data={v:1,t:Date.now(),w:waveNum,d:difficulty,e:endless,tp:aiTemper,p:[null,pl(1),pl(2)],cells,
-    towers:towers.map(t=>({ty:t.type,c:t.col,r:t.row,o:t.owner,l:t.level||1,m:t.tmode||0,k:t.kills||0,dd:Math.round(t.dmgDone||0),sp:t.spec||'',sc:t.specCost||0}))};
+    towers:towers.map(t=>({ty:t.type,c:t.col,r:t.row,o:t.owner,l:t.level||1,m:t.tmode||0,k:t.kills||0,dd:Math.round(t.dmgDone||0),sp:t.spec||'',sc:t.specCost||0})),h:__chron};
   try{localStorage.setItem(SAVE_KEY,JSON.stringify(data))}catch(e){}
   if(typeof uiSyncContinue==='function')uiSyncContinue();
 }
@@ -4660,6 +4669,7 @@ function applyCampaignSave(d){
     {const nt=towers[towers.length-1];if(s.sp){nt.spec=s.sp;nt.specCost=s.sc}recomputeTower(nt)}
   }
   markGridDirty();applyTimeOfDay(timeOfDayForWave(waveNum));
+  if(Array.isArray(d.h)&&d.h.length)__chron=d.h.slice();else chronReset();
   __tut.i=-1;uiTutorialHide();
 }
 function continueCampaign(){
@@ -4686,6 +4696,7 @@ function keepWarn(pn){
 }
 
 function showGameOver(){
+  chronSnap();
   if(gameMode==='1p'&&!__daily)clearCampaignSave();
   let winner;
   if(players[1].castleHP<=0&&players[2].castleHP<=0)winner='draw';
@@ -5920,7 +5931,22 @@ const OMEN_NONE={id:'',name:'',desc:''};
 function omenFor(w){if(!isEndless())return OMEN_NONE;if(__daily)return w<2?OMEN_NONE:OMENS[(w*7+dailyHash())%OMENS.length];if(w<=MAX_WAVES)return OMEN_NONE;return OMENS[(w*7+3)%OMENS.length]}
 function curOmen(){return gameState==='combat'?omenFor(waveNum):OMEN_NONE}
 // Starting gold for the AI at the beginning of a campaign match.
-function applyDifficultyStart(){players[2].credits=gameMode==='1p'?Math.round(START_CREDITS*diffProfile().income):START_CREDITS}
+function applyDifficultyStart(){players[2].credits=gameMode==='1p'?Math.round(START_CREDITS*diffProfile().income):START_CREDITS;chronReset()}
+// v3.75: battle chronicle — each side's keep HP and net worth (gold plus
+// everything built) after every wave, charted on the game-over screen.
+let __chron=[];
+function netWorth(pn){
+  let v=players[pn].credits;
+  for(const t of towers)if(t.owner===pn){const td=TOWER_DATA.find(d=>d.id===t.type);v+=td.cost+Math.floor(td.cost*0.6)*((t.level||1)-1)+(t.specCost||0)}
+  for(const row of grid)for(const c of row)if(c&&c.owner===pn)v+=c.type==='wall'?30:c.type==='barricade'?15:0;
+  return Math.round(v);
+}
+function chronSnap(){
+  const p1=players[1],p2=players[2],s={w:waveNum,h1:Math.max(0,Math.round(p1.castleHP)),h2:Math.max(0,Math.round(p2.castleHP)),m1:p1.maxHP,m2:p2.maxHP,g1:netWorth(1),g2:netWorth(2)};
+  if(__chron.length&&__chron[__chron.length-1].w===s.w)__chron[__chron.length-1]=s;else __chron.push(s);
+  if(__chron.length>200)__chron.splice(1,1);
+}
+function chronReset(){__chron=[];chronSnap()}
 
 function aiUpdate(dt){
   const ai=players[2];

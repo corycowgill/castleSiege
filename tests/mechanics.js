@@ -105,6 +105,10 @@ const {chromium}=require('playwright');
     we.flying=true;const w1b=wearAt(wx,wz);for(let k=0;k<60;k++)updateWear(1/60);ok('wear_flyers_none',wearAt(wx,wz)===w1b);
     enemies.length=0;gameState='build';updateWear(10);ok('wear_marching_regrows',w1>0.05&&wearAt(wx,wz)<w1&&wearAt(wx,wz)>0);
     wearReset();ok('wear_reset',wearAt(wx,wz)===0);
+    // --- v3.75 chronicle: snapshot per wave, net worth counts builds, saved with the campaign
+    chronReset();const nw0=netWorth(1);sel('turret');at(4,1);tryPlace(pl,1);ok('networth_counts_builds',netWorth(1)===nw0);
+    waveNum=4;chronSnap();waveNum=5;chronSnap();chronSnap();ok('chron_one_per_wave',__chron.length===3&&__chron[2].w===5);
+    saveCampaign();ok('chron_saved',loadCampaignSave().h.length===3);clearCampaignSave();trySell(pl,1);
     // --- keep warnings fire once per threshold
     pl.castleHP=pl.maxHP*0.45;keepWarn(1);pl.castleHP=pl.maxHP*0.44;keepWarn(1);
     ok('keep_warn_once',pl._warn[0.5]===true&&document.getElementById('callouts').childElementCount===1);
