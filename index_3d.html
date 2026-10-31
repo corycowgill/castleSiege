@@ -729,7 +729,7 @@ html,body,button,a,.clickable,.btn,.menu-item,.build-opt,.spec-btn,.boss-btn,.p2
   </div>
   <div class="menu-foot">
     <div class="foot-hints"><span><span class="key">&uarr;</span><span class="key">&darr;</span> Navigate</span><span><span class="key">Enter</span> Select</span><span><span class="key round">A</span> Confirm</span></div>
-    <div class="foot-ver">Castle Siege <b>v3.75</b> &bull; Build 2026-10-24</div>
+    <div class="foot-ver">Castle Siege <b>v3.76</b> &bull; Build 2026-10-24</div>
   </div>
 </div>
 
@@ -1470,6 +1470,13 @@ function adaptResolution(frameMs){
 let screenShake=0;
 // v3.7: references to the lighting rig so applyTimeOfDay() can drive
 // them. Assigned inside initScene().
+// v3.76: aerial perspective. Linear fog (three's smoothstep falloff) that
+// starts just past the field's centre: the near field stays crisp, the far
+// edge and the hills beyond recede into cool haze. Exp2 at the old 0.005
+// was invisible; denser exp2 greyed the whole board evenly, since it all
+// sits at much the same distance. Range scales with camera zoom.
+const FOG_NEAR=22,FOG_FAR=70;let __fogK=1;
+function applyFogRange(z){if(scene&&scene.fog){scene.fog.near=FOG_NEAR/z;scene.fog.far=FOG_FAR/(z*__fogK)}}
 let __sunLight=null, __hemi=null, __ambient=null, __fill=null, __skyDome=null;
 // v3.10: night sky + weather refs. v3.20: moon removed entirely.
 let __stars=null, __moon=null, __rain=null;
@@ -1486,7 +1493,7 @@ function setCameraZoom(z){
   if(camera){
     const zz=camZoom*(1+__camPunch); // v3.69: brief zoom punch on big moments
     camera.position.set(camFocus.x+CAM_BASE.x,CAM_BASE.y/zz,camFocus.z+CAM_BASE.z/zz);
-    camera.lookAt(camFocus.x,-1,camFocus.z);
+    camera.lookAt(camFocus.x,-1,camFocus.z);applyFogRange(zz);
   }
 }
 function updateCameraFocus(dt){
@@ -1533,7 +1540,7 @@ function initScene(container){
   container.appendChild(renderer.domElement);
 
   scene=new THREE.Scene();
-  scene.fog=new THREE.FogExp2(0xB8D8E8,0.005);
+  scene.fog=new THREE.Fog(0xA9C3DA,FOG_NEAR,FOG_FAR);
 
   camera=new THREE.PerspectiveCamera(55,container.clientWidth/container.clientHeight,0.1,200);
   camZoom=1.0;
@@ -1686,11 +1693,15 @@ function initScene(container){
 const TOD_KEY=[
   // v3.47: midnight gets a cool moon key light (was: no key light at all,
   // units read as silhouettes). `n` drives stars/clouds explicitly.
-  {t:0.00, az:-45, el:55, sC:0xFFF4E0, sI:1.30, hSky:0x87CEEB, hGnd:0x556B2F, hI:0.55, aI:0.30, fog:0xB8D8E8, sky:0xFFFFFF, n:0},   // noon
-  {t:0.25, az:-85, el:6,  sC:0xFF7A28, sI:0.55, hSky:0xC25030, hGnd:0x3A2A1A, hI:0.42, aI:0.28, fog:0xC04828, sky:0xD05A30, n:0.38}, // dusk
-  {t:0.50, az:135, el:42, sC:0x8EA2E0, sI:0.48, hSky:0x2A3470, hGnd:0x10121C, hI:0.26, aI:0.40, fog:0x0A1228, sky:0x1C2E60, n:1},   // midnight (moon)
-  {t:0.75, az:95,  el:6,  sC:0xFF9038, sI:0.60, hSky:0xBD5030, hGnd:0x3A281C, hI:0.44, aI:0.30, fog:0xC04828, sky:0xD06030, n:0.38}, // dawn
-  {t:1.00, az:-45, el:55, sC:0xFFF4E0, sI:1.30, hSky:0x87CEEB, hGnd:0x556B2F, hI:0.55, aI:0.30, fog:0xB8D8E8, sky:0xFFFFFF, n:0},   // noon wrap
+  // v3.76: cooler, deeper palette. Twilights were saturated orange-red
+  // (fog 0xC04828) for 4 of the 10 waves and read muddy; they're now
+  // blue-violet hours with a soft peach sun. Ambient fill is lower so
+  // shadow and form carry the depth, and the hemisphere does the fill.
+  {t:0.00, az:-45, el:55, sC:0xFFF6EC, sI:1.50, hSky:0x9CC6EE, hGnd:0x3E5530, hI:0.58, aI:0.16, fog:0xA9C3DA, sky:0xFFFFFF, n:0},   // noon
+  {t:0.25, az:-85, el:9,  sC:0xFFB88E, sI:0.95, hSky:0x7C80B8, hGnd:0x2C2A2E, hI:0.58, aI:0.21, fog:0x5C6894, sky:0x9C8EC0, n:0.38}, // dusk
+  {t:0.50, az:135, el:42, sC:0x9DB2F2, sI:0.58, hSky:0x2C3C7A, hGnd:0x10141E, hI:0.34, aI:0.28, fog:0x0C1632, sky:0x1C2E60, n:1},   // midnight (moon)
+  {t:0.75, az:95,  el:9,  sC:0xFFC6A2, sI:1.00, hSky:0x88A0CC, hGnd:0x2E302C, hI:0.58, aI:0.21, fog:0x7486AE, sky:0xA8B2D6, n:0.38}, // dawn
+  {t:1.00, az:-45, el:55, sC:0xFFF6EC, sI:1.50, hSky:0x9CC6EE, hGnd:0x3E5530, hI:0.58, aI:0.16, fog:0xA9C3DA, sky:0xFFFFFF, n:0},   // noon wrap
 ];
 function __lerp(a,b,t){return a+(b-a)*t}
 function __lerpHex(a,b,t){
@@ -4101,9 +4112,7 @@ function startWave(){
   if(__rain)__rain.visible=__weatherRain;
   // Fog density bump for misty waves
   if(scene.fog){
-    if(waveNum===2)scene.fog.density=0.009;
-    else if(waveNum===4)scene.fog.density=0.012;
-    else scene.fog.density=0.005;
+    __fogK=waveNum===2?1.35:waveNum===4?1.6:1;applyFogRange(camZoom);
   }
   // Wave start castle particles
   {const cw1=tileToWorld(1,9),cw2=tileToWorld(38,9);
@@ -4754,7 +4763,7 @@ function restartGame(){
   initGrid();markGridDirty();waveNum=0;spawnTimer=0;__simAcc=0;__combatSpeed=1;camFocus.x=0;camFocus.z=0;__finaleFocus=null;__camPunch=0;__slowmo.t=0;__aliveLast=0;
   // v3.27: reset the day/weather cycle back to wave-1 noon.
   applyTimeOfDay(0);__weatherRain=false;if(__rain)__rain.visible=false;
-  if(scene.fog)scene.fog.density=0.005;
+  __fogK=1;applyFogRange(camZoom);
   players[1]._hitT=0;players[2]._hitT=0;players[1]._warn={};players[2]._warn={};
   players[1].castleHP=CASTLE_HP;players[1].maxHP=CASTLE_HP;players[1].credits=START_CREDITS;
   players[1].specials=3;players[1].ready=false;players[1].selectedIdx=0;players[1].kills=0;players[1].totalDmgDealt=0;

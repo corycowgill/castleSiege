@@ -5,7 +5,7 @@
 // The scene renders into a HDR (half-float, MSAA) target. A bright pass
 // is downsampled, blurred twice at 1/4 resolution and added back, then a
 // composite pass applies ACES tone mapping + sRGB (three's own chunks),
-// a split-tone grade (warm highlights / cool shadows), a mild contrast
+// a cool split-tone grade (v3.76: teal shadows, near-neutral highlights), a contrast
 // curve and a vignette.
 //
 // Usage:  const post=createPost(renderer);  post.render(scene,camera);
@@ -72,13 +72,14 @@ function createPost(renderer){
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
         vec3 c=gl_FragColor.rgb;
-        // split-tone grade: cool shadows, warm highlights
+        // split-tone grade: v3.76 cooler — deep teal-blue shadows, only a
+        // trace of warmth left in the highlights
         float l=dot(c,vec3(0.299,0.587,0.114));
-        c+=mix(vec3(-0.012,0.0,0.03),vec3(0.035,0.012,-0.03),smoothstep(0.15,0.85,l));
-        // gentle S-curve contrast
-        c=mix(c,c*c*(3.0-2.0*c),0.22);
+        c+=mix(vec3(-0.018,0.002,0.032),vec3(0.012,0.006,-0.006),smoothstep(0.12,0.85,l));
+        // S-curve contrast, firmer (v3.76: 0.22 -> 0.32) for more depth
+        c=mix(c,c*c*(3.0-2.0*c),0.32);
         // saturation lift
-        l=dot(c,vec3(0.299,0.587,0.114));c=mix(vec3(l),c,1.08);
+        l=dot(c,vec3(0.299,0.587,0.114));c=mix(vec3(l),c,1.1);
         // vignette
         vec2 d=(vUv-0.5)*vec2(uAspect,1.0);
         c*=mix(1.0,0.7,smoothstep(0.45,1.05,length(d)));
